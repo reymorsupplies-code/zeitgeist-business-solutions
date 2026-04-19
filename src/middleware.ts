@@ -1,12 +1,12 @@
 /**
  * ZBS Middleware — Route Protection
  * - Protects all /api/ routes (except public ones)
- * - Validates JWT tokens
+ * - Validates JWT tokens using jose (Edge Runtime compatible)
  * - Adds user context to request headers
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { jwtVerify } from 'jose';
 
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = [
@@ -17,12 +17,24 @@ const PUBLIC_ROUTES = [
   '/api/contact',
   '/api/health',
   '/api/db-init',
+  '/api/debug',
 ];
 
 // Routes that only super admins can access
 const PLATFORM_ROUTES = [
   '/api/platform/',
 ];
+
+async function verifyTokenEdge(token: string): Promise<any | null> {
+  try {
+    const secret = process.env.JWT_SECRET || 'zbs-dev-secret-do-not-use-in-production';
+    const secretKey = new TextEncoder().encode(secret);
+    const { payload } = await jwtVerify(token, secretKey);
+    return payload;
+  } catch {
+    return null;
+  }
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -58,7 +70,7 @@ export async function middleware(request: NextRequest) {
     );
   }
 
-  const payload = verifyToken(token);
+  const payload = await verifyTokenEdge(token);
   if (!payload) {
     return NextResponse.json(
       { error: 'Invalid or expired token', code: 'TOKEN_INVALID' },
@@ -68,7 +80,8 @@ export async function middleware(request: NextRequest) {
 
   // Check platform route access
   if (PLATFORM_ROUTES.some(route => pathname.startsWith(route))) {
-    if (!payload.isSuperAdmin) {
+    const isSuperAdmin = payload.isSuperAdmin === true || payload.role === 'super_admin' || payload.role === 'admin';
+    if (!isSuperAdmin) {
       return NextResponse.json(
         { error: 'Super admin access required', code: 'FORBIDDEN' },
         { status: 403 }
@@ -78,15 +91,15 @@ export async function middleware(request: NextRequest) {
 
   // Add user context to headers for downstream handlers
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-user-id', payload.userId);
-  requestHeaders.set('x-user-email', payload.email);
-  requestHeaders.set('x-user-role', payload.role);
+  requestHeaders.set('x-user-id', payload.userId as string);
+  requestHeaders.set('x-user-email', payload.email as string);
+  requestHeaders.set('x-user-role', payload.role as string);
   requestHeaders.set('x-user-is-super-admin', String(!!payload.isSuperAdmin));
   if (payload.tenantId) {
-    requestHeaders.set('x-tenant-id', payload.tenantId);
+    requestHeaders.set('x-tenant-id', payload.tenantId as string);
   }
   if (payload.tenantRole) {
-    requestHeaders.set('x-tenant-role', payload.tenantRole);
+    requestHeaders.set('x-tenant-role', payload.tenantRole as string);
   }
 
   return NextResponse.next({

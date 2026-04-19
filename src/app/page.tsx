@@ -24,7 +24,8 @@ import {
   Wrench, Landmark, Banknote, CircleDollarSign, TrendingDown, PiggyBank,
   Building, Target, Trophy, BarChart2, FileSpreadsheet, Handshake, UserCheck, FileSearch, File as FileIcon,
   RotateCcw, ArrowRightLeft, BadgeDollarSign, Percent, EyeOff, CalendarDays,
-  Twitter, Linkedin, Instagram, Facebook
+  Twitter, Linkedin, Instagram, Facebook,
+  KeyRound, LogIn
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,8 +44,16 @@ import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 
 // ============ AUTH HELPER ============
+let sessionExpiredHandled = false;
 const authFetch = (url: string, options: any = {}) => {
   const token = useAppStore.getState().token || (typeof window !== 'undefined' ? localStorage.getItem('zbs-token') : null);
+  if (!token) {
+    // No token at all — trigger clean session reset
+    if (!sessionExpiredHandled) {
+      sessionExpiredHandled = true;
+      setTimeout(() => { useAppStore.getState().logout(); sessionExpiredHandled = false; }, 100);
+    }
+  }
   return fetch(url, {
     ...options,
     headers: {
@@ -57,6 +66,17 @@ const authFetch = (url: string, options: any = {}) => {
 // Helper: Fetch JSON with auth and error checking
 const authFetchJSON = async (url: string, options: any = {}) => {
   const res = await authFetch(url, options);
+  // Handle 401 — session expired or invalid token
+  if (res.status === 401 && !sessionExpiredHandled) {
+    sessionExpiredHandled = true;
+    localStorage.removeItem('zbs-token');
+    useAppStore.getState().setToken(null);
+    // Don't logout immediately — let the current page handle gracefully
+    // The session restore will catch this on next load
+    setTimeout(() => { sessionExpiredHandled = false; }, 2000);
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error || 'Session expired. Please log in again.');
+  }
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     throw new Error(data?.error || data?.code || `Request failed (${res.status})`);
@@ -15369,16 +15389,27 @@ function TenantAppView() {
 
 // ============ CT ERROR + LOADING HELPERS ============
 function CTErrorDisplay({ error, onRetry }: { error: string; onRetry: () => void }) {
+  const isAuthError = error?.toLowerCase().includes('token') || error?.toLowerCase().includes('auth') || error?.toLowerCase().includes('session') || error?.toLowerCase().includes('expired') || error?.toLowerCase().includes('login');
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-16 space-y-4">
-      <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-        <AlertTriangle className="w-8 h-8 text-red-500" />
+      <div className={`w-16 h-16 rounded-full flex items-center justify-center ${isAuthError ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+        {isAuthError ? <KeyRound className="w-8 h-8 text-amber-500" /> : <AlertTriangle className="w-8 h-8 text-red-500" />}
       </div>
       <div className="text-center space-y-2">
-        <h3 className="text-lg font-semibold text-red-600 dark:text-red-400">Error loading data</h3>
-        <p className="text-sm text-muted-foreground max-w-md">{error}</p>
+        <h3 className={`text-lg font-semibold ${isAuthError ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+          {isAuthError ? 'Session Expired' : 'Error loading data'}
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-md">{isAuthError ? 'Your session has expired or is invalid. Please log in again to continue.' : error}</p>
       </div>
-      <Button variant="outline" onClick={onRetry} className="gap-2"><RefreshCw className="w-4 h-4" /> Try Again</Button>
+      <div className="flex gap-3">
+        {isAuthError ? (
+          <Button onClick={() => useAppStore.getState().logout()} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white">
+            <LogIn className="w-4 h-4" /> Log In Again
+          </Button>
+        ) : (
+          <Button variant="outline" onClick={onRetry} className="gap-2"><RefreshCw className="w-4 h-4" /> Try Again</Button>
+        )}
+      </div>
     </motion.div>
   );
 }
