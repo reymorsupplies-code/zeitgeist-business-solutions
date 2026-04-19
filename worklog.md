@@ -149,3 +149,26 @@ Stage Summary:
 - i18n now covers: Portal, Auth, CT sidebar (20+ items), CT pages (17+ pages), Tenant sidebar (11 industries), Common UI, Errors
 - EN/ES toggle visible in 3 locations
 - Convention: all new text should use t('section.context.key', locale) 
+
+---
+Task ID: 1-7
+Agent: Super Z (main)
+Task: 7 critical security fixes — immediate implementation
+
+Work Log:
+- Generated 88-char cryptographically random JWT_SECRET with openssl rand -base64 64
+- Blocked /api/db-init, /api/seed, /api/debug (removed from PUBLIC_ROUTES, return 404)
+- Added 7 security headers to ALL responses via middleware (CSP, HSTS, X-Frame-Options, etc.)
+- Applied tenant isolation to 33 tenant PUT/DELETE routes (Prisma + SQL fallback)
+- Created column whitelist for 18 tables in auth.ts (whitelistFields function)
+- Enabled SSL rejectUnauthorized=true in pg-query.ts, login/route.ts, db-init/route.ts
+- Fixed super-admin check to isSuperAdmin === true only in 5 files
+- Created tenant-guard.ts helper module for reusable isolation patterns
+- Removed all hardcoded dev secrets and fallback defaults
+- Disabled NEXT_PUBLIC_SHOW_DEMO
+- Removed hardcoded Supabase project ref
+
+Stage Summary:
+- Commit: 5ded89c pushed to origin/main
+- 44 files changed, 1674 insertions, 634 deletions
+- All 7 requested security fixes implemented and deployed
