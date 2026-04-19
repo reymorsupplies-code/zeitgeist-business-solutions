@@ -2329,7 +2329,7 @@ function CTOverview() {
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20"><LayoutDashboard className="w-5 h-5 text-white" /></div>
-        <div><h1 className="text-2xl font-bold tracking-tight">Centro de Comando</h1><p className="text-sm text-muted-foreground">Platform overview and real-time monitoring</p></div>
+        <div><h1 className="text-2xl font-bold tracking-tight">Command Center</h1><p className="text-sm text-muted-foreground">Platform overview and real-time monitoring</p></div>
       </motion.div>
 
       {/* System Status Banner */}
@@ -2398,7 +2398,7 @@ function CTOverview() {
                     <p className="text-xs text-muted-foreground">MRR: TT${(taxData.revenue?.monthlyTTD || 0).toLocaleString()} | Anual: TT${(taxData.revenue?.annualTTD || 0).toLocaleString()}</p>
                   </div>
                 </div>
-                <Button size="sm" variant="outline" className={`mt-3 w-full ${Object.values(taxData.thresholds).some((t: any) => t.isOver) ? 'border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-400' : 'border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400'}`} onClick={() => setCtPage('tax_compliance')}>Ver Panel Fiscal</Button>
+                <Button size="sm" variant="outline" className={`mt-3 w-full ${Object.values(taxData.thresholds).some((t: any) => t.isOver) ? 'border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-400' : 'border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400'}`} onClick={() => setCtPage('tax_compliance')}>View Tax Panel</Button>
               </CardContent>
             </Card>
           )}
@@ -2450,7 +2450,7 @@ function CTOverview() {
           {/* Trial Funnel + Geo Distribution */}
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Filter className="w-4 h-4 text-primary" />Embudo de Conversión</CardTitle></CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Filter className="w-4 h-4 text-primary" />Conversion Funnel</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   {funnelSteps.map((step, i) => (
@@ -2466,7 +2466,7 @@ function CTOverview() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Globe2 className="w-4 h-4 text-primary" />Distribución Geográfica</CardTitle></CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Globe2 className="w-4 h-4 text-primary" />Geographic Distribution</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-2.5 max-h-56 overflow-y-auto scrollbar-thin">
                   {geoDistribution.map((geo: any) => (
@@ -9218,7 +9218,7 @@ function TenantExpensesPage() {
       {categoryBreakdown.length > 0 && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-base">Distribución por Categoría</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-base">Category Distribution</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {categoryBreakdown.map(c => (
@@ -9568,7 +9568,7 @@ function TenantReportsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-base">Distribución por Categoría</CardTitle></CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-base">Category Distribution</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   {categoryData.map(c => (

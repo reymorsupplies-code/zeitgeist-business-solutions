@@ -33,20 +33,15 @@ export async function POST(req: NextRequest, {params }: { params: Promise<{ tena
   if (!ownership.success) {
     return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
   }
+  const data = await req.json();
   try {
-    const data = await req.json();
     const item = await db.tenantDocument.create({
       data: {
         tenantId,
         name: data.name || '',
         type: data.type || 'Otro',
-        category: data.category || '',
         content: typeof data.content === 'string' ? data.content : JSON.stringify(data.content || {}),
         fileUrl: data.fileUrl || data.fileName || '',
-        issueDate: data.issueDate ? new Date(data.issueDate) : new Date(),
-        expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
-        tags: typeof data.tags === 'string' ? data.tags : JSON.stringify(data.tags || []),
-        notes: data.notes || '',
       }
     });
     return NextResponse.json(item);

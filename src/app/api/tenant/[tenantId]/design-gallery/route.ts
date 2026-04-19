@@ -33,8 +33,10 @@ export async function POST(req: NextRequest, {params }: { params: Promise<{ tena
   if (!ownership.success) {
     return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
   }
+
+  const data = await req.json();
+
   try {
-    const data = await req.json();
     const item = await db.designItem.create({
       data: {
         tenantId,

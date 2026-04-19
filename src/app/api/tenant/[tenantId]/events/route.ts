@@ -3,8 +3,8 @@ import { authenticateRequest, verifyTenantAccess } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { pgQuery, pgQueryOne } from '@/lib/pg-query';
 
-export async function GET(req: NextRequest, {params }: { params: { tenantId: string } }) {
-  const tenantId = params.tenantId;
+export async function GET(req: NextRequest, {params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
@@ -15,13 +15,13 @@ export async function GET(req: NextRequest, {params }: { params: { tenantId: str
   }
 
   try {
-    const items = await db.event.findMany({ where: { tenantId: params.tenantId, isDeleted: false }, orderBy: { createdAt: 'desc' } });
+    const items = await db.event.findMany({ where: { tenantId, isDeleted: false }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json(items);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }
 }
 
-export async function POST(req: NextRequest, {params }: { params: { tenantId: string } }) {
-  const tenantId = params.tenantId;
+export async function POST(req: NextRequest, {params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, {params }: { params: { tenantId: st
 
   try {
     const data = await req.json();
-    const item = await db.event.create({ data: { ...data, tenantId: params.tenantId } });
+    const item = await db.event.create({ data: { ...data, tenantId } });
     return NextResponse.json(item);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }
 }
