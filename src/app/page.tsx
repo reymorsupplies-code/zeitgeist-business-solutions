@@ -861,6 +861,10 @@ function PortalContact() {
       toast.error('Please fill in name, email, and message.');
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
     setSending(true);
     try {
       const res = await authFetch('/api/contact', {
@@ -1711,8 +1715,12 @@ function LoginView() {
         </Card>
         
         <div className="mt-4 text-center">
-          <p className="text-xs text-gray-500">Demo: admin@zeitgeist.business / zeitgeist2026</p>
-          <p className="text-xs text-gray-500">Tenant: demo@bakery.com / demo123</p>
+          {process.env.NEXT_PUBLIC_SHOW_DEMO === 'true' && (
+            <>
+              <p className="text-xs text-gray-500">Demo: admin@zeitgeist.business / zeitgeist2026</p>
+              <p className="text-xs text-gray-500">Tenant: demo@bakery.com / demo123</p>
+            </>
+          )}
         </div>
 
         {/* Forgot Password Dialog */}
@@ -1881,9 +1889,27 @@ function PendingApprovalView() {
 function OnboardingView() {
   const { setView, setUser, setCurrentTenant } = useAppStore() as any;
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ companyName: '', industryId: '', fullName: '', email: '', password: '', plan: 'growth', paymentMethod: 'wipay' });
+  const [form, setForm] = useState({ companyName: '', industryId: '', fullName: '', email: '', password: '', confirmPassword: '', plan: 'growth', paymentMethod: 'wipay' });
   const [loading, setLoading] = useState(false);
   const locale = useAppStore(s => s.locale);
+
+  // Password strength calculation
+  const getPasswordStrength = (pw: string) => {
+    if (!pw) return { score: 0, label: '', color: '' };
+    let score = 0;
+    if (pw.length >= 6) score++;
+    if (pw.length >= 8) score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    if (score <= 2) return { score, label: locale === 'es' ? 'Débil' : 'Weak', color: 'bg-red-500' };
+    if (score <= 3) return { score, label: locale === 'es' ? 'Regular' : 'Fair', color: 'bg-amber-500' };
+    if (score <= 4) return { score, label: locale === 'es' ? 'Buena' : 'Good', color: 'bg-blue-500' };
+    return { score, label: locale === 'es' ? 'Fuerte' : 'Strong', color: 'bg-green-500' };
+  };
+  const pwStrength = getPasswordStrength(form.password);
+  const passwordValid = form.password.length >= 6;
+  const passwordMatch = !form.confirmPassword || form.password === form.confirmPassword;
 
   const handleRegister = async () => {
     setLoading(true);
@@ -1954,10 +1980,24 @@ function OnboardingView() {
                 <h2 className="text-lg font-semibold text-white">Admin Account</h2>
                 <div><Label className="text-gray-300">Full Name *</Label><Input value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} className="bg-white/5 border-white/10 text-white" /></div>
                 <div><Label className="text-gray-300">Email *</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="bg-white/5 border-white/10 text-white" /></div>
-                <div><Label className="text-gray-300">Password *</Label><Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} className="bg-white/5 border-white/10 text-white" /></div>
+                <div>
+                  <Label className="text-gray-300">Password *</Label>
+                  <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} className="bg-white/5 border-white/10 text-white" placeholder={locale === 'es' ? 'Mínimo 6 caracteres' : 'Minimum 6 characters'} />
+                  {form.password && (
+                    <div className="mt-2 space-y-1">
+                      <div className="flex gap-1">{[1,2,3,4,5].map(i => <div key={i} className={`h-1.5 flex-1 rounded-full ${i <= pwStrength.score ? pwStrength.color : 'bg-white/10'}`} />)}</div>
+                      <p className={`text-xs ${pwStrength.score <= 2 ? 'text-red-400' : pwStrength.score <= 3 ? 'text-amber-400' : 'text-green-400'}`}>{pwStrength.label}</p>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Label className="text-gray-300">{locale === 'es' ? 'Confirmar Contraseña *' : 'Confirm Password *'}</Label>
+                  <Input type="password" value={form.confirmPassword} onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value }))} className={`bg-white/5 border-white/10 text-white ${!passwordMatch ? 'border-red-500' : ''}`} />
+                  {!passwordMatch && <p className="text-xs text-red-400 mt-1">{locale === 'es' ? 'Las contraseñas no coinciden' : 'Passwords do not match'}</p>}
+                </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setStep(1)} className="border-white/10 text-white flex-1">Back</Button>
-                  <Button onClick={() => setStep(3)} disabled={!form.fullName || !form.email || !form.password} className="flex-1 bg-gradient-to-r from-blue-700 to-blue-500 text-white">Next <ArrowRight className="w-4 h-4 ml-2" /></Button>
+                  <Button variant="outline" onClick={() => setStep(1)} className="border-white/10 text-white flex-1">{locale === 'es' ? 'Atrás' : 'Back'}</Button>
+                  <Button onClick={() => setStep(3)} disabled={!form.fullName || !form.email || !passwordValid || !passwordMatch} className="flex-1 bg-gradient-to-r from-blue-700 to-blue-500 text-white">Next <ArrowRight className="w-4 h-4 ml-2" /></Button>
                 </div>
               </div>
             )}
@@ -2128,6 +2168,7 @@ function CTSystemStatusBanner({ stats }: { stats: any }) {
 function CTSidebar() {
   const { ctPage, setCtPage, sidebarCollapsed, toggleSidebar, theme, setTheme, logout, user } = useAppStore();
   const [pendingCount, setPendingCount] = useState(0);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     authFetch('/api/platform/stats').then(r => r.json()).then(d => {
@@ -2144,7 +2185,12 @@ function CTSidebar() {
   const initials = (user?.fullName || 'SA').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <aside className={`fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-[72px]' : 'w-[260px]'} bg-card border-r border-border`}>
+    <>
+      <button onClick={() => setMobileOpen(true)} className="fixed top-4 left-4 z-50 md:hidden p-2 rounded-lg bg-card border border-border shadow-lg">
+        <Menu className="w-5 h-5" />
+      </button>
+      {mobileOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileOpen(false)} />}
+      <aside className={`fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-[72px]' : 'w-[260px]'} ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 bg-card border-r border-border`}>
       <div className="h-16 flex items-center px-4 border-b border-border shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/20">
@@ -2216,6 +2262,7 @@ function CTSidebar() {
         </div>
       </div>
     </aside>
+    </>
   );
 }
 
@@ -3512,7 +3559,7 @@ function CTAudit() {
         </Select>
       </motion.div>
 
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : viewMode === 'table' ? (
+      {loading ? <PageSkeleton type="table" /> : viewMode === 'table' ? (
         <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-xl border border-border overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -7526,7 +7573,7 @@ function CTUsersPage() {
   useEffect(() => { load(); }, [load]);
 
   const roleColors: Record<string, string> = { super_admin: 'bg-red-100 text-red-700', platform_admin: 'bg-purple-100 text-purple-700', tenant_admin: 'bg-blue-100 text-blue-700' };
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  if (loading) return <PageSkeleton type="list" />;
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -7558,7 +7605,7 @@ function CTBillingPage() {
 
   const totalAmount = invoices.reduce((s: number, i: any) => s + (i.amountUSD || 0), 0);
   const statusColors: Record<string, string> = { draft: 'bg-gray-100 text-gray-600', sent: 'bg-blue-100 text-blue-700', paid: 'bg-emerald-100 text-emerald-700', overdue: 'bg-red-100 text-red-700' };
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  if (loading) return <PageSkeleton type="list" />;
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -7595,7 +7642,7 @@ function CTSystemEventsPage() {
   useEffect(() => { load(); }, [load]);
 
   const severityColors: Record<string, string> = { info: 'bg-blue-100 text-blue-700', warning: 'bg-amber-100 text-amber-700', error: 'bg-red-100 text-red-700', success: 'bg-emerald-100 text-emerald-700' };
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  if (loading) return <PageSkeleton type="list" />;
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -7644,7 +7691,7 @@ function CTCommsPage() {
     setSending(false);
   };
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  if (loading) return <PageSkeleton type="list" />;
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3"><div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-500 shadow-lg"><Mail className="w-5 h-5 text-white" /></div><div><h1 className="text-2xl font-bold">Communications</h1><p className="text-sm text-muted-foreground">Broadcast center — {tenants.length} active tenants</p></div></div>
@@ -7759,7 +7806,7 @@ function CTModuleRegistryPage() {
     'property-management': ['Property Management', 'Unit Tracking', 'Lease Management', 'Rent Collection', 'Maintenance', 'Owner Reporting', 'Accounting'],
   };
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  if (loading) return <PageSkeleton type="list" />;
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3"><div className="p-2.5 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-500 shadow-lg"><Zap className="w-5 h-5 text-white" /></div><div><h1 className="text-2xl font-bold">Module Registry</h1><p className="text-sm text-muted-foreground">{industries.length} industry modules available</p></div></div>
@@ -7826,7 +7873,8 @@ function ControlTowerView() {
   return (
     <div className="min-h-screen bg-background">
       <CTSidebar />
-      <main className="transition-all duration-300" style={{ marginLeft: sidebarCollapsed ? '72px' : '260px' }}>
+      <main className="transition-all duration-300" style={{ marginLeft: typeof window !== 'undefined' && window.innerWidth < 768 ? 0 : (sidebarCollapsed ? 72 : 260) }}>
+        <div className="h-12 md:hidden" />
         <div className="p-6 lg:p-8 max-w-[1400px] mx-auto">
           <AnimatePresence mode="wait">
             <motion.div key={ctPage} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={{ duration: 0.15 }}>
@@ -8415,6 +8463,7 @@ const PASTELERIA_NAV = [
 
 function TenantSidebar() {
   const { currentTenant, tenantPage, setTenantPage, sidebarCollapsed, toggleSidebar, theme, setTheme, logout, user, bakeryWorkspace, setBakeryWorkspace, currentUserRole, stealthMode } = useAppStore();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const currentIndustry = currentTenant?.industry?.slug || currentTenant?.industryId || 'bakery';
   const industryNavMap: Record<string, typeof BAKERY_NAV> = {
     'bakery': bakeryWorkspace === 'panaderia' ? PANADERIA_NAV : PASTELERIA_NAV,
@@ -8429,9 +8478,23 @@ function TenantSidebar() {
   };
   const navItems = industryNavMap[currentIndustry] || BAKERY_NAV;
 
+  const handleNavClick = (page: string) => {
+    setTenantPage(page);
+    setMobileOpen(false);
+  };
+
   return (
-    <aside className={`fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-[72px]' : 'w-[260px]'} bg-card border-r border-border`}>
-      <div className="h-16 flex items-center px-4 border-b border-border shrink-0">
+    <>
+      {/* Mobile hamburger button */}
+      <button onClick={() => setMobileOpen(true)} className="fixed top-4 left-4 z-50 md:hidden p-2 rounded-lg bg-card border border-border shadow-lg">
+        <Menu className="w-5 h-5" />
+      </button>
+      {/* Mobile overlay */}
+      {mobileOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileOpen(false)} />}
+      <aside className={`fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-[72px]' : 'w-[260px]'} ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 bg-card border-r border-border`}>
+        {/* Close button for mobile */}
+        {mobileOpen && <button onClick={() => setMobileOpen(false)} className="absolute top-4 right-4 md:hidden p-1 rounded-md text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>}
+        <div className="h-16 flex items-center px-4 border-b border-border shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-lg" style={{ background: `linear-gradient(135deg, ${currentTenant?.primaryColor || '#1D4ED8'}, ${currentTenant?.accentColor || '#2563EB'})` }}>
             <span className="text-white text-sm font-bold">{(currentTenant?.name || 'Z')[0]}</span>
@@ -8501,7 +8564,7 @@ function TenantSidebar() {
                   <TooltipProvider key={item.label}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <button onClick={() => { if (item.available) setTenantPage(item.page); else toast.info(item.tier ? `Available on ${item.tier} plan` : 'Coming soon!'); }}
+                        <button onClick={() => { if (item.available) handleNavClick(item.page); else toast.info(item.tier ? `Available on ${item.tier} plan` : 'Coming soon!'); }}
                           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all w-full cursor-pointer ${isActive ? 'bg-primary/15 text-primary font-medium' : !item.available ? 'text-muted-foreground/50' : 'text-muted-foreground hover:bg-muted hover:text-foreground'} ${sidebarCollapsed ? 'justify-center' : ''}`}>
                           <Icon className="w-4 h-4 shrink-0" />
                           {!sidebarCollapsed && (
@@ -8559,6 +8622,7 @@ function TenantSidebar() {
         </div>
       </div>
     </aside>
+    </>
   );
 }
 
@@ -8585,7 +8649,7 @@ function TenantDashboardPage() {
     }
   }, [currentTenant?.id]);
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  if (loading) return <PageSkeleton type="table" />;
 
   const statCards: Record<string, any[]> = {
     bakery: [
@@ -8789,7 +8853,7 @@ function TenantOrdersPage() {
         <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />New Order</Button>
       </div>
       
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : orders.length === 0 ? <EmptyState icon={ShoppingCart} title="No orders yet" description="Create your first order" action="New Order" onAction={() => setShowCreate(true)} /> : (
+      {loading ? <PageSkeleton type="table" /> : orders.length === 0 ? <EmptyState icon={ShoppingCart} title="No orders yet" description="Create your first order" action="New Order" onAction={() => setShowCreate(true)} /> : (
         <DataGrid data={orders} columns={[
           { key: 'orderNumber', label: 'Order #', render: (v: string) => <span className="font-medium">{v}</span> },
           { key: 'clientName', label: 'Client' },
@@ -8908,7 +8972,7 @@ function TenantQuotesPage() {
         </Select>
       </div>
 
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : filtered.length === 0 ? <EmptyState icon={FileText} title="Sin cotizaciones" description="Crea tu primera cotización" action="Nueva Cotización" onAction={() => setShowCreate(true)} /> : (
+      {loading ? <PageSkeleton type="table" /> : filtered.length === 0 ? <EmptyState icon={FileText} title="Sin cotizaciones" description="Crea tu primera cotización" action="Nueva Cotización" onAction={() => setShowCreate(true)} /> : (
         <DataGrid data={filtered} columns={[
           { key: 'quoteNumber', label: '# Cotización', render: (v: string) => <span className="font-medium">{v}</span> },
           { key: 'clientName', label: 'Cliente', render: (v: string) => <span className="font-medium">{v}</span> },
@@ -9041,7 +9105,7 @@ function TenantPaymentsPage() {
         </Select>
       </div>
 
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : filtered.length === 0 ? <EmptyState icon={CreditCard} title="Sin pagos" description="Registra tu primer pago" action="Registrar Pago" onAction={() => setShowCreate(true)} /> : (
+      {loading ? <PageSkeleton type="table" /> : filtered.length === 0 ? <EmptyState icon={CreditCard} title="Sin pagos" description="Registra tu primer pago" action="Registrar Pago" onAction={() => setShowCreate(true)} /> : (
         <DataGrid data={filtered} columns={[
           { key: 'paymentNumber', label: '# Pago', render: (v: string) => <span className="font-medium">{v}</span> },
           { key: 'invoiceNumber', label: 'Factura', render: (v: string) => <Badge variant="secondary">{v}</Badge> },
@@ -9179,7 +9243,7 @@ function TenantExpensesPage() {
         </Select>
       </div>
 
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : filtered.length === 0 ? <EmptyState icon={Receipt} title="Sin gastos" description="Registra tu primer gasto" action="Nuevo Gasto" onAction={() => setShowCreate(true)} /> : (
+      {loading ? <PageSkeleton type="table" /> : filtered.length === 0 ? <EmptyState icon={Receipt} title="Sin gastos" description="Registra tu primer gasto" action="Nuevo Gasto" onAction={() => setShowCreate(true)} /> : (
         <DataGrid data={filtered} columns={[
           { key: 'date', label: 'Fecha', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
           { key: 'description', label: 'Descripción', render: (v: string) => <span className="font-medium">{v}</span> },
@@ -9288,7 +9352,7 @@ function TenantDocumentsPage() {
         </Select>
       </div>
 
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : filtered.length === 0 ? <EmptyState icon={FileText} title="Sin documentos" description="Agrega tu primer documento" action="Nuevo Documento" onAction={() => setShowCreate(true)} /> : (
+      {loading ? <PageSkeleton type="table" /> : filtered.length === 0 ? <EmptyState icon={FileText} title="Sin documentos" description="Agrega tu primer documento" action="Nuevo Documento" onAction={() => setShowCreate(true)} /> : (
         <DataGrid data={filtered} columns={[
           { key: 'name', label: 'Nombre', render: (v: string, row: any) => (
             <div className="flex items-center gap-2">
@@ -9826,7 +9890,7 @@ function TenantClientsPage() {
         <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />Add Client</Button>
       </div>
       
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : clients.length === 0 ? <EmptyState icon={Users} title="No clients yet" description="Add your first client" action="Add Client" onAction={() => setShowCreate(true)} /> : (
+      {loading ? <PageSkeleton type="table" /> : clients.length === 0 ? <EmptyState icon={Users} title="No clients yet" description="Add your first client" action="Add Client" onAction={() => setShowCreate(true)} /> : (
         <DataGrid data={clients} columns={[
           { key: 'name', label: 'Name', render: (v: string) => <span className="font-medium">{v}</span> },
           { key: 'email', label: 'Email' },
@@ -9884,7 +9948,7 @@ function TenantInvoicesPage() {
         <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />New Invoice</Button>
       </div>
       
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : invoices.length === 0 ? <EmptyState icon={Receipt} title="No invoices yet" description="Create your first invoice" action="New Invoice" onAction={() => setShowCreate(true)} /> : (
+      {loading ? <PageSkeleton type="table" /> : invoices.length === 0 ? <EmptyState icon={Receipt} title="No invoices yet" description="Create your first invoice" action="New Invoice" onAction={() => setShowCreate(true)} /> : (
         <DataGrid data={invoices} columns={[
           { key: 'invoiceNumber', label: 'Invoice #', render: (v: string) => <span className="font-medium">{v}</span> },
           { key: 'clientName', label: 'Client' },
@@ -9949,7 +10013,7 @@ function TenantBookkeepingPage() {
         </Card>
       </div>
       
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : (data?.entries || []).length === 0 ? <EmptyState icon={BookOpen} title="No entries yet" description="Entries are auto-created from invoices, payments, and expenses" action="Add Entry" onAction={() => setShowCreate(true)} /> : (
+      {loading ? <PageSkeleton type="table" /> : (data?.entries || []).length === 0 ? <EmptyState icon={BookOpen} title="No entries yet" description="Entries are auto-created from invoices, payments, and expenses" action="Add Entry" onAction={() => setShowCreate(true)} /> : (
         <DataGrid data={data.entries} columns={[
           { key: 'date', label: 'Date', render: (v: string) => new Date(v).toLocaleDateString() },
           { key: 'description', label: 'Description', render: (v: string) => <span className="font-medium">{v}</span> },
@@ -10171,7 +10235,7 @@ function CrudPage({ title, description, icon: Icon, endpoint, columns, fields, d
         <div><h1 className="text-2xl font-bold">{title}</h1><p className="text-sm text-muted-foreground">{description}</p></div>
         <Button onClick={openCreate} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />Add New</Button>
       </div>
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : items.length === 0 ? (
+      {loading ? <PageSkeleton type="table" /> : items.length === 0 ? (
         <EmptyState icon={Icon} title={`No ${title.toLowerCase()} yet`} description={`Start by adding your first entry`} action={`Add ${title}`} onAction={openCreate} />
       ) : <DataGrid data={items} columns={columns} onEdit={openEdit} onDelete={handleDelete} />}
       <Dialog open={showForm} onOpenChange={setShowForm}>
@@ -10505,7 +10569,7 @@ function TenantRecipeCostingPage() {
             <Button onClick={openCreateRecipe} className="bg-gradient-to-r from-blue-700 to-blue-500 whitespace-nowrap"><Plus className="w-4 h-4 mr-2" />Nueva Receta</Button>
           </div>
 
-          {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : filteredRecipes.length === 0 ? (
+          {loading ? <PageSkeleton type="table" /> : filteredRecipes.length === 0 ? (
             <EmptyState icon={ChefHat} title="Sin recetas" description="Crea tu primera receta para calcular costos" action="Nueva Receta" onAction={openCreateRecipe} />
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -10615,7 +10679,7 @@ function TenantRecipeCostingPage() {
             <Button onClick={openCreateIng} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />Nuevo Ingrediente</Button>
           </div>
 
-          {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : ingredients.length === 0 ? (
+          {loading ? <PageSkeleton type="table" /> : ingredients.length === 0 ? (
             <EmptyState icon={Package} title="Sin ingredientes" description="Agrega ingredientes para calcular costos de recetas" action="Nuevo Ingrediente" onAction={openCreateIng} />
           ) : (
             <div className="overflow-x-auto rounded-lg border border-border">
@@ -10843,7 +10907,7 @@ function TenantPOSPage() {
               <Button key={cat} variant={categoryFilter === cat ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter(cat)} className="text-xs">{cat}</Button>
             ))}
           </div>
-          {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : filtered.length === 0 ? <p className="text-center text-muted-foreground py-8">No se encontraron productos</p> : (
+          {loading ? <PageSkeleton type="table" /> : filtered.length === 0 ? <p className="text-center text-muted-foreground py-8">No se encontraron productos</p> : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[55vh] overflow-y-auto">
               {filtered.map((p: any) => (
                 <motion.button key={p.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => addToCart(p)} className="p-3 rounded-xl border text-left hover:border-primary/50 hover:bg-primary/5 transition-all">
@@ -11088,7 +11152,7 @@ function TenantAppointmentsPage() {
         </Select>
       </div>
 
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : filteredItems.length === 0 ? (
+      {loading ? <PageSkeleton type="table" /> : filteredItems.length === 0 ? (
         <EmptyState icon={Calendar} title="Sin citas" description="Reserva tu primera cita" action="Nueva Cita" onAction={openCreate} />
       ) : (
         <>
@@ -11361,7 +11425,7 @@ function TenantProjectsPage() {
         <Card className="p-4"><p className="text-xs text-muted-foreground">Total Gastado</p><p className={`text-2xl font-bold ${totalSpent > totalBudget && totalBudget > 0 ? 'text-red-600' : ''}`}>{formatCurrency(totalSpent, currency)}</p></Card>
       </div>
 
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : items.length === 0 ? (
+      {loading ? <PageSkeleton type="table" /> : items.length === 0 ? (
         <EmptyState icon={Briefcase} title="Sin proyectos" description="Crea tu primer proyecto" action="Nuevo Proyecto" onAction={openCreate} />
       ) : view === 'kanban' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -12384,7 +12448,7 @@ function TenantCostAnalysisPage() {
   }, 0) / Math.max(recipes.filter((r: any) => r.sellingPrice > 0).length, 1) : 0;
   const avgMargin = 100 - avgFoodCost;
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  if (loading) return <PageSkeleton type="table" />;
 
   return (
     <div className="space-y-6">
@@ -13292,7 +13356,7 @@ function TenantStealthFinancePage() {
         </div>
       </div>
 
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : (
+      {loading ? <PageSkeleton type="table" /> : (
         <>
           {/* Main Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -13685,7 +13749,7 @@ function TenantProductionPage() {
             <span className="text-sm text-muted-foreground">{filteredBatches.length} lotes</span>
           </div>
 
-          {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : filteredBatches.length === 0 ? (
+          {loading ? <PageSkeleton type="table" /> : filteredBatches.length === 0 ? (
             <EmptyState icon={ClipboardList} title="Sin lotes de produccion" description="Crea tu primer lote para empezar a planificar" action="Nuevo Lote" onAction={() => setShowNewBatch(true)} />
           ) : (
             <div className="overflow-x-auto rounded-lg border border-border">
@@ -14160,7 +14224,7 @@ function TenantProductionPlansPage() {
       </div>
 
       {/* Plans list */}
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : plans.length === 0 ? (
+      {loading ? <PageSkeleton type="table" /> : plans.length === 0 ? (
         <EmptyState icon={ClipboardList} title="Sin planes de produccion" description="Crea tu primer plan para empezar a planificar la produccion" action="Nuevo Plan" onAction={() => setShowNewPlanDialog(true)} />
       ) : (
         <div className="space-y-3">
@@ -14489,7 +14553,7 @@ function TenantKDSPage() {
     { title: 'Ready', status: 'ready', color: 'from-emerald-500 to-green-600', next: 'completed' },
   ];
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  if (loading) return <PageSkeleton type="table" />;
 
   return (
     <div className="space-y-6">
@@ -14576,7 +14640,7 @@ function TenantCakeMatrixPage() {
           <div><h1 className="text-2xl font-bold">Cake Matrix</h1><p className="text-sm text-muted-foreground">Pricing matrix by size and flavor — click to edit</p></div>
         </div>
       </div>
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : (
+      {loading ? <PageSkeleton type="table" /> : (
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
@@ -14647,7 +14711,7 @@ function TenantSalonClientsPage() {
 
   const filtered = clients.filter((c: any) => !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase()));
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  if (loading) return <PageSkeleton type="table" />;
 
   return (
     <div className="space-y-6">
@@ -14711,7 +14775,7 @@ function TenantMembershipsPage() {
 
   const durationColors: Record<string, string> = { monthly: 'bg-blue-100 text-blue-700', quarterly: 'bg-purple-100 text-purple-700', yearly: 'bg-emerald-100 text-emerald-700' };
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  if (loading) return <PageSkeleton type="table" />;
 
   return (
     <div className="space-y-6">
@@ -14798,7 +14862,7 @@ function TenantGiftCardsPage() {
 
   const statusColors: Record<string, string> = { active: 'bg-emerald-100 text-emerald-700', redeemed: 'bg-gray-100 text-gray-600', expired: 'bg-red-100 text-red-700' };
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  if (loading) return <PageSkeleton type="table" />;
 
   return (
     <div className="space-y-6">
@@ -14887,7 +14951,7 @@ function TenantSalonAnalyticsPage() {
     return { ...s, bookings: count, revenue: count * (s.price || 0) };
   }).sort((a: any, b: any) => b.revenue - a.revenue).slice(0, 5);
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  if (loading) return <PageSkeleton type="table" />;
 
   return (
     <div className="space-y-6">
@@ -14947,7 +15011,7 @@ function TenantPurchaseOrdersPage() {
 
   const statusColors: Record<string, string> = { pending: 'bg-amber-100 text-amber-700', confirmed: 'bg-blue-100 text-blue-700', delivered: 'bg-emerald-100 text-emerald-700', cancelled: 'bg-red-100 text-red-700' };
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  if (loading) return <PageSkeleton type="table" />;
 
   return (
     <div className="space-y-6">
@@ -15004,7 +15068,7 @@ function TenantCateringPage() {
 
   const statusColors: Record<string, string> = { planning: 'bg-amber-100 text-amber-700', confirmed: 'bg-blue-100 text-blue-700', 'in-progress': 'bg-purple-100 text-purple-700', completed: 'bg-emerald-100 text-emerald-700', cancelled: 'bg-red-100 text-red-700' };
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  if (loading) return <PageSkeleton type="table" />;
 
   return (
     <div className="space-y-6">
@@ -15083,7 +15147,7 @@ function TenantBudgetTrackerPage() {
   const totalBudget = eventBudgets.reduce((s: number, e: any) => s + (e.budget || 0), 0);
   const totalSpent = eventBudgets.reduce((s: number, e: any) => s + e.totalSpent, 0);
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  if (loading) return <PageSkeleton type="table" />;
 
   return (
     <div className="space-y-6">
@@ -15154,7 +15218,7 @@ function TenantGuestListsPage() {
 
   const statusColors: Record<string, string> = { pending: 'bg-amber-100 text-amber-700', confirmed: 'bg-emerald-100 text-emerald-700', declined: 'bg-red-100 text-red-700' };
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  if (loading) return <PageSkeleton type="table" />;
 
   return (
     <div className="space-y-6">
@@ -15278,8 +15342,9 @@ function TenantAppView() {
   return (
     <div className="min-h-screen bg-background">
       <TenantSidebar />
-      <main className="transition-all duration-300" style={{ marginLeft: sidebarCollapsed ? '72px' : '260px' }}>
-        {/* Impersonation Banner */}
+      <main className="transition-all duration-300" style={{ marginLeft: typeof window !== 'undefined' && window.innerWidth < 768 ? 0 : (sidebarCollapsed ? 72 : 260) }}>
+        {/* Mobile top padding for hamburger */}
+        <div className="h-12 md:hidden" />
         {viewAsTenant && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="sticky top-0 z-50 bg-gradient-to-r from-amber-500 to-amber-600 text-white px-4 py-2 flex items-center justify-between shadow-lg">
             <div className="flex items-center gap-2 text-sm">
@@ -15318,8 +15383,54 @@ function CTErrorDisplay({ error, onRetry }: { error: string; onRetry: () => void
   );
 }
 
+// ============ SKELETON LOADERS ============
+function PageSkeleton({ type = 'list' }: { type?: 'stats' | 'list' | 'table' | 'dashboard' | 'cards' }) {
+  if (type === 'stats') return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="bg-card border rounded-xl p-4 space-y-3">
+          <div className="h-3 w-20 bg-muted animate-pulse rounded" />
+          <div className="h-7 w-28 bg-muted animate-pulse rounded" />
+          <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+        </div>
+      ))}
+    </div>
+  );
+  if (type === 'table') return (
+    <div className="space-y-3">
+      <div className="flex gap-4 mb-4"><div className="h-9 w-48 bg-muted animate-pulse rounded" /><div className="h-9 w-36 bg-muted animate-pulse rounded" /></div>
+      <div className="bg-card border rounded-lg overflow-hidden">
+        <div className="h-10 bg-muted/50 border-b" />
+        {[...Array(5)].map((_, i) => <div key={i} className="flex items-center gap-4 px-4 py-3 border-b last:border-0"><div className="h-4 w-32 bg-muted animate-pulse rounded" /><div className="h-4 w-24 bg-muted animate-pulse rounded" /><div className="h-4 w-20 bg-muted animate-pulse rounded ml-auto" /></div>)}
+      </div>
+    </div>
+  );
+  if (type === 'dashboard') return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (<div key={i} className="bg-card border rounded-xl p-4 space-y-3"><div className="h-3 w-24 bg-muted animate-pulse rounded" /><div className="h-7 w-32 bg-muted animate-pulse rounded" /></div>))}
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        {[...Array(2)].map((_, i) => (<div key={i} className="bg-card border rounded-xl p-4 h-48"><div className="h-3 w-20 bg-muted animate-pulse rounded mb-4" /><div className="h-full w-full bg-muted/30 rounded animate-pulse" /></div>))}
+      </div>
+      <div className="bg-card border rounded-lg"><div className="h-10 bg-muted/50 border-b" />{[...Array(5)].map((_, i) => <div key={i} className="flex items-center gap-4 px-4 py-3 border-b last:border-0"><div className="h-4 w-36 bg-muted animate-pulse rounded" /><div className="h-4 w-20 bg-muted animate-pulse rounded" /><div className="h-4 w-16 bg-muted animate-pulse rounded ml-auto" /></div>)}</div>
+    </div>
+  );
+  if (type === 'cards') return (
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {[...Array(6)].map((_, i) => (<div key={i} className="bg-card border rounded-xl p-5 space-y-3"><div className="h-5 w-36 bg-muted animate-pulse rounded" /><div className="h-3 w-full bg-muted animate-pulse rounded" /><div className="h-3 w-2/3 bg-muted animate-pulse rounded" /></div>))}
+    </div>
+  );
+  // default: list
+  return (
+    <div className="space-y-3">
+      {[...Array(6)].map((_, i) => (<div key={i} className="bg-card border rounded-lg px-4 py-3 flex items-center gap-4"><div className="h-10 w-10 bg-muted animate-pulse rounded-full" /><div className="flex-1 space-y-2"><div className="h-4 w-40 bg-muted animate-pulse rounded" /><div className="h-3 w-28 bg-muted animate-pulse rounded" /></div></div>))}
+    </div>
+  );
+}
+
 function CTLoading() {
-  return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  return <PageSkeleton type="dashboard" />;
 }
 
 // ============ MAIN APP ============
