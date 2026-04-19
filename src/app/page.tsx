@@ -15129,7 +15129,7 @@ function TenantAppView() {
       case 'projects': return <TenantProjectsPage />;
       case 'time-tracking': return <TenantTimeTrackingPage />;
       case 'contracts': return <TenantContractsPage />;
-      // Placeholder pages for new NAV items
+      // Industry-specific core pages
       case 'inventory': return <TenantInventoryPage />;
       case 'purchase-orders': return <TenantPurchaseOrdersPage />;
       case 'catering': return <TenantCateringPage />;
