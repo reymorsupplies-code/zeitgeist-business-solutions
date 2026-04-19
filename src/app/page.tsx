@@ -44,16 +44,8 @@ import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 
 // ============ AUTH HELPER ============
-let sessionExpiredHandled = false;
 const authFetch = (url: string, options: any = {}) => {
   const token = useAppStore.getState().token || (typeof window !== 'undefined' ? localStorage.getItem('zbs-token') : null);
-  if (!token) {
-    // No token at all — trigger clean session reset
-    if (!sessionExpiredHandled) {
-      sessionExpiredHandled = true;
-      setTimeout(() => { useAppStore.getState().logout(); sessionExpiredHandled = false; }, 100);
-    }
-  }
   return fetch(url, {
     ...options,
     headers: {
@@ -67,13 +59,9 @@ const authFetch = (url: string, options: any = {}) => {
 const authFetchJSON = async (url: string, options: any = {}) => {
   const res = await authFetch(url, options);
   // Handle 401 — session expired or invalid token
-  if (res.status === 401 && !sessionExpiredHandled) {
-    sessionExpiredHandled = true;
+  if (res.status === 401) {
     localStorage.removeItem('zbs-token');
     useAppStore.getState().setToken(null);
-    // Don't logout immediately — let the current page handle gracefully
-    // The session restore will catch this on next load
-    setTimeout(() => { sessionExpiredHandled = false; }, 2000);
     const data = await res.json().catch(() => null);
     throw new Error(data?.error || 'Session expired. Please log in again.');
   }
@@ -15474,18 +15462,18 @@ export default function ZBSApp() {
   useEffect(() => {
     const savedToken = localStorage.getItem('zbs-token');
     if (!savedToken) { setRestoring(false); return; }
+    // Safety timeout: never stay stuck on restoring for more than 5 seconds
+    const safetyTimer = setTimeout(() => { setRestoring(false); }, 5000);
     (async () => {
       try {
-        const res = await authFetch('/api/auth/verify', {
-          headers: { 'Authorization': `Bearer ${savedToken}` }
+        const res = await fetch('/api/auth/verify', {
+          headers: { 'Authorization': `Bearer ${savedToken}`, 'Content-Type': 'application/json' }
         });
         const data = await res.json();
         if (res.ok && data.valid) {
           setToken(savedToken);
           setUser(data);
           if (data.tenant) setCurrentTenant(data.tenant);
-
-          // If user has pending approval status, show pending screen
           if (data.tenant?.status === 'pending_approval') {
             setView('pending_approval');
           } else if (data.isSuperAdmin) {
@@ -15494,13 +15482,15 @@ export default function ZBSApp() {
             setView('tenant_app');
           }
         } else {
-          // Token invalid/expired — clear it
+          // Token invalid/expired — clear it and let user log in fresh
           localStorage.removeItem('zbs-token');
           useAppStore.getState().setToken(null);
         }
       } catch {
-        // Network error on verify — keep token for offline resilience
-      } finally { setRestoring(false); }
+        // Network error on verify — clear stale token to avoid auth loops
+        localStorage.removeItem('zbs-token');
+        useAppStore.getState().setToken(null);
+      } finally { clearTimeout(safetyTimer); setRestoring(false); }
     })();
   }, [setUser, setCurrentTenant, setView, setToken]);
 
