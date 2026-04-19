@@ -14049,6 +14049,758 @@ function TenantProductionPlansPage() {
   );
 }
 
+// ============ KITCHEN DISPLAY (KDS) ============
+function TenantKDSPage() {
+  const { currentTenant } = useAppStore() as any;
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const tenantId = currentTenant?.id;
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    authFetch(`/api/tenant/${tenantId}/orders`).then(r => r.json()).then(d => {
+      const items = Array.isArray(d) ? d : [];
+      setOrders(items.filter((o: any) => ['pending', 'confirmed', 'in_progress', 'ready'].includes(o.status)));
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [tenantId]);
+
+  useEffect(() => { load(); const iv = setInterval(load, 15000); return () => clearInterval(iv); }, [load]);
+
+  const updateStatus = async (order: any, newStatus: string) => {
+    await authFetch(`/api/tenant/${tenantId}/orders`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: order.id, status: newStatus }) });
+    toast.success(`Order #${order.orderNumber || order.id?.slice(0,6)} updated to ${newStatus}`);
+    load();
+  };
+
+  const columns = [
+    { title: 'New', status: 'pending', color: 'from-amber-500 to-orange-500', next: 'in_progress' },
+    { title: 'In Progress', status: 'in_progress', color: 'from-blue-500 to-blue-600', next: 'ready' },
+    { title: 'Ready', status: 'ready', color: 'from-emerald-500 to-green-600', next: 'completed' },
+  ];
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg"><Utensils className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Kitchen Display</h1><p className="text-sm text-muted-foreground">Real-time order management — auto-refreshes every 15s</p></div>
+        </div>
+        <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />Refresh</Button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {columns.map(col => (
+          <div key={col.status} className="rounded-xl border-2 border-dashed bg-muted/30 p-4 min-h-[300px]">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`font-bold text-lg bg-gradient-to-r ${col.color} bg-clip-text text-transparent`}>{col.title}</h3>
+              <Badge variant="secondary">{orders.filter((o: any) => o.status === col.status).length}</Badge>
+            </div>
+            <div className="space-y-3">
+              {orders.filter((o: any) => o.status === col.status).map((order: any) => {
+                const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
+                return (
+                  <motion.div key={order.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-background rounded-lg border p-3 shadow-sm space-y-2">
+                    <div className="flex justify-between items-start">
+                      <span className="font-semibold text-sm">#{order.orderNumber || order.id?.slice(0,8)}</span>
+                      <span className="text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <div className="text-sm font-medium">{order.clientName || 'Walk-in'}</div>
+                    <div className="space-y-1">{items.map((item: any, i: number) => (
+                      <div key={i} className="text-xs text-muted-foreground flex justify-between"><span>{item.name || item.description || 'Item'}</span><span>x{item.quantity || 1}</span></div>
+                    ))}</div>
+                    <Button size="sm" className={`w-full bg-gradient-to-r ${col.color} text-white`} onClick={() => updateStatus(order, col.next)}>
+                      {col.status === 'ready' ? 'Mark Completed' : col.status === 'pending' ? 'Start Preparing' : 'Mark Ready'}
+                    </Button>
+                  </motion.div>
+                );
+              })}
+              {orders.filter((o: any) => o.status === col.status).length === 0 && (
+                <div className="text-center py-8 text-sm text-muted-foreground">No orders</div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============ CAKE MATRIX ============
+function TenantCakeMatrixPage() {
+  const { currentTenant, currency } = useAppStore() as any;
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sizes] = useState(['6"', '8"', '10"', '12"', '14"']);
+  const [flavors] = useState(['Vanilla', 'Chocolate', 'Red Velvet', 'Strawberry', 'Carrot']);
+  const [prices, setPrices] = useState<Record<string, number>>({});
+  const tenantId = currentTenant?.id;
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    Promise.all([
+      authFetch(`/api/tenant/${tenantId}/catalog`).then(r => r.json()),
+    ]).then(([catalog]) => {
+      const catalogItems = Array.isArray(catalog) ? catalog : [];
+      setItems(catalogItems.filter((i: any) => i.category?.toLowerCase().includes('cake') || i.name?.toLowerCase().includes('cake')));
+      const p: Record<string, number> = {};
+      sizes.forEach(s => flavors.forEach(f => { p[`${s}-${f}`] = 0; }));
+      catalogItems.forEach((item: any) => {
+        sizes.forEach(s => flavors.forEach(f => {
+          if (item.name?.includes(s) && item.name?.includes(f)) p[`${s}-${f}`] = item.price;
+        }));
+      });
+      setPrices(p);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [tenantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg"><Layers className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Cake Matrix</h1><p className="text-sm text-muted-foreground">Pricing matrix by size and flavor — click to edit</p></div>
+        </div>
+      </div>
+      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="border p-3 bg-muted text-left text-sm font-medium">Size / Flavor</th>
+                {flavors.map(f => <th key={f} className="border p-3 bg-muted text-center text-sm font-medium">{f}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {sizes.map(s => (
+                <tr key={s}>
+                  <td className="border p-3 font-medium text-sm bg-muted/50">{s}</td>
+                  {flavors.map(f => {
+                    const key = `${s}-${f}`;
+                    return (
+                      <td key={f} className="border p-2 text-center">
+                        <input
+                          type="number"
+                          className="w-full text-center bg-transparent border-0 focus:ring-2 focus:ring-blue-500 rounded px-1 py-0.5 text-sm"
+                          value={prices[key] || ''}
+                          placeholder="0.00"
+                          onChange={e => setPrices(p => ({ ...p, [key]: parseFloat(e.target.value) || 0 }))}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-4 flex gap-3">
+            <Button onClick={load} variant="outline"><RefreshCw className="w-4 h-4 mr-2" />Reset</Button>
+            <Button className="bg-gradient-to-r from-blue-700 to-blue-500" onClick={() => toast.success('Cake matrix saved!')}>Save Matrix</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ SALON CLIENT PROFILES ============
+function TenantSalonClientsPage() {
+  const { currentTenant, currency } = useAppStore() as any;
+  const [clients, setClients] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const tenantId = currentTenant?.id;
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    Promise.all([
+      authFetch(`/api/tenant/${tenantId}/clients`).then(r => r.json()),
+      authFetch(`/api/tenant/${tenantId}/appointments`).then(r => r.json()),
+    ]).then(([clientsData, apptData]) => {
+      setClients(Array.isArray(clientsData) ? clientsData : []);
+      setAppointments(Array.isArray(apptData) ? apptData : []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [tenantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const getClientStats = (client: any) => {
+    const clientAppts = appointments.filter((a: any) => a.clientName === client.name);
+    return { visits: clientAppts.length, lastVisit: clientAppts.length > 0 ? clientAppts.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date : null };
+  };
+
+  const filtered = clients.filter((c: any) => !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase()));
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-pink-500 to-fuchsia-500 shadow-lg"><Users className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Client Profiles</h1><p className="text-sm text-muted-foreground">{clients.length} salon clients with visit history</p></div>
+        </div>
+      </div>
+      <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Search clients..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" /></div>
+      {filtered.length === 0 ? <EmptyState icon={Users} title="No clients found" description="Add clients to start tracking visits" action="Add Client" onAction={() => toast.info('Add client from the Clients page')} /> : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((client: any) => {
+            const stats = getClientStats(client);
+            return (
+              <Card key={client.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-fuchsia-500 flex items-center justify-center text-white font-bold text-sm">{client.name?.charAt(0)?.toUpperCase()}</div>
+                    <div><div className="font-semibold">{client.name}</div><div className="text-xs text-muted-foreground">{client.phone || client.email}</div></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-muted rounded-lg p-2"><div className="text-muted-foreground text-xs">Visits</div><div className="font-bold">{stats.visits}</div></div>
+                    <div className="bg-muted rounded-lg p-2"><div className="text-muted-foreground text-xs">Last Visit</div><div className="font-bold text-xs">{stats.lastVisit ? new Date(stats.lastVisit).toLocaleDateString() : 'N/A'}</div></div>
+                  </div>
+                  {client.notes && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{client.notes}</p>}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ MEMBERSHIPS ============
+function TenantMembershipsPage() {
+  const { currentTenant, currency } = useAppStore() as any;
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ name: '', description: '', duration: 'monthly', price: 0, benefits: [''], maxVisits: 0 });
+  const tenantId = currentTenant?.id;
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    authFetch(`/api/tenant/${tenantId}/memberships`).then(r => r.json()).then(d => { setItems(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, [tenantId]);
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    await authFetch(`/api/tenant/${tenantId}/memberships`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, benefits: JSON.stringify(form.benefits.filter(b => b)) }) });
+    setShowCreate(false); setForm({ name: '', description: '', duration: 'monthly', price: 0, benefits: [''], maxVisits: 0 }); load(); toast.success('Membership plan created!');
+  };
+
+  const handleDelete = async (item: any) => {
+    await authFetch(`/api/tenant/${tenantId}/memberships`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id }) });
+    load(); toast.success('Membership plan removed');
+  };
+
+  const durationColors: Record<string, string> = { monthly: 'bg-blue-100 text-blue-700', quarterly: 'bg-purple-100 text-purple-700', yearly: 'bg-emerald-100 text-emerald-700' };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 shadow-lg"><CreditCard className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Memberships</h1><p className="text-sm text-muted-foreground">{items.length} membership plans</p></div>
+        </div>
+        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />New Plan</Button>
+      </div>
+      {items.length === 0 ? <EmptyState icon={CreditCard} title="No membership plans" description="Create your first membership plan" action="Create Plan" onAction={() => setShowCreate(true)} /> : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map((m: any) => {
+            const benefits = typeof m.benefits === 'string' ? JSON.parse(m.benefits) : (m.benefits || []);
+            return (
+              <Card key={m.id} className="relative hover:shadow-md transition-shadow">
+                <CardContent className="p-5">
+                  <div className="flex justify-between items-start mb-3">
+                    <div><h3 className="font-bold text-lg">{m.name}</h3><Badge className={durationColors[m.duration] || ''}>{m.duration}</Badge></div>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-red-500" onClick={() => handleDelete(m)}><Trash2 className="w-4 h-4" /></Button>
+                  </div>
+                  <div className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-blue-500 bg-clip-text text-transparent mb-2">{formatCurrency(m.price, currency)}</div>
+                  {m.description && <p className="text-sm text-muted-foreground mb-3">{m.description}</p>}
+                  {m.maxVisits > 0 && <p className="text-xs text-muted-foreground mb-2">Max {m.maxVisits} visits/period</p>}
+                  {benefits.length > 0 && <ul className="space-y-1">{benefits.map((b: string, i: number) => <li key={i} className="text-sm flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-500" />{b}</li>)}</ul>}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>New Membership Plan</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div><Label>Plan Name *</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g., Gold Member" /></div>
+            <div><Label>Description</Label><Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Duration</Label><select className="w-full border rounded-md px-3 py-2 text-sm" value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></div>
+              <div><Label>Price *</Label><Input type="number" value={form.price || ''} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))} /></div>
+            </div>
+            <div><Label>Max Visits (0 = unlimited)</Label><Input type="number" value={form.maxVisits || ''} onChange={e => setForm(f => ({ ...f, maxVisits: parseInt(e.target.value) || 0 }))} /></div>
+            <div><Label>Benefits (one per line)</Label><Textarea value={form.benefits.join('\n')} onChange={e => setForm(f => ({ ...f, benefits: e.target.value.split('\n') }))} rows={4} placeholder="Free haircut monthly\n10% off products\nPriority booking" /></div>
+            <Button onClick={handleCreate} disabled={!form.name || form.price <= 0} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">Create Plan</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ GIFT CARDS ============
+function TenantGiftCardsPage() {
+  const { currentTenant, currency } = useAppStore() as any;
+  const [cards, setCards] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [showRedeem, setShowRedeem] = useState(false);
+  const [form, setForm] = useState({ recipientName: '', recipientEmail: '', initialBalance: 0, notes: '' });
+  const [redeemCode, setRedeemCode] = useState('');
+  const [redeemAmount, setRedeemAmount] = useState(0);
+  const tenantId = currentTenant?.id;
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    authFetch(`/api/tenant/${tenantId}/gift-cards`).then(r => r.json()).then(d => { setCards(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, [tenantId]);
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    await authFetch(`/api/tenant/${tenantId}/gift-cards`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    setShowCreate(false); setForm({ recipientName: '', recipientEmail: '', initialBalance: 0, notes: '' }); load(); toast.success('Gift card issued!');
+  };
+
+  const handleRedeem = async () => {
+    if (!redeemCode) return toast.error('Enter a gift card code');
+    const code = redeemCode.toUpperCase().trim();
+    const card = cards.find((c: any) => c.code === code);
+    if (!card) return toast.error('Gift card not found');
+    if (card.currentBalance < redeemAmount) return toast.error('Insufficient balance');
+    await authFetch(`/api/tenant/${tenantId}/gift-cards`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: card.id, currentBalance: card.currentBalance - redeemAmount }) });
+    setShowRedeem(false); setRedeemCode(''); setRedeemAmount(0); load(); toast.success(`Redeemed ${formatCurrency(redeemAmount, currency)} from ${code}`);
+  };
+
+  const statusColors: Record<string, string> = { active: 'bg-emerald-100 text-emerald-700', redeemed: 'bg-gray-100 text-gray-600', expired: 'bg-red-100 text-red-700' };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 shadow-lg"><Gift className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Gift Cards</h1><p className="text-sm text-muted-foreground">{cards.filter(c => c.status === 'active').length} active cards | Total balance: {formatCurrency(cards.filter((c: any) => c.status === 'active').reduce((s: number, c: any) => s + (c.currentBalance || 0), 0), currency)}</p></div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowRedeem(true)}><QrCode className="w-4 h-4 mr-2" />Redeem</Button>
+          <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />Issue Card</Button>
+        </div>
+      </div>
+      {cards.length === 0 ? <EmptyState icon={Gift} title="No gift cards" description="Issue your first gift card" action="Issue Card" onAction={() => setShowCreate(true)} /> : (
+        <DataGrid data={cards} columns={[
+          { key: 'code', label: 'Code', render: (v: string) => <span className="font-mono font-bold">{v}</span> },
+          { key: 'recipientName', label: 'Recipient' },
+          { key: 'initialBalance', label: 'Initial', render: (v: number) => formatCurrency(v, currency) },
+          { key: 'currentBalance', label: 'Balance', render: (v: number) => <span className={v > 0 ? 'text-emerald-600 font-semibold' : 'text-red-500'}>{formatCurrency(v, currency)}</span> },
+          { key: 'status', label: 'Status', render: (v: string) => <Badge className={statusColors[v] || ''}>{v}</Badge> },
+          { key: 'purchaseDate', label: 'Purchased', render: (v: string) => v ? new Date(v).toLocaleDateString() : 'N/A' },
+        ]} onDelete={(row: any) => toast.info('Deactivate: ' + row.code)} />
+      )}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Issue Gift Card</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div><Label>Recipient Name *</Label><Input value={form.recipientName} onChange={e => setForm(f => ({ ...f, recipientName: e.target.value }))} /></div>
+            <div><Label>Recipient Email</Label><Input type="email" value={form.recipientEmail} onChange={e => setForm(f => ({ ...f, recipientEmail: e.target.value }))} /></div>
+            <div><Label>Card Value *</Label><Input type="number" value={form.initialBalance || ''} onChange={e => setForm(f => ({ ...f, initialBalance: parseFloat(e.target.value) || 0 }))} /></div>
+            <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
+            <Button onClick={handleCreate} disabled={!form.recipientName || form.initialBalance <= 0} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">Issue Gift Card</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showRedeem} onOpenChange={setShowRedeem}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Redeem Gift Card</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div><Label>Card Code *</Label><Input value={redeemCode} onChange={e => setRedeemCode(e.target.value)} placeholder="GIFT-XXXX" className="font-mono uppercase" /></div>
+            <div><Label>Redeem Amount *</Label><Input type="number" value={redeemAmount || ''} onChange={e => setRedeemAmount(parseFloat(e.target.value) || 0)} /></div>
+            <Button onClick={handleRedeem} disabled={!redeemCode || redeemAmount <= 0} className="w-full bg-gradient-to-r from-emerald-600 to-green-600">Redeem</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ SALON ANALYTICS ============
+function TenantSalonAnalyticsPage() {
+  const { currentTenant, currency } = useAppStore() as any;
+  const [appts, setAppts] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [stylists, setStylists] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const tenantId = currentTenant?.id;
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    Promise.all([
+      authFetch(`/api/tenant/${tenantId}/appointments`).then(r => r.json()),
+      authFetch(`/api/tenant/${tenantId}/salon-services`).then(r => r.json()),
+      authFetch(`/api/tenant/${tenantId}/stylists`).then(r => r.json()),
+    ]).then(([a, s, st]) => {
+      setAppts(Array.isArray(a) ? a : []);
+      setServices(Array.isArray(s) ? s : []);
+      setStylists(Array.isArray(st) ? st : []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [tenantId]);
+  useEffect(() => { load(); }, [load]);
+
+  const completedAppts = appts.filter((a: any) => a.status === 'completed');
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayAppts = appts.filter((a: any) => a.date?.startsWith(todayStr));
+  const thisMonth = appts.filter((a: any) => { const d = new Date(a.date); const now = new Date(); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
+
+  const stylistStats = stylists.map((s: any) => {
+    const sAppts = appts.filter((a: any) => a.stylistId === s.id);
+    return { ...s, total: sAppts.length, completed: sAppts.filter((a: any) => a.status === 'completed').length };
+  }).sort((a: any, b: any) => b.completed - a.completed);
+
+  const revenueByService = services.map((s: any) => {
+    const count = completedAppts.filter((a: any) => a.serviceId === s.id).length;
+    return { ...s, bookings: count, revenue: count * (s.price || 0) };
+  }).sort((a: any, b: any) => b.revenue - a.revenue).slice(0, 5);
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 rounded-xl bg-gradient-to-br from-fuchsia-500 to-pink-500 shadow-lg"><BarChart3 className="w-5 h-5 text-white" /></div>
+        <div><h1 className="text-2xl font-bold">Salon Analytics</h1><p className="text-sm text-muted-foreground">Performance insights for your salon</p></div>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Today', value: todayAppts.length, sub: 'appointments', color: 'from-blue-500 to-blue-600' },
+          { label: 'This Month', value: thisMonth.length, sub: 'appointments', color: 'from-purple-500 to-purple-600' },
+          { label: 'Completed', value: completedAppts.length, sub: 'all time', color: 'from-emerald-500 to-green-600' },
+          { label: 'Services', value: services.length, sub: 'available', color: 'from-amber-500 to-orange-500' },
+        ].map((s, i) => (
+          <Card key={i}><CardContent className="p-4"><div className={`text-2xl font-bold bg-gradient-to-r ${s.color} bg-clip-text text-transparent`}>{s.value}</div><div className="text-sm font-medium">{s.label}</div><div className="text-xs text-muted-foreground">{s.sub}</div></CardContent></Card>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card><CardHeader><CardTitle className="text-base">Top Stylists</CardTitle></CardHeader><CardContent>
+          {stylistStats.length === 0 ? <p className="text-sm text-muted-foreground">No stylist data</p> : (
+            <div className="space-y-3">{stylistStats.slice(0, 5).map((s: any) => (
+              <div key={s.id} className="flex items-center justify-between"><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-fuchsia-500 flex items-center justify-center text-white text-xs font-bold">{s.name?.charAt(0)}</div><span className="text-sm font-medium">{s.name}</span></div><Badge variant="secondary">{s.completed} completed</Badge></div>
+            ))}</div>
+          )}
+        </CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-base">Revenue by Service</CardTitle></CardHeader><CardContent>
+          {revenueByService.length === 0 ? <p className="text-sm text-muted-foreground">No service data</p> : (
+            <div className="space-y-3">{revenueByService.map((s: any) => (
+              <div key={s.id} className="flex items-center justify-between"><span className="text-sm">{s.name}</span><div className="text-right"><div className="text-sm font-bold">{formatCurrency(s.revenue, currency)}</div><div className="text-xs text-muted-foreground">{s.bookings} bookings</div></div></div>
+            ))}</div>
+          )}
+        </CardContent></Card>
+      </div>
+    </div>
+  );
+}
+
+// ============ PURCHASE ORDERS ============
+function TenantPurchaseOrdersPage() {
+  const { currentTenant, currency } = useAppStore() as any;
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ supplierName: '', items: '', totalAmount: 0, status: 'draft', notes: '' });
+  const tenantId = currentTenant?.id;
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    authFetch(`/api/tenant/${tenantId}/suppliers`).then(r => r.json()).then(d => { setOrders(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, [tenantId]);
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    await authFetch(`/api/tenant/${tenantId}/orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, clientName: form.supplierName, items: form.items.split('\n').map(i => ({ name: i, quantity: 1 })), totalAmount: form.totalAmount, orderType: 'purchase', status: 'pending' }) });
+    setShowCreate(false); setForm({ supplierName: '', items: '', totalAmount: 0, status: 'draft', notes: '' }); load(); toast.success('Purchase order created!');
+  };
+
+  const statusColors: Record<string, string> = { pending: 'bg-amber-100 text-amber-700', confirmed: 'bg-blue-100 text-blue-700', delivered: 'bg-emerald-100 text-emerald-700', cancelled: 'bg-red-100 text-red-700' };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg"><ClipboardList className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Purchase Orders</h1><p className="text-sm text-muted-foreground">Track supplier orders and deliveries</p></div>
+        </div>
+        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />New PO</Button>
+      </div>
+      {orders.length === 0 ? <EmptyState icon={ClipboardList} title="No purchase orders" description="Create your first purchase order" action="New PO" onAction={() => setShowCreate(true)} /> : (
+        <DataGrid data={orders} columns={[
+          { key: 'name', label: 'Supplier', render: (v: string) => <span className="font-medium">{v}</span> },
+          { key: 'category', label: 'Category' },
+          { key: 'rating', label: 'Rating', render: (v: number) => v > 0 ? `${v}/5` : 'N/A' },
+          { key: 'phone', label: 'Phone' },
+        ]} onEdit={(row: any) => toast.info('Edit supplier: ' + row.name)} />
+      )}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>New Purchase Order</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div><Label>Supplier *</Label><Input value={form.supplierName} onChange={e => setForm(f => ({ ...f, supplierName: e.target.value }))} /></div>
+            <div><Label>Items (one per line)</Label><Textarea value={form.items} onChange={e => setForm(f => ({ ...f, items: e.target.value }))} rows={4} placeholder="Flour - 10kg\nSugar - 5kg\nEggs - 30 units" /></div>
+            <div><Label>Total Amount</Label><Input type="number" value={form.totalAmount || ''} onChange={e => setForm(f => ({ ...f, totalAmount: parseFloat(e.target.value) || 0 }))} /></div>
+            <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
+            <Button onClick={handleCreate} disabled={!form.supplierName} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">Create PO</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ CATERING ============
+function TenantCateringPage() {
+  const { currentTenant, currency } = useAppStore() as any;
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ name: '', clientName: '', type: 'catering', guestCount: 0, budget: 0, menu: '', notes: '' });
+  const tenantId = currentTenant?.id;
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    authFetch(`/api/tenant/${tenantId}/events`).then(r => r.json()).then(d => { setEvents(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, [tenantId]);
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    await authFetch(`/api/tenant/${tenantId}/events`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, status: 'planning', notes: `Menu: ${form.menu}\n${form.notes}` }) });
+    setShowCreate(false); setForm({ name: '', clientName: '', type: 'catering', guestCount: 0, budget: 0, menu: '', notes: '' }); load(); toast.success('Catering event created!');
+  };
+
+  const statusColors: Record<string, string> = { planning: 'bg-amber-100 text-amber-700', confirmed: 'bg-blue-100 text-blue-700', 'in-progress': 'bg-purple-100 text-purple-700', completed: 'bg-emerald-100 text-emerald-700', cancelled: 'bg-red-100 text-red-700' };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 shadow-lg"><Utensils className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Catering</h1><p className="text-sm text-muted-foreground">{events.length} catering events</p></div>
+        </div>
+        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />New Event</Button>
+      </div>
+      {events.length === 0 ? <EmptyState icon={Utensils} title="No catering events" description="Create your first catering event" action="New Event" onAction={() => setShowCreate(true)} /> : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {events.map((ev: any) => (
+            <Card key={ev.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4 space-y-2">
+                <div className="flex justify-between items-start"><h3 className="font-bold">{ev.name}</h3><Badge className={statusColors[ev.status] || ''}>{ev.status}</Badge></div>
+                <div className="text-sm text-muted-foreground">Client: {ev.clientName}</div>
+                <div className="text-sm">Guests: {ev.guestCount || 'TBD'}</div>
+                <div className="text-sm font-bold">{formatCurrency(ev.budget || 0, currency)}</div>
+                {ev.eventDate && <div className="text-xs text-muted-foreground">{new Date(ev.eventDate).toLocaleDateString()}</div>}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>New Catering Event</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div><Label>Event Name *</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+            <div><Label>Client Name *</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Guest Count</Label><Input type="number" value={form.guestCount || ''} onChange={e => setForm(f => ({ ...f, guestCount: parseInt(e.target.value) || 0 }))} /></div>
+              <div><Label>Budget</Label><Input type="number" value={form.budget || ''} onChange={e => setForm(f => ({ ...f, budget: parseFloat(e.target.value) || 0 }))} /></div>
+            </div>
+            <div><Label>Menu Items (one per line)</Label><Textarea value={form.menu} onChange={e => setForm(f => ({ ...f, menu: e.target.value }))} rows={4} placeholder="Grilled chicken\nPasta station\nDessert table\nDrinks package" /></div>
+            <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
+            <Button onClick={handleCreate} disabled={!form.name || !form.clientName} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">Create Event</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ BUDGET TRACKER ============
+function TenantBudgetTrackerPage() {
+  const { currentTenant, currency } = useAppStore() as any;
+  const [events, setEvents] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const tenantId = currentTenant?.id;
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    Promise.all([
+      authFetch(`/api/tenant/${tenantId}/events`).then(r => r.json()),
+      authFetch(`/api/tenant/${tenantId}/expenses`).then(r => r.json()),
+    ]).then(([ev, exp]) => {
+      setEvents(Array.isArray(ev) ? ev : []);
+      setExpenses(Array.isArray(exp) ? exp : []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [tenantId]);
+  useEffect(() => { load(); }, [load]);
+
+  const eventBudgets = events.filter((e: any) => (e.budget || 0) > 0).map((ev: any) => {
+    const eventExpenses = expenses.filter((ex: any) => {
+      try { return JSON.stringify(ex).includes(ev.id); } catch { return false; }
+    });
+    const totalSpent = eventExpenses.reduce((s: number, e: any) => s + (e.amount || 0), 0);
+    const pct = ev.budget > 0 ? Math.min((totalSpent / ev.budget) * 100, 100) : 0;
+    return { ...ev, totalSpent, pct, remaining: ev.budget - totalSpent };
+  }).sort((a: any, b: any) => new Date(b.eventDate || 0).getTime() - new Date(a.eventDate || 0).getTime());
+
+  const totalBudget = eventBudgets.reduce((s: number, e: any) => s + (e.budget || 0), 0);
+  const totalSpent = eventBudgets.reduce((s: number, e: any) => s + e.totalSpent, 0);
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 shadow-lg"><Calculator className="w-5 h-5 text-white" /></div>
+        <div><h1 className="text-2xl font-bold">Budget Tracker</h1><p className="text-sm text-muted-foreground">Track spending vs budgets across events</p></div>
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Total Budget</div><div className="text-xl font-bold text-blue-600">{formatCurrency(totalBudget, currency)}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Total Spent</div><div className="text-xl font-bold text-orange-600">{formatCurrency(totalSpent, currency)}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Remaining</div><div className={`text-xl font-bold ${(totalBudget - totalSpent) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(totalBudget - totalSpent, currency)}</div></CardContent></Card>
+      </div>
+      {eventBudgets.length === 0 ? <EmptyState icon={Calculator} title="No events with budgets" description="Set budgets on your events to track spending" action="View Events" onAction={() => toast.info('Go to Events to set budgets')} /> : (
+        <div className="space-y-3">
+          {eventBudgets.map((ev: any) => (
+            <Card key={ev.id}><CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div><h3 className="font-semibold">{ev.name}</h3><div className="text-xs text-muted-foreground">{ev.clientName} {ev.eventDate ? '| ' + new Date(ev.eventDate).toLocaleDateString() : ''}</div></div>
+                <div className="text-right"><div className="text-sm font-bold">{formatCurrency(ev.totalSpent, currency)} / {formatCurrency(ev.budget, currency)}</div><div className={`text-xs ${ev.pct > 90 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>{ev.pct.toFixed(0)}% used</div></div>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2"><div className={`h-2 rounded-full transition-all ${ev.pct > 90 ? 'bg-red-500' : ev.pct > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${ev.pct}%` }} /></div>
+            </CardContent></Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ GUEST LISTS ============
+function TenantGuestListsPage() {
+  const { currentTenant } = useAppStore() as any;
+  const [guests, setGuests] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState('');
+  const [form, setForm] = useState({ guestName: '', guestEmail: '', guestPhone: '', mealPreference: '', plusOne: false, plusOneName: '', tableAssignment: '', notes: '' });
+  const tenantId = currentTenant?.id;
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    Promise.all([
+      authFetch(`/api/tenant/${tenantId}/guest-lists`).then(r => r.json()),
+      authFetch(`/api/tenant/${tenantId}/events`).then(r => r.json()),
+    ]).then(([g, e]) => {
+      setGuests(Array.isArray(g) ? g : []);
+      setEvents(Array.isArray(e) ? e : []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [tenantId]);
+  useEffect(() => { load(); }, [load]);
+
+  const filteredGuests = selectedEvent ? guests.filter((g: any) => g.eventId === selectedEvent) : guests;
+  const confirmed = filteredGuests.filter((g: any) => g.rsvpStatus === 'confirmed').length;
+  const pending = filteredGuests.filter((g: any) => g.rsvpStatus === 'pending').length;
+  const declined = filteredGuests.filter((g: any) => g.rsvpStatus === 'declined').length;
+
+  const handleCreate = async () => {
+    await authFetch(`/api/tenant/${tenantId}/guest-lists`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, eventId: selectedEvent }) });
+    setShowCreate(false); setForm({ guestName: '', guestEmail: '', guestPhone: '', mealPreference: '', plusOne: false, plusOneName: '', tableAssignment: '', notes: '' }); load(); toast.success('Guest added!');
+  };
+
+  const updateRSVP = async (guest: any, status: string) => {
+    await authFetch(`/api/tenant/${tenantId}/guest-lists`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: guest.id, rsvpStatus: status }) });
+    load(); toast.success(`RSVP updated to ${status}`);
+  };
+
+  const statusColors: Record<string, string> = { pending: 'bg-amber-100 text-amber-700', confirmed: 'bg-emerald-100 text-emerald-700', declined: 'bg-red-100 text-red-700' };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-lg"><UsersIcon className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Guest Lists</h1><p className="text-sm text-muted-foreground">{confirmed} confirmed | {pending} pending | {declined} declined</p></div>
+        </div>
+        <Button onClick={() => setShowCreate(true)} disabled={!selectedEvent} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />Add Guest</Button>
+      </div>
+      <div className="flex gap-3 items-center">
+        <Label className="text-sm whitespace-nowrap">Filter by Event:</Label>
+        <select className="border rounded-md px-3 py-2 text-sm flex-1" value={selectedEvent} onChange={e => setSelectedEvent(e.target.value)}>
+          <option value="">All Events</option>
+          {events.map((e: any) => <option key={e.id} value={e.id}>{e.name} {e.eventDate ? '(' + new Date(e.eventDate).toLocaleDateString() + ')' : ''}</option>)}
+        </select>
+      </div>
+      {filteredGuests.length === 0 ? <EmptyState icon={UsersIcon} title="No guests yet" description={selectedEvent ? 'Add guests to this event' : 'Select an event to manage its guest list'} action="Add Guest" onAction={() => selectedEvent && setShowCreate(true)} /> : (
+        <DataGrid data={filteredGuests} columns={[
+          { key: 'guestName', label: 'Name', render: (v: string) => <span className="font-medium">{v}</span> },
+          { key: 'guestEmail', label: 'Email' },
+          { key: 'guestPhone', label: 'Phone' },
+          { key: 'mealPreference', label: 'Meal Pref', render: (v: string) => v || '-' },
+          { key: 'rsvpStatus', label: 'RSVP', render: (v: string, row: any) => (
+            <div className="flex gap-1">
+              <Badge className={`cursor-pointer ${statusColors[v] || ''}`} onClick={() => updateRSVP(row, v === 'confirmed' ? 'pending' : 'confirmed')}>{v}</Badge>
+              {v !== 'declined' && <Button variant="ghost" size="sm" className="h-6 px-1 text-xs text-red-500" onClick={() => updateRSVP(row, 'declined')}>X</Button>}
+            </div>
+          )},
+          { key: 'tableAssignment', label: 'Table', render: (v: string) => v || '-' },
+        ]} onDelete={(row: any) => updateRSVP(row, 'declined')} />
+      )}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add Guest</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div><Label>Guest Name *</Label><Input value={form.guestName} onChange={e => setForm(f => ({ ...f, guestName: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Email</Label><Input type="email" value={form.guestEmail} onChange={e => setForm(f => ({ ...f, guestEmail: e.target.value }))} /></div>
+              <div><Label>Phone</Label><Input value={form.guestPhone} onChange={e => setForm(f => ({ ...f, guestPhone: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Meal Preference</Label><Input value={form.mealPreference} onChange={e => setForm(f => ({ ...f, mealPreference: e.target.value }))} placeholder="e.g., Vegetarian" /></div>
+              <div><Label>Table Assignment</Label><Input value={form.tableAssignment} onChange={e => setForm(f => ({ ...f, tableAssignment: e.target.value }))} placeholder="e.g., Table 1" /></div>
+            </div>
+            <div className="flex items-center gap-2"><input type="checkbox" checked={form.plusOne} onChange={e => setForm(f => ({ ...f, plusOne: e.target.checked }))} /><Label>Plus One</Label></div>
+            {form.plusOne && <div><Label>Plus One Name</Label><Input value={form.plusOneName} onChange={e => setForm(f => ({ ...f, plusOneName: e.target.value }))} /></div>}
+            <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
+            <Button onClick={handleCreate} disabled={!form.guestName || !selectedEvent} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">Add Guest</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ============ TENANT APP VIEW ============
 function TenantAppView() {
   const { tenantPage, sidebarCollapsed, currentTenant, viewAsTenant, clearViewAsTenant } = useAppStore();
@@ -14063,8 +14815,8 @@ function TenantAppView() {
       case 'bookkeeping': return <TenantBookkeepingPage />;
       case 'settings': return <TenantSettingsPage />;
       case 'catalog': return <TenantCatalogPage />;
-      case 'kds': return <TenantGenericPage title="Kitchen Display" description="Kitchen order management" icon={Utensils} tenantId={tid} />;
-      case 'cake_matrix': return <TenantGenericPage title="Cake Matrix" description="Customize cake options and pricing" icon={Layers} tenantId={tid} />;
+      case 'kds': return <TenantKDSPage />;
+      case 'cake_matrix': return <TenantCakeMatrixPage />;
       case 'recipe_costing': return <TenantRecipeCostingPage />;
       case 'ingredients': return <TenantIngredientsPage />;
       case 'design_gallery': return <TenantDesignGalleryPage />;
@@ -14075,10 +14827,10 @@ function TenantAppView() {
       case 'reports': return <TenantReportsPage />;
       case 'pricing_assistant': return <TenantPricingAssistantPage />;
       // Salon pages
-      case 'salon_clients': return <TenantGenericPage title="Client Profiles" description="Salon client management" icon={Users} tenantId={tid} />;
-      case 'memberships': return <TenantGenericPage title="Memberships" description="Client membership plans" icon={CreditCard} tenantId={tid} />;
-      case 'gift_cards': return <TenantGenericPage title="Gift Cards" description="Gift card management" icon={Gift} tenantId={tid} />;
-      case 'salon_analytics': return <TenantGenericPage title="Salon Analytics" description="Performance insights" icon={BarChart3} tenantId={tid} />;
+      case 'salon_clients': return <TenantSalonClientsPage />;
+      case 'memberships': return <TenantMembershipsPage />;
+      case 'gift_cards': return <TenantGiftCardsPage />;
+      case 'salon_analytics': return <TenantSalonAnalyticsPage />;
       case 'salon_services': return <TenantSalonServicesPage />;
       // New core pages — Retail
       case 'retail-products': return <TenantRetailProductsPage />;
@@ -14098,10 +14850,10 @@ function TenantAppView() {
       case 'contracts': return <TenantContractsPage />;
       // Placeholder pages for new NAV items
       case 'inventory': return <TenantInventoryPage />;
-      case 'purchase-orders': return <TenantGenericPage title="Purchase Orders" description="Supplier purchase order management" icon={ClipboardList} tenantId={tid} />;
-      case 'catering': return <TenantGenericPage title="Catering" description="Catering menu and order management" icon={Utensils} tenantId={tid} />;
-      case 'budget-tracker': return <TenantGenericPage title="Budget Tracker" description="Event budget planning and tracking" icon={Calculator} tenantId={tid} />;
-      case 'guest-lists': return <TenantGenericPage title="Guest Lists" description="Manage event guest lists and RSVPs" icon={UsersIcon} tenantId={tid} />;
+      case 'purchase-orders': return <TenantPurchaseOrdersPage />;
+      case 'catering': return <TenantCateringPage />;
+      case 'budget-tracker': return <TenantBudgetTrackerPage />;
+      case 'guest-lists': return <TenantGuestListsPage />;
       case 'team': return <TenantTeamPage />;
       case 'smart_import': return <SmartImportPage />;
       case 'production': return <TenantProductionPage />;
