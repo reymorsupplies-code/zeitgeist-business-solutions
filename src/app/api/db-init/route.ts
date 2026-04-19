@@ -1171,6 +1171,125 @@ export async function POST(req: NextRequest) {
       errors.push(`Seed tenant: ${err.message}`);
     }
 
+    // ═══════════════════════════════════════════════
+    // SEED REALISTIC DEMO DATA (bakery)
+    // ═══════════════════════════════════════════════
+    const TID = 'tenant-demo-bakery';
+
+    // --- Clients ---
+    try {
+      await client.query(`
+        INSERT INTO "Client" (id, "tenantId", name, email, phone, address, tags, "createdAt") VALUES
+          ('c-01', $1, 'Maria Santos', 'maria.santos@email.com', '+1868-771-2345', '45 San Fernando Rd', '["VIP","Repeat"]', NOW() - INTERVAL '45 days'),
+          ('c-02', $1, 'James Ali', 'j.ali@gmail.com', '+1868-299-8765', '12 Couva Main St', '["Corporate"]', NOW() - INTERVAL '38 days'),
+          ('c-03', $1, 'Priya Sharma', 'priya.s@outlook.com', '+1868-355-4422', '88 Chaguanas Blvd', '["Repeat","Birthday"]', NOW() - INTERVAL '30 days'),
+          ('c-04', $1, 'David Williams', 'dwilliams@email.com', '+1868-688-1100', '23 Port of Spain', '["Wedding"]', NOW() - INTERVAL '25 days'),
+          ('c-05', $1, 'Anita Ramlogan', 'anita.r@gmail.com', '+1868-772-3399', '56 Arima', '["VIP","Corporate"]', NOW() - INTERVAL '20 days'),
+          ('c-06', $1, 'Chris Taylor', 'ctaylor@email.com', '+1868-445-6677', '9 Diego Martin', '["New"]', NOW() - INTERVAL '15 days'),
+          ('c-07', $1, 'Shelly Boodram', 'shelly.b@email.com', '+1868-331-2244', '77 Princes Town', '["Repeat"]', NOW() - INTERVAL '10 days'),
+          ('c-08', $1, 'Mark Joseph', 'mjoseph@gmail.com', '+1868-654-9900', '34 Scarborough', '["Wholesale"]', NOW() - INTERVAL '8 days'),
+          ('c-09', $1, 'Lisa Perreira', 'lisa.p@email.com', '+1868-212-5588', '11 Siparia', '["Birthday"]', NOW() - INTERVAL '5 days'),
+          ('c-10', $1, 'Rohan Nanan', 'rnanan@email.com', '+1868-470-3311', '67 Point Fortin', '["Corporate","Repeat"]', NOW() - INTERVAL '2 days')
+        ON CONFLICT DO NOTHING
+      `, [TID]);
+    } catch (err: any) { errors.push(`Seed clients: ${err.message}`); }
+
+    // --- Catalog Items (bakery products) ---
+    try {
+      await client.query(`
+        INSERT INTO "CatalogItem" (id, "tenantId", name, description, category, price, cost, unit, "isAvailable", "createdAt") VALUES
+          ('cat-01', $1, 'Black Forest Cake', 'Classic chocolate cake with cherry filling', 'Cakes', 280.00, 95.00, 'each', true, NOW() - INTERVAL '40 days'),
+          ('cat-02', $1, 'Sourdough Bread', 'Artisan sourdough loaf', 'Bread', 45.00, 15.00, 'loaf', true, NOW() - INTERVAL '40 days'),
+          ('cat-03', $1, 'Vanilla Cupcake (6-pack)', 'Premium vanilla cupcakes with buttercream', 'Cupcakes', 120.00, 40.00, 'pack', true, NOW() - INTERVAL '38 days'),
+          ('cat-04', $1, 'Chocolate Eclairs (4-pack)', 'Choux pastry with chocolate cream filling', 'Pastries', 90.00, 30.00, 'pack', true, NOW() - INTERVAL '35 days'),
+          ('cat-05', $1, 'Coconut Bake', 'Traditional Trinidadian coconut bake', 'Bread', 25.00, 8.00, 'each', true, NOW() - INTERVAL '30 days'),
+          ('cat-06', $1, 'Pineapple Tart (12-pack)', 'Mini pineapple tarts for events', 'Pastries', 180.00, 60.00, 'box', true, NOW() - INTERVAL '28 days'),
+          ('cat-07', $1, 'Red Velvet Cake', 'Cream cheese frosting, 2-tier', 'Cakes', 350.00, 120.00, 'each', true, NOW() - INTERVAL '25 days'),
+          ('cat-08', $1, 'Croissants (6-pack)', 'Butter croissants, freshly baked', 'Bread', 150.00, 55.00, 'pack', true, NOW() - INTERVAL '20 days'),
+          ('cat-09', $1, 'Doubles (25-pack)', 'Bulk order of doubles for catering', 'Local', 125.00, 45.00, 'pack', true, NOW() - INTERVAL '15 days'),
+          ('cat-10', $1, 'Wedding Cake (3-tier)', 'Custom design, serves 100+', 'Cakes', 1800.00, 550.00, 'each', true, NOW() - INTERVAL '10 days'),
+          ('cat-11', $1, 'Cinnamon Rolls (8-pack)', 'Warm cinnamon rolls with glaze', 'Pastries', 110.00, 35.00, 'pack', true, NOW() - INTERVAL '8 days'),
+          ('cat-12', $1, 'Whole Wheat Bread', 'Healthy whole wheat loaf', 'Bread', 35.00, 12.00, 'loaf', true, NOW() - INTERVAL '5 days')
+        ON CONFLICT DO NOTHING
+      `, [TID]);
+    } catch (err: any) { errors.push(`Seed catalog: ${err.message}`); }
+
+    // --- Orders ---
+    try {
+      await client.query(`
+        INSERT INTO "Order" (id, "tenantId", "orderNumber", "clientName", "clientEmail", "clientPhone", items, subtotal, "taxAmount", "totalAmount", status, "orderType", "deliveryDate", notes, "createdAt") VALUES
+          ('o-01', $1, 'ORD-001', 'Maria Santos', 'maria.santos@email.com', '+1868-771-2345', '[{"name":"Black Forest Cake","qty":1,"price":280}]', 280.00, 35.00, 315.00, 'delivered', 'custom', NOW() - INTERVAL '40 days', 'Birthday party', NOW() - INTERVAL '42 days'),
+          ('o-02', $1, 'ORD-002', 'James Ali', 'j.ali@gmail.com', '+1868-299-8765', '[{"name":"Sourdough Bread","qty":10,"price":45},{"name":"Croissants","qty":5,"price":150}]', 1200.00, 150.00, 1350.00, 'delivered', 'custom', NOW() - INTERVAL '35 days', 'Weekly corporate order', NOW() - INTERVAL '38 days'),
+          ('o-03', $1, 'ORD-003', 'David Williams', 'dwilliams@email.com', '+1868-688-1100', '[{"name":"Wedding Cake (3-tier)","qty":1,"price":1800}]', 1800.00, 225.00, 2025.00, 'completed', 'custom', NOW() - INTERVAL '20 days', 'Wedding reception May 15', NOW() - INTERVAL '28 days'),
+          ('o-04', $1, 'ORD-004', 'Priya Sharma', 'priya.s@outlook.com', '+1868-355-4422', '[{"name":"Vanilla Cupcake (6-pack)","qty":3,"price":120},{"name":"Pineapple Tart (12-pack)","qty":2,"price":180}]', 720.00, 90.00, 810.00, 'delivered', 'custom', NOW() - INTERVAL '15 days', 'Daughter birthday party', NOW() - INTERVAL '18 days'),
+          ('o-05', $1, 'ORD-005', 'Anita Ramlogan', 'anita.r@gmail.com', '+1868-772-3399', '[{"name":"Coconut Bake","qty":20,"price":25}]', 500.00, 62.50, 562.50, 'delivered', 'custom', NOW() - INTERVAL '12 days', 'Office breakfast catering', NOW() - INTERVAL '14 days'),
+          ('o-06', $1, 'ORD-006', 'Chris Taylor', 'ctaylor@email.com', '+1868-445-6677', '[{"name":"Red Velvet Cake","qty":1,"price":350}]', 350.00, 43.75, 393.75, 'in_progress', 'custom', NOW() + INTERVAL '3 days', 'Anniversary cake', NOW() - INTERVAL '5 days'),
+          ('o-07', $1, 'ORD-007', 'Mark Joseph', 'mjoseph@gmail.com', '+1868-654-9900', '[{"name":"Doubles (25-pack)","qty":4,"price":125},{"name":"Coconut Bake","qty":10,"price":25}]', 750.00, 93.75, 843.75, 'confirmed', 'custom', NOW() + INTERVAL '5 days', 'Friday catering event', NOW() - INTERVAL '3 days'),
+          ('o-08', $1, 'ORD-008', 'Shelly Boodram', 'shelly.b@email.com', '+1868-331-2244', '[{"name":"Chocolate Eclairs (4-pack)","qty":4,"price":90},{"name":"Cinnamon Rolls (8-pack)","qty":2,"price":110}]', 580.00, 72.50, 652.50, 'in_progress', 'custom', NOW() + INTERVAL '2 days', '', NOW() - INTERVAL '2 days'),
+          ('o-09', $1, 'ORD-009', 'Lisa Perreira', 'lisa.p@email.com', '+1868-212-5588', '[{"name":"Black Forest Cake","qty":1,"price":280},{"name":"Vanilla Cupcake (6-pack)","qty":2,"price":120}]', 520.00, 65.00, 585.00, 'pending', 'custom', NOW() + INTERVAL '7 days', 'Surprise birthday', NOW() - INTERVAL '1 day'),
+          ('o-10', $1, 'ORD-010', 'Rohan Nanan', 'rnanan@email.com', '+1868-470-3311', '[{"name":"Whole Wheat Bread","qty":50,"price":35}]', 1750.00, 218.75, 1968.75, 'pending', 'wholesale', NOW() + INTERVAL '10 days', 'Monthly standing order', NOW() - INTERVAL '1 day')
+        ON CONFLICT DO NOTHING
+      `, [TID]);
+    } catch (err: any) { errors.push(`Seed orders: ${err.message}`); }
+
+    // --- Invoices ---
+    try {
+      await client.query(`
+        INSERT INTO "Invoice" (id, "tenantId", "invoiceNumber", "clientName", "clientEmail", items, subtotal, "taxRate", "taxAmount", "totalAmount", "balanceDue", status, "issueDate", "dueDate", "createdAt") VALUES
+          ('inv-01', $1, 'INV-001', 'James Ali', 'j.ali@gmail.com', '[{"desc":"Weekly bread order x3","amount":4050}]', 4050.00, 0.125, 506.25, 4556.25, 0.00, 'paid', NOW() - INTERVAL '30 days', NOW() - INTERVAL '15 days', NOW() - INTERVAL '30 days'),
+          ('inv-02', $1, 'INV-002', 'David Williams', 'dwilliams@email.com', '[{"desc":"Wedding Cake 3-tier","amount":2025}]', 2025.00, 0.125, 253.13, 2278.13, 0.00, 'paid', NOW() - INTERVAL '20 days', NOW() - INTERVAL '5 days', NOW() - INTERVAL '20 days'),
+          ('inv-03', $1, 'INV-003', 'Priya Sharma', 'priya.s@outlook.com', '[{"desc":"Birthday cupcakes + tarts","amount":810}]', 810.00, 0.125, 101.25, 911.25, 0.00, 'paid', NOW() - INTERVAL '15 days', NOW() - INTERVAL '2 days', NOW() - INTERVAL '15 days'),
+          ('inv-04', $1, 'INV-004', 'Anita Ramlogan', 'anita.r@gmail.com', '[{"desc":"Coconut bake catering","amount":562.50}]', 562.50, 0.125, 70.31, 632.81, 632.81, 'sent', NOW() - INTERVAL '5 days', NOW() + INTERVAL '20 days', NOW() - INTERVAL '5 days'),
+          ('inv-05', $1, 'INV-005', 'Maria Santos', 'maria.santos@email.com', '[{"desc":"Black Forest Cake","amount":315}]', 315.00, 0.125, 39.38, 354.38, 354.38, 'draft', NOW() - INTERVAL '1 day', NOW() + INTERVAL '25 days', NOW() - INTERVAL '1 day')
+        ON CONFLICT DO NOTHING
+      `, [TID]);
+    } catch (err: any) { errors.push(`Seed invoices: ${err.message}`); }
+
+    // --- Expenses ---
+    try {
+      await client.query(`
+        INSERT INTO "Expense" (id, "tenantId", category, description, amount, currency, date, vendor, "createdAt") VALUES
+          ('exp-01', $1, 'Ingredients', 'Flour bulk purchase (50kg x4)', 1200.00, 'TTD', NOW() - INTERVAL '25 days', 'Caribbean Flour Mills', NOW() - INTERVAL '25 days'),
+          ('exp-02', $1, 'Ingredients', 'Butter & margarine', 680.00, 'TTD', NOW() - INTERVAL '22 days', 'Supermix Trading', NOW() - INTERVAL '22 days'),
+          ('exp-03', $1, 'Utilities', 'Electricity bill - April', 1850.00, 'TTD', NOW() - INTERVAL '20 days', 'T&TEC', NOW() - INTERVAL '20 days'),
+          ('exp-04', $1, 'Ingredients', 'Sugar (25kg x2)', 450.00, 'TTD', NOW() - INTERVAL '18 days', 'Caribbean Sugar', NOW() - INTERVAL '18 days'),
+          ('exp-05', $1, 'Equipment', 'Stand mixer repair', 350.00, 'TTD', NOW() - INTERVAL '15 days', 'Kitchen Fix Ltd', NOW() - INTERVAL '15 days'),
+          ('exp-06', $1, 'Marketing', 'Facebook ads - April', 500.00, 'TTD', NOW() - INTERVAL '12 days', 'Meta Ads', NOW() - INTERVAL '12 days'),
+          ('exp-07', $1, 'Ingredients', 'Chocolate & cocoa supplies', 420.00, 'TTD', NOW() - INTERVAL '10 days', 'Cocoa Innovators', NOW() - INTERVAL '10 days'),
+          ('exp-08', $1, 'Rent', 'Shop rent - May', 4500.00, 'TTD', NOW() - INTERVAL '5 days', 'Property Management Co', NOW() - INTERVAL '5 days'),
+          ('exp-09', $1, 'Ingredients', 'Eggs (tray x10)', 380.00, 'TTD', NOW() - INTERVAL '3 days', 'Poultry World', NOW() - INTERVAL '3 days'),
+          ('exp-10', $1, 'Labor', 'Part-time baker (2 weeks)', 2400.00, 'TTD', NOW() - INTERVAL '1 day', 'Staff', NOW() - INTERVAL '1 day')
+        ON CONFLICT DO NOTHING
+      `, [TID]);
+    } catch (err: any) { errors.push(`Seed expenses: ${err.message}`); }
+
+    // --- Payments ---
+    try {
+      await client.query(`
+        INSERT INTO "Payment" (id, "tenantId", "invoiceId", amount, currency, method, reference, status, "createdAt") VALUES
+          ('pay-01', $1, 'inv-01', 4556.25, 'TTD', 'bank_transfer', 'BT-20260415', 'completed', NOW() - INTERVAL '20 days'),
+          ('pay-02', $1, 'inv-02', 2278.13, 'TTD', 'credit_card', 'CC-8832', 'completed', NOW() - INTERVAL '12 days'),
+          ('pay-03', $1, 'inv-03', 911.25, 'TTD', 'cash', 'CASH-001', 'completed', NOW() - INTERVAL '5 days')
+        ON CONFLICT DO NOTHING
+      `, [TID]);
+    } catch (err: any) { errors.push(`Seed payments: ${err.message}`); }
+
+    // --- Audit Log entries ---
+    try {
+      await client.query(`
+        INSERT INTO "AuditLog" (id, "userId", "tenantId", action, details, severity, "createdAt") VALUES
+          ('al-01', 'demo-001', $1, 'ORDER_CREATED', 'Order ORD-009 received from Lisa Perreira', 'info', NOW() - INTERVAL '1 day'),
+          ('al-02', 'demo-001', $1, 'INVOICE_SENT', 'Invoice INV-004 sent to Anita Ramlogan', 'info', NOW() - INTERVAL '5 days'),
+          ('al-03', 'demo-001', $1, 'PAYMENT_RECEIVED', 'Payment of TT$911.25 received from Priya Sharma', 'info', NOW() - INTERVAL '5 days'),
+          ('al-04', 'demo-001', $1, 'ORDER_COMPLETED', 'Order ORD-003 (Wedding Cake) completed successfully', 'info', NOW() - INTERVAL '20 days'),
+          ('al-05', 'demo-001', $1, 'CLIENT_CREATED', 'New client Rohan Nanan added', 'info', NOW() - INTERVAL '2 days'),
+          ('al-06', 'admin-001', NULL, 'TENANT_APPROVED', 'Demo Bakery tenant approved', 'info', NOW() - INTERVAL '45 days'),
+          ('al-07', 'demo-001', $1, 'INVOICE_CREATED', 'Invoice INV-005 drafted for Maria Santos', 'info', NOW() - INTERVAL '1 day'),
+          ('al-08', 'demo-001', $1, 'LOGIN', 'User logged in from Port of Spain', 'low', NOW() - INTERVAL '6 hours')
+        ON CONFLICT DO NOTHING
+      `, [TID]);
+    } catch (err: any) { errors.push(`Seed audit: ${err.message}`); }
+
     await client.end();
 
     return NextResponse.json({

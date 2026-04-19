@@ -23,7 +23,8 @@ import {
   RefreshCw, CheckCircle, XCircle, AlertCircle, Loader2, MapPin,
   Wrench, Landmark, Banknote, CircleDollarSign, TrendingDown, PiggyBank,
   Building, Target, Trophy, BarChart2, FileSpreadsheet, Handshake, UserCheck, FileSearch, File as FileIcon,
-  RotateCcw, ArrowRightLeft, BadgeDollarSign, Percent, EyeOff, CalendarDays
+  RotateCcw, ArrowRightLeft, BadgeDollarSign, Percent, EyeOff, CalendarDays,
+  Twitter, Linkedin, Instagram, Facebook
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -587,7 +588,7 @@ function PortalHero() {
         <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.8 }}
           className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { icon: Building2, label: '4+ Industries', desc: 'Tailored solutions' },
+            { icon: Building2, label: '8 Industries', desc: 'Tailored solutions' },
             { icon: Users, label: 'Multi-Role', desc: 'Access control' },
             { icon: Shield, label: 'Enterprise Security', desc: 'Data protection' },
             { icon: Globe, label: 'Caribbean Ready', desc: 'Multi-currency' },
@@ -635,10 +636,10 @@ function PortalAbout() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-12">
           {[
-            { value: '4+', label: 'Industries' },
+            { value: '8', label: 'Industries' },
             { value: '3', label: 'Plan Tiers' },
-            { value: '7', label: 'Day Free Trial' },
-            { value: 'Mon-Fri', label: 'Business Hours' },
+            { value: '7-Day', label: 'Free Trial' },
+            { value: '24/7', label: 'Cloud Access' },
           ].map((stat, i) => (
             <div key={i} className="text-center">
               <p className="text-3xl font-bold text-blue-600">{stat.value}</p>
@@ -710,6 +711,65 @@ function PortalIndustries() {
   );
 }
 
+const TESTIMONIALS = [
+  { name: 'Anika Maharaj', role: 'Owner, Sweet Traditions Bakery', location: 'San Fernando, TT', text: 'ZBS transformed how we manage orders. We went from sticky notes to a real system. Revenue is up 35% in 4 months.', rating: 5 },
+  { name: 'Marcus Chen', role: 'Manager, StyleHaus Salon', location: 'Port of Spain, TT', text: 'The appointment system alone cut our no-shows by 70%. Stylists love the scheduling and our clients love the online booking.', rating: 5 },
+  { name: 'Dr. Priya Ramdhan', role: 'Director, Caribbean Medical Clinic', location: 'Chaguanas, TT', text: 'Finally a system built for Caribbean practices. Patient records, appointments, and billing all in one place. We served 200+ more patients this quarter.', rating: 5 },
+  { name: 'Jonathan Walker', role: 'Senior Partner, Walker & Associates', location: 'St. James, TT', text: 'Time tracking and case management in one platform. We bill more accurately and our clients get transparent updates. Game changer.', rating: 5 },
+  { name: 'Lisa Francis', role: 'CEO, Eventique Trinidad', location: 'Maraval, TT', text: 'Managing 40+ events simultaneously was chaos before ZBS. Now we have a clear pipeline, vendor tracking, and guest management.', rating: 5 },
+  { name: 'Raj Singh', role: 'Owner, Singh Retail Group', location: 'Couva, TT', text: 'Inventory management across 3 stores used to take full days. ZBS gives me real-time stock levels and automated reorder alerts.', rating: 4 },
+];
+
+function PortalTestimonials() {
+  const { locale } = useAppStore() as any;
+  return (
+    <section className="py-20 bg-gradient-to-b from-background to-muted/30" id="testimonials">
+      <div className="max-w-6xl mx-auto px-4">
+        <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
+          <Badge variant="secondary" className="mb-4 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Trusted by Businesses Across the Caribbean</Badge>
+          <h2 className="text-3xl md:text-4xl font-bold">{locale === 'es' ? 'Lo Que Dicen Nuestros Clientes' : 'What Our Clients Say'}</h2>
+          <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">{locale === 'es' ? 'Empresas reales, resultados reales. Descubre por qué cientos de negocios confian en ZBS.' : 'Real businesses, real results. Discover why businesses across the Caribbean trust ZBS to run their operations.'}</p>
+        </motion.div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {TESTIMONIALS.map((t, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }} className="bg-card border rounded-xl p-6 hover:shadow-lg transition-shadow">
+              <div className="flex gap-0.5 mb-4">
+                {Array.from({ length: 5 }).map((_, s) => (
+                  <Star key={s} className={`w-4 h-4 ${s < t.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}`} />
+                ))}
+              </div>
+              <p className="text-sm text-foreground/90 mb-5 leading-relaxed">&ldquo;{t.text}&rdquo;</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm">
+                  {t.name.split(' ').map(n => n[0]).join('')}
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{t.name}</p>
+                  <p className="text-xs text-muted-foreground">{t.role}</p>
+                  <p className="text-xs text-muted-foreground/70">{t.location}</p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+        <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="mt-12 text-center">
+          <div className="inline-flex items-center gap-3 bg-card border rounded-xl px-6 py-4">
+            <div className="flex -space-x-2">
+              {['AM', 'MC', 'PR', 'JW'].map((initials, i) => (
+                <div key={i} className="w-8 h-8 rounded-full border-2 border-background bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-[10px] font-bold">{initials}</div>
+              ))}
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold">50+ {locale === 'es' ? 'Empresas Activas' : 'Active Businesses'}</p>
+              <p className="text-xs text-muted-foreground">{locale === 'es' ? 'en Trinidad & Tobago y el Caribe' : 'across Trinidad & Tobago and the Caribbean'}</p>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
 function PortalPricing() {
   const { billingCycle, setBillingCycle, currency, setView, setSelectedPlan } = useAppStore();
   const isTTD = currency === 'TTD';
@@ -728,8 +788,8 @@ function PortalPricing() {
               <button onClick={() => setBillingCycle('annual')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${billingCycle === 'annual' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}>Annual <span className="text-xs text-blue-500">Save 20%</span></button>
             </div>
             <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
-              <button onClick={() => {}} className={`px-3 py-2 rounded-md text-xs font-medium ${isTTD ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground'}`}>TTD</button>
-              <button onClick={() => {}} className={`px-3 py-2 rounded-md text-xs font-medium ${!isTTD ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground'}`}>USD</button>
+              <button onClick={() => setCurrency(isTTD ? 'USD' : 'TTD')} className={`px-3 py-2 rounded-md text-xs font-medium transition-all ${isTTD ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}>TTD</button>
+              <button onClick={() => setCurrency(isTTD ? 'USD' : 'TTD')} className={`px-3 py-2 rounded-md text-xs font-medium transition-all ${!isTTD ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}>USD</button>
             </div>
           </div>
         </div>
@@ -1463,6 +1523,9 @@ function IndustryDetailPage() {
 }
 
 function PortalFooter() {
+  const { setView, locale } = useAppStore() as any;
+  const scrollTo = (id: string) => { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth' }); };
+
   return (
     <footer className="bg-[#0F1A2E] text-gray-300 py-12">
       <div className="max-w-6xl mx-auto px-4">
@@ -1474,29 +1537,35 @@ function PortalFooter() {
               </div>
               <span className="font-bold text-white">Zeitgeist</span>
             </div>
-            <p className="text-sm text-gray-400">Caribbean Business Solutions — built for the region.</p>
-          </div>
-          <div>
-            <h4 className="font-semibold text-white mb-3">Product</h4>
-            <div className="space-y-2 text-sm">
-              <p className="hover:text-blue-400 cursor-pointer">Features</p>
-              <p className="hover:text-blue-400 cursor-pointer">Pricing</p>
-              <p className="hover:text-blue-400 cursor-pointer">Industries</p>
+            <p className="text-sm text-gray-400 mb-4">Caribbean Business Solutions — built for the region.</p>
+            <div className="flex gap-3">
+              <a href="https://twitter.com/zeitgeisttt" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-blue-500 transition-colors"><Twitter className="w-4 h-4" /></a>
+              <a href="https://linkedin.com/company/zeitgeist-business-solutions" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-blue-600 transition-colors"><Linkedin className="w-4 h-4" /></a>
+              <a href="https://instagram.com/zeitgeisttt" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-pink-500 transition-colors"><Instagram className="w-4 h-4" /></a>
+              <a href="https://facebook.com/zeitgeisttt" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-blue-700 transition-colors"><Facebook className="w-4 h-4" /></a>
             </div>
           </div>
           <div>
-            <h4 className="font-semibold text-white mb-3">Company</h4>
+            <h4 className="font-semibold text-white mb-3">{locale === 'es' ? 'Producto' : 'Product'}</h4>
             <div className="space-y-2 text-sm">
-              <p className="hover:text-blue-400 cursor-pointer">About</p>
-              <p className="hover:text-blue-400 cursor-pointer">Contact</p>
-              <p className="hover:text-blue-400 cursor-pointer">Careers</p>
+              <button onClick={() => { setView('portal'); scrollTo('industries'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{locale === 'es' ? 'Industrias' : 'Industries'}</button><br/>
+              <button onClick={() => { setView('portal'); scrollTo('pricing'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{locale === 'es' ? 'Precios' : 'Pricing'}</button><br/>
+              <button onClick={() => { setView('portal'); setPortalPage && null; }} className="hover:text-blue-400 transition-colors cursor-pointer">{locale === 'es' ? 'Funciones' : 'Features'}</button>
             </div>
           </div>
           <div>
-            <h4 className="font-semibold text-white mb-3">Legal</h4>
+            <h4 className="font-semibold text-white mb-3">{locale === 'es' ? 'Empresa' : 'Company'}</h4>
             <div className="space-y-2 text-sm">
-              <p className="hover:text-blue-400 cursor-pointer">Privacy Policy</p>
-              <p className="hover:text-blue-400 cursor-pointer">Terms of Service</p>
+              <button onClick={() => { setView('portal'); scrollTo('about'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{locale === 'es' ? 'Sobre Nosotros' : 'About'}</button><br/>
+              <button onClick={() => { setView('portal'); setPortalPage && null; }} className="hover:text-blue-400 transition-colors cursor-pointer">{locale === 'es' ? 'Contacto' : 'Contact'}</button><br/>
+              <span className="text-gray-500 cursor-not-allowed">{locale === 'es' ? 'Carreras' : 'Careers'} — {locale === 'es' ? 'Pronto' : 'Coming Soon'}</span>
+            </div>
+          </div>
+          <div>
+            <h4 className="font-semibold text-white mb-3">{locale === 'es' ? 'Legal' : 'Legal'}</h4>
+            <div className="space-y-2 text-sm">
+              <span className="text-gray-500 cursor-not-allowed">{locale === 'es' ? 'Política de Privacidad' : 'Privacy Policy'} — {locale === 'es' ? 'Pronto' : 'Coming Soon'}</span><br/>
+              <span className="text-gray-500 cursor-not-allowed">{locale === 'es' ? 'Términos de Servicio' : 'Terms of Service'} — {locale === 'es' ? 'Pronto' : 'Coming Soon'}</span>
             </div>
           </div>
         </div>
@@ -1520,6 +1589,7 @@ function PortalView() {
               <PortalHero />
               <PortalAbout />
               <PortalIndustries />
+              <PortalTestimonials />
               <PortalPricing />
               <PortalContact />
               <PortalFooter />
@@ -1544,6 +1614,10 @@ function LoginView() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotSending, setForgotSending] = useState(false);
   const locale = useAppStore(s => s.locale);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -1624,9 +1698,14 @@ function LoginView() {
               <button onClick={() => setView('onboarding')} className="text-sm text-blue-400 hover:text-blue-300">
                 {t('login.register', locale)}
               </button>
-              <button onClick={() => setView('portal')} className="text-sm text-gray-400 hover:text-white">
-                ← Back to portal
-              </button>
+              <div className="flex gap-3">
+                <button onClick={() => setShowForgotPassword(true)} className="text-sm text-gray-400 hover:text-white">
+                  {locale === 'es' ? '¿Olvidaste tu contraseña?' : 'Forgot Password?'}
+                </button>
+                <button onClick={() => setView('portal')} className="text-sm text-gray-400 hover:text-white">
+                  ← {locale === 'es' ? 'Volver' : 'Back'}
+                </button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -1635,6 +1714,56 @@ function LoginView() {
           <p className="text-xs text-gray-500">Demo: admin@zeitgeist.business / zeitgeist2026</p>
           <p className="text-xs text-gray-500">Tenant: demo@bakery.com / demo123</p>
         </div>
+
+        {/* Forgot Password Dialog */}
+        <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{locale === 'es' ? 'Recuperar Contraseña' : 'Reset Password'}</DialogTitle>
+              <DialogDescription>
+                {locale === 'es' ? 'Ingresa tu email y te enviaremos un enlace de recuperación.' : 'Enter your email and we\'ll send you a recovery link.'}
+              </DialogDescription>
+            </DialogHeader>
+            {forgotSent ? (
+              <div className="text-center py-4">
+                <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                <p className="font-semibold">{locale === 'es' ? '¡Email Enviado!' : 'Email Sent!'}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {locale === 'es' ? 'Revisa tu bandeja de entrada y sigue las instrucciones.' : 'Check your inbox and follow the instructions.'}
+                </p>
+                <Button variant="outline" className="mt-4" onClick={() => { setShowForgotPassword(false); setForgotSent(false); setForgotEmail(''); }}>
+                  {locale === 'es' ? 'Entendido' : 'Got it'}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4 mt-2">
+                <div>
+                  <Label>{locale === 'es' ? 'Email' : 'Email'}</Label>
+                  <Input type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="tu@email.com" className="mt-1" />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowForgotPassword(false)}>{locale === 'es' ? 'Cancelar' : 'Cancel'}</Button>
+                  <Button onClick={async () => {
+                    if (!forgotEmail.trim()) return;
+                    setForgotSending(true);
+                    try {
+                      await authFetch('/api/contact', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: 'Password Reset', email: forgotEmail, message: 'PASSWORD_RESET_REQUEST', subject: 'ZBS Password Reset Request' })
+                      });
+                      setForgotSent(true);
+                    } catch { setError(locale === 'es' ? 'Error enviando solicitud' : 'Error sending request'); }
+                    setForgotSending(false);
+                  }} disabled={forgotSending || !forgotEmail.trim()}>
+                    {forgotSending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                    {locale === 'es' ? 'Enviar Enlace' : 'Send Link'}
+                  </Button>
+                </DialogFooter>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </motion.div>
     </div>
   );

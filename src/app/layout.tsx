@@ -19,7 +19,8 @@ export const metadata: Metadata = {
   keywords: ["Zeitgeist", "Business Solutions", "Caribbean", "SaaS", "Bakery Management", "Salon Management", "ERP"],
   authors: [{ name: "Zeitgeist Business Solutions" }],
   icons: {
-    icon: "/qr-code.png",
+    icon: "/logo.svg",
+    apple: "/logo.svg",
   },
 };
 
