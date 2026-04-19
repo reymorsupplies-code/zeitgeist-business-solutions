@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, TenantPage } from '@/lib/store';
 import { t, getNavLabels } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -541,7 +541,7 @@ function TenantKitchenDisplayPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex justify-between items-center mb-3">
-                  <span className="text-sm text-muted-foreground">{order.items || `${t('tenant.orders.items', locale)}: 1`}</span>
+                  <span className="text-sm text-muted-foreground">{`${t('tenant.orders.items', locale)}: 1`}</span>
                   <span className="font-bold">${order.total.toFixed(2)}</span>
                 </div>
                 {order.kitchenStatus === 'pending' && (
@@ -804,7 +804,7 @@ function TenantExpensesPage() {
         </Dialog>
       </div>
 
-      <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">{t('tenant.expenses.totalExpenses')} — {t('tenant.expenses.thisMonth')}</p><p className="text-2xl font-bold">${totalExpenses.toFixed(2)}</p></CardContent></Card>
+      <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">{t('tenant.expenses.totalExpenses', locale)} — {t('tenant.expenses.thisMonth', locale)}</p><p className="text-2xl font-bold">${totalExpenses.toFixed(2)}</p></CardContent></Card>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -1355,7 +1355,7 @@ function TenantCakeMatrixPage() {
       <Card>
         <CardHeader>
           <CardTitle>{t('tenant.cakeMatrix.pricingTable', locale)}</CardTitle>
-          <CardDescription>{t('tenant.cakeMatrix.flavors')} × {t('tenant.cakeMatrix.sizes')}</CardDescription>
+          <CardDescription>{t('tenant.cakeMatrix.flavors', locale)} × {t('tenant.cakeMatrix.sizes', locale)}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -1849,7 +1849,7 @@ function SmartImportPage() {
               <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
               <div>
                 <p className="text-lg font-medium">{t('tenant.smartImport.dragAndDrop', locale)}</p>
-                <p className="text-sm text-muted-foreground">{t('tenant.smartImport.or')}</p>
+                <p className="text-sm text-muted-foreground">{t('tenant.smartImport.or', locale)}</p>
               </div>
               <div className="flex gap-3 justify-center">
                 <Button variant="outline"><Upload className="mr-2 h-4 w-4" />{t('tenant.smartImport.csv', locale)}</Button>
@@ -2305,7 +2305,7 @@ export default function Home() {
                   key={item.key}
                   variant={currentPage === item.key ? 'secondary' : 'ghost'}
                   className="w-full justify-start gap-3"
-                  onClick={() => { setCurrentPage(item.key); setSidebarOpen(false); }}
+                  onClick={() => { setCurrentPage(item.key as TenantPage); setSidebarOpen(false); }}
                 >
                   <Icon className="h-4 w-4" />
                   {item.label}

@@ -1216,7 +1216,6 @@ const es: TranslationMap = {
   'ct.plans.compareFeatures': 'Comparar todas las funciones',
   'ct.plans.manage': 'Gestionar Suscripción',
   'ct.plans.noCreditCard': 'No se requiere tarjeta de crédito',
-  'ct.plans.mostPopular': 'La elección más popular',
   'ct.plans.forLargeTeams': 'Para grandes organizaciones',
 
   'ct.shared.appName': 'Zeitgeist Business Solutions',
@@ -2909,7 +2908,6 @@ const en: TranslationMap = {
   'ct.plans.compareFeatures': 'Compare all features',
   'ct.plans.manage': 'Manage Subscription',
   'ct.plans.noCreditCard': 'No credit card required',
-  'ct.plans.mostPopular': 'Most popular choice',
   'ct.plans.forLargeTeams': 'For large organizations',
 
   'ct.shared.appName': 'Zeitgeist Business Solutions',
