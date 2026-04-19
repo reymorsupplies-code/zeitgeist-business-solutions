@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,12 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Zeitgeist Business Solutions",
-  description: "Comprehensive business management platform with full i18n support.",
-  keywords: ["Z.ai", "Next.js", "TypeScript", "Business Solutions", "i18n", "shadcn/ui"],
-  authors: [{ name: "Z.ai Team" }],
+  title: "Zeitgeist Business Solutions - Digital Building for Every Industry",
+  description: "Enterprise-grade business management for bakeries, salons, clinics, law firms, and more. Caribbean-built, world-class powered.",
+  keywords: ["Zeitgeist", "Business Solutions", "Caribbean", "SaaS", "Bakery Management", "Salon Management", "ERP"],
+  authors: [{ name: "Zeitgeist Business Solutions" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/qr-code.png",
   },
 };
 
@@ -34,7 +34,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         {children}
-        <Toaster richColors position="top-right" />
+        <Toaster position="bottom-right" richColors />
       </body>
     </html>
   );
