@@ -31,10 +31,13 @@ function getRestClient() {
 
 // ─── PG Pool (direct) ───
 function getPool(): pg.Pool | null {
-  if (!process.env.DATABASE_URL) return null;
+  // Use DIRECT_URL to bypass PgBouncer — avoids "prepared statement does not exist" errors.
+  // PgBouncer in transaction mode doesn't support prepared statements in the extended query protocol.
+  const url = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  if (!url) return null;
   if (!_pool) {
     _pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: url,
       ssl: { rejectUnauthorized: false },
       max: 5,
       idleTimeoutMillis: 10000,
@@ -131,7 +134,8 @@ function extractWhere(sql: string, params: any[]): { col: string; op: string; va
  * Extract ORDER BY clause.
  */
 function extractOrderBy(sql: string): { column: string; ascending: boolean } | null {
-  const m = sql.match(/ORDER\s+BY\s+"?(\w+)"?\s*(ASC|DESC)?/i);
+  // Handle qualified column refs like t."createdAt" or "alias"."column"
+  const m = sql.match(/ORDER\s+BY\s+(?:"?\w+"?\.)?"?(\w+)"?\s*(ASC|DESC)?/i);
   if (!m) return null;
   return {
     column: m[1],
@@ -469,7 +473,11 @@ export async function pgQuery<T = any>(sql: string, params: any[] = []): Promise
     if (!pool) throw new Error('DATABASE_URL not configured');
     const client = await pool.connect();
     try {
-      const result = await client.query(sql, params);
+      // Use simple query protocol when no params to avoid PgBouncer prepared statement issues.
+      // When params exist, use extended protocol with explicit config to allow prepared stmt reuse.
+      const result = params.length > 0
+        ? await client.query({ text: sql, values: params, name: undefined })
+        : await client.query(sql);
       return result.rows;
     } finally {
       client.release();

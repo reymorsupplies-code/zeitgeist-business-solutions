@@ -43,6 +43,17 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 
+// ============ LANG TOGGLE ============
+function LangToggle({ className = '' }: { className?: string }) {
+  const { locale, setLocale } = useAppStore();
+  return (
+    <div className={`flex items-center gap-1 rounded-lg bg-muted/50 p-0.5 ${className}`}>
+      <button onClick={() => setLocale('en')} className={`px-2 py-1 rounded-md text-xs font-semibold transition-all ${locale === 'en' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>EN</button>
+      <button onClick={() => setLocale('es')} className={`px-2 py-1 rounded-md text-xs font-semibold transition-all ${locale === 'es' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>ES</button>
+    </div>
+  );
+}
+
 // ============ AUTH HELPER ============
 const authFetch = (url: string, options: any = {}) => {
   const token = useAppStore.getState().token || (typeof window !== 'undefined' ? localStorage.getItem('zbs-token') : null);
@@ -114,298 +125,318 @@ const PLANS_DATA = [
   },
 ];
 
-const CT_NAV = [
-  { section: 'Command Center', items: [
-    { name: 'Overview', icon: LayoutDashboard, page: 'overview' as const },
-    { name: 'Tenants', icon: Building2, page: 'tenants' as const },
-    { name: 'Industries', icon: Factory, page: 'industries' as const },
-    { name: 'Approvals', icon: CheckCircle, page: 'approvals' as const },
+function getCTNav(locale: string) {
+  return [
+  { section: t('ct.section.commandCenter', locale), items: [
+    { name: t('ct.overview', locale), icon: LayoutDashboard, page: 'overview' as const },
+    { name: t('ct.tenants', locale), icon: Building2, page: 'tenants' as const },
+    { name: t('ct.industries', locale), icon: Factory, page: 'industries' as const },
+    { name: t('ct.approvals', locale), icon: CheckCircle, page: 'approvals' as const },
   ]},
-  { section: 'Business Operations', items: [
-    { name: 'Plans & Billing', icon: CreditCard, page: 'plans' as const },
-    { name: 'Feature Flags', icon: ToggleLeft, page: 'feature_flags' as const },
-    { name: 'Tax & Compliance T&T', icon: Calculator, page: 'tax_compliance' as const },
+  { section: t('ct.section.businessOps', locale), items: [
+    { name: t('ct.plansBilling', locale), icon: CreditCard, page: 'plans' as const },
+    { name: t('ct.featureFlags', locale), icon: ToggleLeft, page: 'feature_flags' as const },
+    { name: t('ct.taxCompliance', locale), icon: Calculator, page: 'tax_compliance' as const },
   ]},
-  { section: 'Finance & Accounting', items: [
-    { name: 'Accounting', icon: FileSpreadsheet, page: 'accounting' as const },
+  { section: t('ct.section.finance', locale), items: [
+    { name: t('ct.accounting', locale), icon: FileSpreadsheet, page: 'accounting' as const },
   ]},
-  { section: 'Security & Compliance', items: [
-    { name: 'Security', icon: Shield, page: 'security' as const },
-    { name: 'Audit Vault', icon: ScrollText, page: 'audit' as const },
+  { section: t('ct.section.security', locale), items: [
+    { name: t('ct.security', locale), icon: Shield, page: 'security' as const },
+    { name: t('ct.audit', locale), icon: ScrollText, page: 'audit' as const },
   ]},
-  { section: 'Intelligence', items: [
-    { name: 'Analytics', icon: BarChart3, page: 'analytics' as const },
-    { name: 'Metrics', icon: Activity, page: 'metrics' as const },
-    { name: 'World-Class Systems', icon: Trophy, page: 'world_systems' as const },
-    { name: 'Competitive Intel', icon: Globe, page: 'competitive' as const },
-    { name: 'Monitoring', icon: Monitor, page: 'monitoring' as const },
+  { section: t('ct.section.intelligence', locale), items: [
+    { name: t('ct.analytics', locale), icon: BarChart3, page: 'analytics' as const },
+    { name: t('ct.metrics', locale), icon: Activity, page: 'metrics' as const },
+    { name: t('ct.worldSystems', locale), icon: Trophy, page: 'world_systems' as const },
+    { name: t('ct.competitive', locale), icon: Globe, page: 'competitive' as const },
+    { name: t('ct.monitoring', locale), icon: Monitor, page: 'monitoring' as const },
   ]},
-  { section: 'System', items: [
-    { name: 'Settings', icon: Settings, page: 'settings' as const },
+  { section: t('ct.section.system', locale), items: [
+    { name: t('ct.settings', locale), icon: Settings, page: 'settings' as const },
   ]},
 ];
+}
 
-const BAKERY_NAV = [
-  { section: 'OPERATIONS', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: 'Orders', icon: ShoppingCart, page: 'orders' as const, available: true },
-    { label: 'Point of Sale', icon: CardIcon, page: 'pos' as const, available: true },
-    { label: 'Kitchen Display', icon: Utensils, page: 'kds' as const, available: true, tier: 'Growth+' },
-    { label: 'Plan de Produccion', icon: ClipboardList, page: 'production_plans' as const, available: true, tier: 'Growth+' },
+function getBakeryNav(locale: string) {
+  return [
+  { section: t('tenant.section.operations', locale), items: [
+    { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
+    { label: t('tenant.orders', locale), icon: ShoppingCart, page: 'orders' as const, available: true },
+    { label: t('tenant.pos', locale), icon: CardIcon, page: 'pos' as const, available: true },
+    { label: t('tenant.kds', locale), icon: Utensils, page: 'kds' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.productionPlans', locale), icon: ClipboardList, page: 'production_plans' as const, available: true, tier: 'Growth+' },
   ]},
-  { section: 'CATALOG', items: [
-    { label: 'Products & Menu', icon: Package, page: 'catalog' as const, available: true },
-    { label: 'Cake Matrix', icon: Layers, page: 'cake_matrix' as const, available: true, tier: 'Growth+' },
-    { label: 'Recipe Costing', icon: Calculator, page: 'recipe_costing' as const, available: true, tier: 'Growth+' },
-    { label: 'Costeos y Margenes', icon: Percent, page: 'cost_analysis' as const, available: true, tier: 'Growth+' },
-    { label: 'Ingredients', icon: Package, page: 'ingredients' as const, available: true },
-    { label: 'Materias Primas', icon: Package, page: 'raw_materials' as const, available: true, tier: 'Growth+' },
-    { label: 'Design Gallery', icon: Image, page: 'design_gallery' as const, available: true },
+  { section: t('tenant.section.catalog', locale), items: [
+    { label: t('tenant.catalog', locale), icon: Package, page: 'catalog' as const, available: true },
+    { label: t('tenant.cakeMatrix', locale), icon: Layers, page: 'cake_matrix' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.recipeCosting', locale), icon: Calculator, page: 'recipe_costing' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.costAnalysis', locale), icon: Percent, page: 'cost_analysis' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.ingredients', locale), icon: Package, page: 'ingredients' as const, available: true },
+    { label: t('tenant.rawMaterials', locale), icon: Package, page: 'raw_materials' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.designGallery', locale), icon: Image, page: 'design_gallery' as const, available: true },
   ]},
-  { section: 'CLIENTS', items: [
-    { label: 'Client Directory', icon: Users, page: 'clients' as const, available: true },
+  { section: t('tenant.section.clients', locale), items: [
+    { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
     { label: 'Loyalty Program', icon: Heart, page: 'clients' as const, available: false, tier: 'Growth+' },
   ]},
-  { section: 'FINANCE', items: [
-    { label: 'Quotes', icon: FileText, page: 'quotes' as const, available: true },
-    { label: 'Invoices', icon: Receipt, page: 'invoices' as const, available: true },
-    { label: 'Payments', icon: CreditCard, page: 'payments' as const, available: true },
-    { label: 'Expenses', icon: Receipt, page: 'expenses' as const, available: true },
-    { label: 'Bookkeeping', icon: BookOpen, page: 'bookkeeping' as const, available: true },
-    { label: 'Documents', icon: FileText, page: 'documents' as const, available: true },
+  { section: t('tenant.section.finance', locale), items: [
+    { label: t('tenant.quotes', locale), icon: FileText, page: 'quotes' as const, available: true },
+    { label: t('tenant.invoices', locale), icon: Receipt, page: 'invoices' as const, available: true },
+    { label: t('tenant.payments', locale), icon: CreditCard, page: 'payments' as const, available: true },
+    { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
+    { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
+    { label: t('tenant.documents', locale), icon: FileText, page: 'documents' as const, available: true },
   ]},
-  { section: 'INSIGHTS', items: [
-    { label: 'Reports', icon: BarChart3, page: 'reports' as const, available: true },
-    { label: 'Pricing Assistant', icon: DollarSign, page: 'pricing_assistant' as const, available: true, tier: 'Growth+' },
+  { section: t('tenant.section.insights', locale), items: [
+    { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
+    { label: t('tenant.pricingAssistant', locale), icon: DollarSign, page: 'pricing_assistant' as const, available: true, tier: 'Growth+' },
   ]},
-  { section: 'TOOLS', items: [
-    { label: 'Team & Roles', icon: Users, page: 'team' as const, available: true },
-    { label: 'Smart Import', icon: Upload, page: 'smart_import' as const, available: true },
+  { section: t('tenant.section.tools', locale), items: [
+    { label: t('tenant.team', locale), icon: Users, page: 'team' as const, available: true },
+    { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
   ]},
-  { section: 'SETTINGS', items: [
-    { label: 'Business Settings', icon: Settings, page: 'settings' as const, available: true },
+  { section: t('tenant.section.settings', locale), items: [
+    { label: t('tenant.settings', locale), icon: Settings, page: 'settings' as const, available: true },
   ]},
 ];
+}
 
-const SALON_NAV = [
-  { section: 'SALON', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: 'Appointments', icon: Calendar, page: 'appointments' as const, available: true },
-    { label: 'Stylists', icon: Scissors, page: 'stylists' as const, available: true },
-    { label: 'Services', icon: Sparkles, page: 'salon_services' as const, available: true },
+function getSalonNav(locale: string) {
+  return [
+  { section: t('tenant.section.salon', locale), items: [
+    { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
+    { label: t('tenant.appointments', locale), icon: Calendar, page: 'appointments' as const, available: true },
+    { label: t('tenant.stylists', locale), icon: Scissors, page: 'stylists' as const, available: true },
+    { label: t('tenant.salonServices', locale), icon: Sparkles, page: 'salon_services' as const, available: true },
   ]},
-  { section: 'CLIENTS', items: [
-    { label: 'Client Profiles', icon: Users, page: 'salon_clients' as const, available: true },
-    { label: 'Memberships', icon: CreditCard, page: 'memberships' as const, available: true, tier: 'Growth+' },
-    { label: 'Gift Cards', icon: Gift, page: 'gift_cards' as const, available: true },
+  { section: t('tenant.section.clients', locale), items: [
+    { label: t('tenant.salonClients', locale), icon: Users, page: 'salon_clients' as const, available: true },
+    { label: t('tenant.memberships', locale), icon: CreditCard, page: 'memberships' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.giftCards', locale), icon: Gift, page: 'gift_cards' as const, available: true },
   ]},
-  { section: 'FINANCE', items: [
-    { label: 'Analytics', icon: BarChart3, page: 'salon_analytics' as const, available: true },
-    { label: 'Invoices', icon: Receipt, page: 'invoices' as const, available: true },
-    { label: 'Expenses', icon: Receipt, page: 'expenses' as const, available: true },
-    { label: 'Bookkeeping', icon: BookOpen, page: 'bookkeeping' as const, available: true },
+  { section: t('tenant.section.finance', locale), items: [
+    { label: t('tenant.salonAnalytics', locale), icon: BarChart3, page: 'salon_analytics' as const, available: true },
+    { label: t('tenant.invoices', locale), icon: Receipt, page: 'invoices' as const, available: true },
+    { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
+    { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
-  { section: 'TOOLS', items: [
-    { label: 'Smart Import', icon: Upload, page: 'smart_import' as const, available: true },
+  { section: t('tenant.section.tools', locale), items: [
+    { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
   ]},
-  { section: 'SETTINGS', items: [
-    { label: 'Business Settings', icon: Settings, page: 'settings' as const, available: true },
+  { section: t('tenant.section.settings', locale), items: [
+    { label: t('tenant.settings', locale), icon: Settings, page: 'settings' as const, available: true },
   ]},
 ];
+}
 
-const RETAIL_NAV = [
-  { section: 'OPERATIONS', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: 'POS Terminal', icon: CardIcon, page: 'pos' as const, available: true },
-    { label: 'Inventory', icon: Package, page: 'inventory' as const, available: true },
+function getRetailNav(locale: string) {
+  return [
+  { section: t('tenant.section.operations', locale), items: [
+    { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
+    { label: t('tenant.posTerminal', locale), icon: CardIcon, page: 'pos' as const, available: true },
+    { label: t('tenant.inventory', locale), icon: Package, page: 'inventory' as const, available: true },
   ]},
-  { section: 'CATALOG', items: [
-    { label: 'Products', icon: ShoppingBag, page: 'retail-products' as const, available: true },
-    { label: 'Suppliers', icon: Truck, page: 'suppliers' as const, available: true },
-    { label: 'Purchase Orders', icon: ClipboardList, page: 'purchase-orders' as const, available: true },
+  { section: t('tenant.section.catalog', locale), items: [
+    { label: t('tenant.retailProducts', locale), icon: ShoppingBag, page: 'retail-products' as const, available: true },
+    { label: t('tenant.suppliers', locale), icon: Truck, page: 'suppliers' as const, available: true },
+    { label: t('tenant.purchaseOrders', locale), icon: ClipboardList, page: 'purchase-orders' as const, available: true },
   ]},
-  { section: 'CLIENTS', items: [
-    { label: 'Customers', icon: Users, page: 'clients' as const, available: true },
+  { section: t('tenant.section.clients', locale), items: [
+    { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
   ]},
-  { section: 'FINANCE', items: [
-    { label: 'Invoices', icon: Receipt, page: 'invoices' as const, available: true },
-    { label: 'Expenses', icon: Receipt, page: 'expenses' as const, available: true },
-    { label: 'Bookkeeping', icon: BookOpen, page: 'bookkeeping' as const, available: true },
+  { section: t('tenant.section.finance', locale), items: [
+    { label: t('tenant.invoices', locale), icon: Receipt, page: 'invoices' as const, available: true },
+    { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
+    { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
-  { section: 'INSIGHTS', items: [
-    { label: 'Reports', icon: BarChart3, page: 'reports' as const, available: true },
+  { section: t('tenant.section.insights', locale), items: [
+    { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
   ]},
-  { section: 'TOOLS', items: [
-    { label: 'Smart Import', icon: Upload, page: 'smart_import' as const, available: true },
+  { section: t('tenant.section.tools', locale), items: [
+    { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
   ]},
-  { section: 'SETTINGS', items: [
-    { label: 'Settings', icon: Settings, page: 'settings' as const, available: true },
+  { section: t('tenant.section.settings', locale), items: [
+    { label: t('tenant.settings', locale), icon: Settings, page: 'settings' as const, available: true },
   ]},
 ];
+}
 
-const EVENTS_NAV = [
-  { section: 'EVENTS', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: 'Events Calendar', icon: Calendar, page: 'events-calendar' as const, available: true },
-    { label: 'Venues', icon: MapPin, page: 'venues' as const, available: true },
+function getEventsNav(locale: string) {
+  return [
+  { section: t('tenant.section.events', locale), items: [
+    { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
+    { label: t('tenant.eventsCalendar', locale), icon: Calendar, page: 'events-calendar' as const, available: true },
+    { label: t('tenant.venues', locale), icon: MapPin, page: 'venues' as const, available: true },
   ]},
-  { section: 'PEOPLE', items: [
-    { label: 'Clients', icon: Users, page: 'clients' as const, available: true },
-    { label: 'Vendors', icon: Truck, page: 'vendors' as const, available: true },
-    { label: 'Catering', icon: Utensils, page: 'catering' as const, available: true },
+  { section: t('tenant.section.people', locale), items: [
+    { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
+    { label: t('tenant.vendors', locale), icon: Truck, page: 'vendors' as const, available: true },
+    { label: t('tenant.catering', locale), icon: Utensils, page: 'catering' as const, available: true },
   ]},
-  { section: 'FINANCE', items: [
-    { label: 'Budget Tracker', icon: Calculator, page: 'budget-tracker' as const, available: true },
-    { label: 'Invoices', icon: Receipt, page: 'invoices' as const, available: true },
-    { label: 'Expenses', icon: Receipt, page: 'expenses' as const, available: true },
-    { label: 'Bookkeeping', icon: BookOpen, page: 'bookkeeping' as const, available: true },
+  { section: t('tenant.section.finance', locale), items: [
+    { label: t('tenant.budgetTracker', locale), icon: Calculator, page: 'budget-tracker' as const, available: true },
+    { label: t('tenant.invoices', locale), icon: Receipt, page: 'invoices' as const, available: true },
+    { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
+    { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
-  { section: 'PLANNING', items: [
-    { label: 'Guest Lists', icon: UsersIcon, page: 'guest-lists' as const, available: true },
+  { section: t('tenant.section.planning', locale), items: [
+    { label: t('tenant.guestLists', locale), icon: UsersIcon, page: 'guest-lists' as const, available: true },
   ]},
-  { section: 'TOOLS', items: [
-    { label: 'Smart Import', icon: Upload, page: 'smart_import' as const, available: true },
+  { section: t('tenant.section.tools', locale), items: [
+    { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
   ]},
-  { section: 'SETTINGS', items: [
-    { label: 'Settings', icon: Settings, page: 'settings' as const, available: true },
+  { section: t('tenant.section.settings', locale), items: [
+    { label: t('tenant.settings', locale), icon: Settings, page: 'settings' as const, available: true },
   ]},
 ];
+}
 
-const PROFESSIONAL_NAV = [
-  { section: 'WORKSPACE', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: 'Projects', icon: Briefcase, page: 'projects' as const, available: true },
-    { label: 'Time Tracking', icon: Clock, page: 'time-tracking' as const, available: true },
+function getProfessionalNav(locale: string) {
+  return [
+  { section: t('tenant.section.workspace', locale), items: [
+    { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
+    { label: t('tenant.projects', locale), icon: Briefcase, page: 'projects' as const, available: true },
+    { label: t('tenant.timeTracking', locale), icon: Clock, page: 'time-tracking' as const, available: true },
   ]},
-  { section: 'CLIENTS', items: [
-    { label: 'Clients', icon: Users, page: 'clients' as const, available: true },
+  { section: t('tenant.section.clients', locale), items: [
+    { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
   ]},
-  { section: 'FINANCE', items: [
-    { label: 'Invoices', icon: Receipt, page: 'invoices' as const, available: true },
-    { label: 'Expenses', icon: Receipt, page: 'expenses' as const, available: true },
-    { label: 'Bookkeeping', icon: BookOpen, page: 'bookkeeping' as const, available: true },
+  { section: t('tenant.section.finance', locale), items: [
+    { label: t('tenant.invoices', locale), icon: Receipt, page: 'invoices' as const, available: true },
+    { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
+    { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
-  { section: 'BUSINESS', items: [
-    { label: 'Documents', icon: FileText, page: 'documents' as const, available: true },
-    { label: 'Reports', icon: BarChart3, page: 'reports' as const, available: true },
-    { label: 'Contracts', icon: ScrollText, page: 'contracts' as const, available: true },
-    { label: 'Team', icon: UsersIcon, page: 'team' as const, available: true },
+  { section: t('tenant.section.business', locale), items: [
+    { label: t('tenant.documents', locale), icon: FileText, page: 'documents' as const, available: true },
+    { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
+    { label: t('tenant.contracts', locale), icon: ScrollText, page: 'contracts' as const, available: true },
+    { label: t('tenant.team', locale), icon: UsersIcon, page: 'team' as const, available: true },
   ]},
-  { section: 'SETTINGS', items: [
-    { label: 'Settings', icon: Settings, page: 'settings' as const, available: true },
+  { section: t('tenant.section.settings', locale), items: [
+    { label: t('tenant.settings', locale), icon: Settings, page: 'settings' as const, available: true },
   ]},
 ];
+}
 
-const LEGAL_NAV = [
-  { section: 'PRACTICE', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: 'Cases & Matters', icon: Briefcase, page: 'projects' as const, available: true },
-    { label: 'Calendar & Deadlines', icon: Calendar, page: 'time-tracking' as const, available: true },
-    { label: 'Time Tracking', icon: Clock, page: 'time-tracking' as const, available: true },
+function getLegalNav(locale: string) {
+  return [
+  { section: t('tenant.section.practice', locale), items: [
+    { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
+    { label: t('tenant.cases', locale), icon: Briefcase, page: 'projects' as const, available: true },
+    { label: t('tenant.calendar', locale), icon: Calendar, page: 'time-tracking' as const, available: true },
+    { label: t('tenant.timeTracking', locale), icon: Clock, page: 'time-tracking' as const, available: true },
   ]},
-  { section: 'CLIENTS', items: [
-    { label: 'Client Directory', icon: Users, page: 'clients' as const, available: true },
-    { label: 'Trust Accounts', icon: Landmark, page: 'bookkeeping' as const, available: true },
+  { section: t('tenant.section.clients', locale), items: [
+    { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
+    { label: t('tenant.trustAccounts', locale), icon: Landmark, page: 'bookkeeping' as const, available: true },
   ]},
-  { section: 'FINANCE', items: [
-    { label: 'Invoices & Billing', icon: Receipt, page: 'invoices' as const, available: true },
-    { label: 'Expenses', icon: Receipt, page: 'expenses' as const, available: true },
-    { label: 'Bookkeeping', icon: BookOpen, page: 'bookkeeping' as const, available: true },
+  { section: t('tenant.section.finance', locale), items: [
+    { label: t('tenant.billing', locale), icon: Receipt, page: 'invoices' as const, available: true },
+    { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
+    { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
-  { section: 'DOCUMENTS', items: [
-    { label: 'Documents & Templates', icon: FileText, page: 'documents' as const, available: true },
-    { label: 'Contracts', icon: ScrollText, page: 'contracts' as const, available: true },
-    { label: 'Reports', icon: BarChart3, page: 'reports' as const, available: true },
+  { section: t('tenant.section.documents', locale), items: [
+    { label: t('tenant.documents', locale), icon: FileText, page: 'documents' as const, available: true },
+    { label: t('tenant.contracts', locale), icon: ScrollText, page: 'contracts' as const, available: true },
+    { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
   ]},
-  { section: 'TOOLS', items: [
-    { label: 'Smart Import', icon: Upload, page: 'smart_import' as const, available: true },
+  { section: t('tenant.section.tools', locale), items: [
+    { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
   ]},
-  { section: 'SETTINGS', items: [
-    { label: 'Settings', icon: Settings, page: 'settings' as const, available: true },
+  { section: t('tenant.section.settings', locale), items: [
+    { label: t('tenant.settings', locale), icon: Settings, page: 'settings' as const, available: true },
   ]},
 ];
+}
 
-const INSURANCE_NAV = [
-  { section: 'OPERATIONS', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: 'Policies', icon: Shield, page: 'catalog' as const, available: true },
-    { label: 'Claims', icon: ClipboardList, page: 'orders' as const, available: true },
-    { label: 'Clients', icon: Users, page: 'clients' as const, available: true },
+function getInsuranceNav(locale: string) {
+  return [
+  { section: t('tenant.section.operations', locale), items: [
+    { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
+    { label: t('tenant.policies', locale), icon: Shield, page: 'catalog' as const, available: true },
+    { label: t('tenant.claims', locale), icon: ClipboardList, page: 'orders' as const, available: true },
+    { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
   ]},
-  { section: 'FINANCE', items: [
-    { label: 'Premiums & Billing', icon: Receipt, page: 'invoices' as const, available: true },
-    { label: 'Commissions', icon: DollarSign, page: 'expenses' as const, available: true },
-    { label: 'Bookkeeping', icon: BookOpen, page: 'bookkeeping' as const, available: true },
+  { section: t('tenant.section.finance', locale), items: [
+    { label: t('tenant.premiums', locale), icon: Receipt, page: 'invoices' as const, available: true },
+    { label: t('tenant.commissions', locale), icon: DollarSign, page: 'expenses' as const, available: true },
+    { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
-  { section: 'COMPLIANCE', items: [
-    { label: 'Documents', icon: FileText, page: 'documents' as const, available: true },
-    { label: 'Reports & Analytics', icon: BarChart3, page: 'reports' as const, available: true },
+  { section: t('tenant.section.compliance', locale), items: [
+    { label: t('tenant.documents', locale), icon: FileText, page: 'documents' as const, available: true },
+    { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
   ]},
-  { section: 'TOOLS', items: [
-    { label: 'Smart Import', icon: Upload, page: 'smart_import' as const, available: true },
+  { section: t('tenant.section.tools', locale), items: [
+    { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
   ]},
-  { section: 'SETTINGS', items: [
-    { label: 'Settings', icon: Settings, page: 'settings' as const, available: true },
+  { section: t('tenant.section.settings', locale), items: [
+    { label: t('tenant.settings', locale), icon: Settings, page: 'settings' as const, available: true },
   ]},
 ];
+}
 
-const CLINICS_NAV = [
-  { section: 'CLINIC', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: 'Appointments', icon: Calendar, page: 'appointments' as const, available: true },
-    { label: 'Doctors & Staff', icon: UsersIcon, page: 'stylists' as const, available: true },
-    { label: 'Services & Specialties', icon: Stethoscope, page: 'salon_services' as const, available: true },
+function getClinicsNav(locale: string) {
+  return [
+  { section: t('tenant.section.clinic', locale), items: [
+    { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
+    { label: t('tenant.appointments', locale), icon: Calendar, page: 'appointments' as const, available: true },
+    { label: t('tenant.doctors', locale), icon: UsersIcon, page: 'stylists' as const, available: true },
+    { label: t('tenant.salonServices', locale), icon: Stethoscope, page: 'salon_services' as const, available: true },
   ]},
-  { section: 'PATIENTS', items: [
-    { label: 'Patient Records', icon: Users, page: 'clients' as const, available: true },
-    { label: 'Medical History', icon: FileText, page: 'documents' as const, available: true },
-    { label: 'Prescriptions', icon: FileSpreadsheet, page: 'design_gallery' as const, available: true },
+  { section: t('tenant.section.patients', locale), items: [
+    { label: t('tenant.patientRecords', locale), icon: Users, page: 'clients' as const, available: true },
+    { label: t('tenant.medicalHistory', locale), icon: FileText, page: 'documents' as const, available: true },
+    { label: t('tenant.prescriptions', locale), icon: FileSpreadsheet, page: 'design_gallery' as const, available: true },
   ]},
-  { section: 'FINANCE', items: [
-    { label: 'Billing & Invoices', icon: Receipt, page: 'invoices' as const, available: true },
-    { label: 'Insurance Claims', icon: Shield, page: 'expenses' as const, available: true },
-    { label: 'Bookkeeping', icon: BookOpen, page: 'bookkeeping' as const, available: true },
+  { section: t('tenant.section.finance', locale), items: [
+    { label: t('tenant.billing', locale), icon: Receipt, page: 'invoices' as const, available: true },
+    { label: t('tenant.claims', locale), icon: Shield, page: 'expenses' as const, available: true },
+    { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
-  { section: 'INSIGHTS', items: [
-    { label: 'Reports', icon: BarChart3, page: 'reports' as const, available: true },
+  { section: t('tenant.section.insights', locale), items: [
+    { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
   ]},
-  { section: 'TOOLS', items: [
-    { label: 'Smart Import', icon: Upload, page: 'smart_import' as const, available: true },
+  { section: t('tenant.section.tools', locale), items: [
+    { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
   ]},
-  { section: 'SETTINGS', items: [
-    { label: 'Settings', icon: Settings, page: 'settings' as const, available: true },
+  { section: t('tenant.section.settings', locale), items: [
+    { label: t('tenant.settings', locale), icon: Settings, page: 'settings' as const, available: true },
   ]},
 ];
+}
 
-const PROPERTY_MGMT_NAV = [
-  { section: 'PORTFOLIO', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: 'Properties', icon: Home, page: 'catalog' as const, available: true },
-    { label: 'Units', icon: MapPin, page: 'ingredients' as const, available: true },
-    { label: 'Leases', icon: FileText, page: 'orders' as const, available: true },
+function getPropertyMgmtNav(locale: string) {
+  return [
+  { section: t('tenant.section.portfolio', locale), items: [
+    { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
+    { label: t('tenant.properties', locale), icon: Home, page: 'catalog' as const, available: true },
+    { label: t('tenant.units', locale), icon: MapPin, page: 'ingredients' as const, available: true },
+    { label: t('tenant.leases', locale), icon: FileText, page: 'orders' as const, available: true },
   ]},
-  { section: 'FINANCE', items: [
-    { label: 'Rent Collection', icon: Banknote, page: 'invoices' as const, available: true },
-    { label: 'Expenses', icon: Receipt, page: 'expenses' as const, available: true },
-    { label: 'Maintenance Costs', icon: Wrench, page: 'pos' as const, available: true },
-    { label: 'Bookkeeping', icon: BookOpen, page: 'bookkeeping' as const, available: true },
+  { section: t('tenant.section.finance', locale), items: [
+    { label: t('tenant.rentCollection', locale), icon: Banknote, page: 'invoices' as const, available: true },
+    { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
+    { label: t('tenant.maintenance', locale), icon: Wrench, page: 'pos' as const, available: true },
+    { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
-  { section: 'OPERATIONS', items: [
-    { label: 'Maintenance Requests', icon: Wrench, page: 'kds' as const, available: true },
-    { label: 'Vendors', icon: Truck, page: 'salon_services' as const, available: true },
-    { label: 'Documents', icon: FileSpreadsheet, page: 'documents' as const, available: true },
+  { section: t('tenant.section.operations', locale), items: [
+    { label: t('tenant.maintenance', locale), icon: Wrench, page: 'kds' as const, available: true },
+    { label: t('tenant.vendors', locale), icon: Truck, page: 'salon_services' as const, available: true },
+    { label: t('tenant.documents', locale), icon: FileSpreadsheet, page: 'documents' as const, available: true },
   ]},
-  { section: 'INSIGHTS', items: [
-    { label: 'Owner Reports', icon: BarChart3, page: 'reports' as const, available: true },
-    { label: 'Analytics', icon: TrendingUp, page: 'pricing_assistant' as const, available: true },
+  { section: t('tenant.section.insights', locale), items: [
+    { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
+    { label: t('tenant.salonAnalytics', locale), icon: TrendingUp, page: 'pricing_assistant' as const, available: true },
   ]},
-  { section: 'TOOLS', items: [
-    { label: 'Smart Import', icon: Upload, page: 'smart_import' as const, available: true },
+  { section: t('tenant.section.tools', locale), items: [
+    { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
   ]},
-  { section: 'SETTINGS', items: [
-    { label: 'Settings', icon: Settings, page: 'settings' as const, available: true },
+  { section: t('tenant.section.settings', locale), items: [
+    { label: t('tenant.settings', locale), icon: Settings, page: 'settings' as const, available: true },
   ]},
 ];
+}
 
 // ============ HELPER COMPONENTS ============
 
@@ -526,6 +557,7 @@ function PortalNavbar() {
           </div>
 
           <div className="flex items-center gap-2">
+            <LangToggle />
             <button onClick={() => setView('login')}
               className="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
               {t('portal.nav.signin', locale)}
@@ -735,8 +767,8 @@ function PortalTestimonials() {
       <div className="max-w-6xl mx-auto px-4">
         <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
           <Badge variant="secondary" className="mb-4 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Trusted by Businesses Across the Caribbean</Badge>
-          <h2 className="text-3xl md:text-4xl font-bold">{locale === 'es' ? 'Lo Que Dicen Nuestros Clientes' : 'What Our Clients Say'}</h2>
-          <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">{locale === 'es' ? 'Empresas reales, resultados reales. Descubre por qué cientos de negocios confian en ZBS.' : 'Real businesses, real results. Discover why businesses across the Caribbean trust ZBS to run their operations.'}</p>
+          <h2 className="text-3xl md:text-4xl font-bold">{t('portal.testimonials.title', locale)}</h2>
+          <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">{t('portal.testimonials.subtitle', locale)}</p>
         </motion.div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {TESTIMONIALS.map((t, i) => (
@@ -768,8 +800,8 @@ function PortalTestimonials() {
               ))}
             </div>
             <div className="text-left">
-              <p className="text-sm font-semibold">50+ {locale === 'es' ? 'Empresas Activas' : 'Active Businesses'}</p>
-              <p className="text-xs text-muted-foreground">{locale === 'es' ? 'en Trinidad & Tobago y el Caribe' : 'across Trinidad & Tobago and the Caribbean'}</p>
+              <p className="text-sm font-semibold">50+ {t('portal.testimonials.activeBiz', locale)}</p>
+              <p className="text-xs text-muted-foreground">{t('portal.testimonials.activeBizDesc', locale)}</p>
             </div>
           </div>
         </motion.div>
@@ -1558,26 +1590,26 @@ function PortalFooter() {
             </div>
           </div>
           <div>
-            <h4 className="font-semibold text-white mb-3">{locale === 'es' ? 'Producto' : 'Product'}</h4>
+            <h4 className="font-semibold text-white mb-3">{t('portal.footer.product', locale)}</h4>
             <div className="space-y-2 text-sm">
-              <button onClick={() => { setView('portal'); scrollTo('industries'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{locale === 'es' ? 'Industrias' : 'Industries'}</button><br/>
-              <button onClick={() => { setView('portal'); scrollTo('pricing'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{locale === 'es' ? 'Precios' : 'Pricing'}</button><br/>
-              <button onClick={() => { setView('portal'); setPortalPage && null; }} className="hover:text-blue-400 transition-colors cursor-pointer">{locale === 'es' ? 'Funciones' : 'Features'}</button>
+              <button onClick={() => { setView('portal'); scrollTo('industries'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.industries', locale)}</button><br/>
+              <button onClick={() => { setView('portal'); scrollTo('pricing'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.pricing', locale)}</button><br/>
+              <button onClick={() => { setView('portal'); setPortalPage && null; }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.features', locale)}</button>
             </div>
           </div>
           <div>
-            <h4 className="font-semibold text-white mb-3">{locale === 'es' ? 'Empresa' : 'Company'}</h4>
+            <h4 className="font-semibold text-white mb-3">{t('portal.footer.company', locale)}</h4>
             <div className="space-y-2 text-sm">
-              <button onClick={() => { setView('portal'); scrollTo('about'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{locale === 'es' ? 'Sobre Nosotros' : 'About'}</button><br/>
-              <button onClick={() => { setView('portal'); setPortalPage && null; }} className="hover:text-blue-400 transition-colors cursor-pointer">{locale === 'es' ? 'Contacto' : 'Contact'}</button><br/>
-              <span className="text-gray-500 cursor-not-allowed">{locale === 'es' ? 'Carreras' : 'Careers'} — {locale === 'es' ? 'Pronto' : 'Coming Soon'}</span>
+              <button onClick={() => { setView('portal'); scrollTo('about'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.about', locale)}</button><br/>
+              <button onClick={() => { setView('portal'); setPortalPage && null; }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.contact', locale)}</button><br/>
+              <span className="text-gray-500 cursor-not-allowed">{t('portal.footer.careers', locale)} — {t('portal.footer.comingSoon', locale)}</span>
             </div>
           </div>
           <div>
-            <h4 className="font-semibold text-white mb-3">{locale === 'es' ? 'Legal' : 'Legal'}</h4>
+            <h4 className="font-semibold text-white mb-3">{t('portal.footer.legal', locale)}</h4>
             <div className="space-y-2 text-sm">
-              <span className="text-gray-500 cursor-not-allowed">{locale === 'es' ? 'Política de Privacidad' : 'Privacy Policy'} — {locale === 'es' ? 'Pronto' : 'Coming Soon'}</span><br/>
-              <span className="text-gray-500 cursor-not-allowed">{locale === 'es' ? 'Términos de Servicio' : 'Terms of Service'} — {locale === 'es' ? 'Pronto' : 'Coming Soon'}</span>
+              <span className="text-gray-500 cursor-not-allowed">{t('portal.footer.privacy', locale)} — {t('portal.footer.comingSoon', locale)}</span><br/>
+              <span className="text-gray-500 cursor-not-allowed">{t('portal.footer.terms', locale)} — {t('portal.footer.comingSoon', locale)}</span>
             </div>
           </div>
         </div>
@@ -1712,10 +1744,10 @@ function LoginView() {
               </button>
               <div className="flex gap-3">
                 <button onClick={() => setShowForgotPassword(true)} className="text-sm text-gray-400 hover:text-white">
-                  {locale === 'es' ? '¿Olvidaste tu contraseña?' : 'Forgot Password?'}
+                  {t('login.forgot', locale)}
                 </button>
                 <button onClick={() => setView('portal')} className="text-sm text-gray-400 hover:text-white">
-                  ← {locale === 'es' ? 'Volver' : 'Back'}
+                  ← {t('login.back', locale)}
                 </button>
               </div>
             </div>
@@ -1735,30 +1767,30 @@ function LoginView() {
         <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>{locale === 'es' ? 'Recuperar Contraseña' : 'Reset Password'}</DialogTitle>
+              <DialogTitle>{t('login.forgotTitle', locale)}</DialogTitle>
               <DialogDescription>
-                {locale === 'es' ? 'Ingresa tu email y te enviaremos un enlace de recuperación.' : 'Enter your email and we\'ll send you a recovery link.'}
+                {t('login.forgotDesc', locale)}
               </DialogDescription>
             </DialogHeader>
             {forgotSent ? (
               <div className="text-center py-4">
                 <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                <p className="font-semibold">{locale === 'es' ? '¡Email Enviado!' : 'Email Sent!'}</p>
+                <p className="font-semibold">{t('login.forgotSent', locale)}</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {locale === 'es' ? 'Revisa tu bandeja de entrada y sigue las instrucciones.' : 'Check your inbox and follow the instructions.'}
+                  {t('login.forgotSentDesc', locale)}
                 </p>
                 <Button variant="outline" className="mt-4" onClick={() => { setShowForgotPassword(false); setForgotSent(false); setForgotEmail(''); }}>
-                  {locale === 'es' ? 'Entendido' : 'Got it'}
+                  {t('login.forgotGotIt', locale)}
                 </Button>
               </div>
             ) : (
               <div className="space-y-4 mt-2">
                 <div>
-                  <Label>{locale === 'es' ? 'Email' : 'Email'}</Label>
+                  <Label>{t('login.forgotEmail', locale)}</Label>
                   <Input type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="tu@email.com" className="mt-1" />
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setShowForgotPassword(false)}>{locale === 'es' ? 'Cancelar' : 'Cancel'}</Button>
+                  <Button variant="outline" onClick={() => setShowForgotPassword(false)}>{t('login.forgotCancel', locale)}</Button>
                   <Button onClick={async () => {
                     if (!forgotEmail.trim()) return;
                     setForgotSending(true);
@@ -1769,11 +1801,11 @@ function LoginView() {
                         body: JSON.stringify({ name: 'Password Reset', email: forgotEmail, message: 'PASSWORD_RESET_REQUEST', subject: 'ZBS Password Reset Request' })
                       });
                       setForgotSent(true);
-                    } catch { setError(locale === 'es' ? 'Error enviando solicitud' : 'Error sending request'); }
+                    } catch { setError(t('login.forgotError', locale)); }
                     setForgotSending(false);
                   }} disabled={forgotSending || !forgotEmail.trim()}>
                     {forgotSending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
-                    {locale === 'es' ? 'Enviar Enlace' : 'Send Link'}
+                    {t('login.forgotSend', locale)}
                   </Button>
                 </DialogFooter>
               </div>
@@ -1910,10 +1942,10 @@ function OnboardingView() {
     if (/[A-Z]/.test(pw)) score++;
     if (/[0-9]/.test(pw)) score++;
     if (/[^A-Za-z0-9]/.test(pw)) score++;
-    if (score <= 2) return { score, label: locale === 'es' ? 'Débil' : 'Weak', color: 'bg-red-500' };
-    if (score <= 3) return { score, label: locale === 'es' ? 'Regular' : 'Fair', color: 'bg-amber-500' };
-    if (score <= 4) return { score, label: locale === 'es' ? 'Buena' : 'Good', color: 'bg-blue-500' };
-    return { score, label: locale === 'es' ? 'Fuerte' : 'Strong', color: 'bg-green-500' };
+    if (score <= 2) return { score, label: t('password.weak', locale), color: 'bg-red-500' };
+    if (score <= 3) return { score, label: t('password.fair', locale), color: 'bg-amber-500' };
+    if (score <= 4) return { score, label: t('password.good', locale), color: 'bg-blue-500' };
+    return { score, label: t('password.strong', locale), color: 'bg-green-500' };
   };
   const pwStrength = getPasswordStrength(form.password);
   const passwordValid = form.password.length >= 6;
@@ -1990,7 +2022,7 @@ function OnboardingView() {
                 <div><Label className="text-gray-300">Email *</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="bg-white/5 border-white/10 text-white" /></div>
                 <div>
                   <Label className="text-gray-300">Password *</Label>
-                  <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} className="bg-white/5 border-white/10 text-white" placeholder={locale === 'es' ? 'Mínimo 6 caracteres' : 'Minimum 6 characters'} />
+                  <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} className="bg-white/5 border-white/10 text-white" placeholder={t('register.minChars', locale)} />
                   {form.password && (
                     <div className="mt-2 space-y-1">
                       <div className="flex gap-1">{[1,2,3,4,5].map(i => <div key={i} className={`h-1.5 flex-1 rounded-full ${i <= pwStrength.score ? pwStrength.color : 'bg-white/10'}`} />)}</div>
@@ -1999,12 +2031,12 @@ function OnboardingView() {
                   )}
                 </div>
                 <div>
-                  <Label className="text-gray-300">{locale === 'es' ? 'Confirmar Contraseña *' : 'Confirm Password *'}</Label>
+                  <Label className="text-gray-300">{t('register.confirmPassword', locale)} *</Label>
                   <Input type="password" value={form.confirmPassword} onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value }))} className={`bg-white/5 border-white/10 text-white ${!passwordMatch ? 'border-red-500' : ''}`} />
-                  {!passwordMatch && <p className="text-xs text-red-400 mt-1">{locale === 'es' ? 'Las contraseñas no coinciden' : 'Passwords do not match'}</p>}
+                  {!passwordMatch && <p className="text-xs text-red-400 mt-1">{t('register.passwordMismatch', locale)}</p>}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setStep(1)} className="border-white/10 text-white flex-1">{locale === 'es' ? 'Atrás' : 'Back'}</Button>
+                  <Button variant="outline" onClick={() => setStep(1)} className="border-white/10 text-white flex-1">{t('register.back', locale)}</Button>
                   <Button onClick={() => setStep(3)} disabled={!form.fullName || !form.email || !passwordValid || !passwordMatch} className="flex-1 bg-gradient-to-r from-blue-700 to-blue-500 text-white">Next <ArrowRight className="w-4 h-4 ml-2" /></Button>
                 </div>
               </div>
@@ -2156,10 +2188,11 @@ function CTRealTimeClock() {
 }
 
 function CTSystemStatusBanner({ stats }: { stats: any }) {
+  const locale = useAppStore(s => s.locale);
   const suspicious = stats?.tenants?.suspiciousAccounts?.length || 0;
   const pending = stats?.tenants?.pendingApproval?.length || 0;
   const level = suspicious > 3 || pending > 5 ? 'critical' : suspicious > 1 || pending > 2 ? 'warning' : 'normal';
-  const cfg = { normal: { bg: 'bg-green-50 dark:bg-green-950/20', border: 'border-green-200 dark:border-green-800', dot: 'bg-green-500', text: 'text-green-700 dark:text-green-400', label: 'All Systems Operational' }, warning: { bg: 'bg-amber-50 dark:bg-amber-950/20', border: 'border-amber-200 dark:border-amber-800', dot: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-400', label: 'Attention Required' }, critical: { bg: 'bg-red-50 dark:bg-red-950/20', border: 'border-red-200 dark:border-red-800', dot: 'bg-red-500', text: 'text-red-700 dark:text-red-400', label: 'Critical Issues Detected' } }[level];
+  const cfg = { normal: { bg: 'bg-green-50 dark:bg-green-950/20', border: 'border-green-200 dark:border-green-800', dot: 'bg-green-500', text: 'text-green-700 dark:text-green-400', label: t('ct.systemStatus.operational', locale) }, warning: { bg: 'bg-amber-50 dark:bg-amber-950/20', border: 'border-amber-200 dark:border-amber-800', dot: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-400', label: t('ct.systemStatus.attention', locale) }, critical: { bg: 'bg-red-50 dark:bg-red-950/20', border: 'border-red-200 dark:border-red-800', dot: 'bg-red-500', text: 'text-red-700 dark:text-red-400', label: t('ct.systemStatus.critical', locale) } }[level];
   return (
     <div className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border ${cfg.bg} ${cfg.border}`}>
       <span className={`relative flex h-2.5 w-2.5`}><span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${cfg.dot} opacity-75`} /><span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${cfg.dot}`} /></span>
@@ -2175,6 +2208,7 @@ function CTSystemStatusBanner({ stats }: { stats: any }) {
 
 function CTSidebar() {
   const { ctPage, setCtPage, sidebarCollapsed, toggleSidebar, theme, setTheme, logout, user } = useAppStore();
+  const locale = useAppStore(s => s.locale);
   const [pendingCount, setPendingCount] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -2199,7 +2233,7 @@ function CTSidebar() {
       </button>
       {mobileOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileOpen(false)} />}
       <aside className={`fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-[72px]' : 'w-[260px]'} ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 bg-card border-r border-border`}>
-      <div className="h-16 flex items-center px-4 border-b border-border shrink-0">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-border shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/20">
             <Shield className="w-5 h-5 text-white" />
@@ -2207,14 +2241,15 @@ function CTSidebar() {
           {!sidebarCollapsed && (
             <div className="min-w-0">
               <h1 className="text-sm font-bold tracking-wide truncate">ZEITGEIST</h1>
-              <p className="text-[10px] text-muted-foreground tracking-widest">CONTROL TOWER</p>
+              <p className="text-[10px] text-muted-foreground tracking-widest">{t('ct.brand', locale)}</p>
             </div>
           )}
         </div>
+        {!sidebarCollapsed && <LangToggle />}
       </div>
 
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4 scrollbar-thin">
-        {CT_NAV.map((section) => (
+        {getCTNav(locale).map((section) => (
           <div key={section.section}>
             {!sidebarCollapsed && <p className="px-3 mb-1.5 text-[10px] font-semibold tracking-widest uppercase text-muted-foreground/70">{section.section}</p>}
             <div className="space-y-0.5">
@@ -2276,6 +2311,7 @@ function CTSidebar() {
 
 function CTOverview() {
   const { setCtPage } = useAppStore();
+  const locale = useAppStore(s => s.locale);
   const [stats, setStats] = useState<any>(null);
   const [taxData, setTaxData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -2337,7 +2373,7 @@ function CTOverview() {
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20"><LayoutDashboard className="w-5 h-5 text-white" /></div>
-        <div><h1 className="text-2xl font-bold tracking-tight">Command Center</h1><p className="text-sm text-muted-foreground">Platform overview and real-time monitoring</p></div>
+        <div><h1 className="text-2xl font-bold tracking-tight">{t('ct.overview.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.overview.desc', locale)}</p></div>
       </motion.div>
 
       {/* System Status Banner */}
@@ -2349,28 +2385,28 @@ function CTOverview() {
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card className="hover:shadow-lg transition-all cursor-pointer group" onClick={() => setCtPage('tenants')}>
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Active Tenants</p><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center shadow group-hover:scale-110 transition-transform"><Building2 className="w-4 h-4 text-white" /></div></div>
+            <div className="flex items-center justify-between mb-1"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{t('ct.overview.activeTenants', locale)}</p><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center shadow group-hover:scale-110 transition-transform"><Building2 className="w-4 h-4 text-white" /></div></div>
             <p className="text-2xl font-bold">{tenants.active}</p>
             <div className="flex items-center justify-between mt-1"><p className="text-[10px] text-muted-foreground">{tenants.trial} on trial</p><SparklineSVG data={tenantSpark} color="#1D4ED8" /></div>
           </CardContent>
         </Card>
         <Card className="hover:shadow-lg transition-all cursor-pointer group" onClick={() => setCtPage('tenants')}>
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Trial Tenants</p><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow group-hover:scale-110 transition-transform"><Clock className="w-4 h-4 text-white" /></div></div>
+            <div className="flex items-center justify-between mb-1"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{t('ct.overview.trialTenants', locale)}</p><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow group-hover:scale-110 transition-transform"><Clock className="w-4 h-4 text-white" /></div></div>
             <p className="text-2xl font-bold">{tenants.trial}</p>
             <div className="flex items-center justify-between mt-1"><p className="text-[10px] text-muted-foreground">{tenants.trialsExpiringSoon} expiring soon</p><SparklineSVG data={[1,2,3,2,4,3,tenants.trial]} color="#F59E0B" /></div>
           </CardContent>
         </Card>
         <Card className="hover:shadow-lg transition-all group">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Total Users</p><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow group-hover:scale-110 transition-transform"><Users className="w-4 h-4 text-white" /></div></div>
+            <div className="flex items-center justify-between mb-1"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{t('ct.overview.totalUsers', locale)}</p><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow group-hover:scale-110 transition-transform"><Users className="w-4 h-4 text-white" /></div></div>
             <p className="text-2xl font-bold">{users.active || users.total}</p>
             <div className="flex items-center justify-between mt-1"><p className="text-[10px] text-muted-foreground">{users.recentlyActive || 0} online now</p><SparklineSVG data={userSpark} color="#0891B2" /></div>
           </CardContent>
         </Card>
         <Card className="hover:shadow-lg transition-all cursor-pointer group" onClick={() => setCtPage('analytics')}>
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">MRR</p><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow group-hover:scale-110 transition-transform"><TrendingUp className="w-4 h-4 text-white" /></div></div>
+            <div className="flex items-center justify-between mb-1"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{t('ct.overview.mrr', locale)}</p><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow group-hover:scale-110 transition-transform"><TrendingUp className="w-4 h-4 text-white" /></div></div>
             <p className="text-2xl font-bold">TT${(subs.mrr || 0).toLocaleString()}</p>
             <div className="flex items-center justify-between mt-1"><p className="text-[10px] text-muted-foreground">${(subs.mrrUSD || 0).toLocaleString()} USD</p><SparklineSVG data={revSpark} color="#4F46E5" /></div>
           </CardContent>
@@ -2379,12 +2415,12 @@ function CTOverview() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">ARR</p><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow group-hover:scale-110 transition-transform"><DollarSign className="w-4 h-4 text-white" /></div></div>
             <p className="text-2xl font-bold">TT${(subs.arr || 0).toLocaleString()}</p>
-            <div className="flex items-center justify-between mt-1"><p className="text-[10px] text-muted-foreground">Annual run rate</p><SparklineSVG data={[subs.arr * 0.8, subs.arr * 0.85, subs.arr * 0.9, subs.arr * 0.92, subs.arr * 0.95, subs.arr * 0.98, subs.arr]} color="#10B981" /></div>
+            <div className="flex items-center justify-between mt-1"><p className="text-[10px] text-muted-foreground">{t('ct.overview.arr', locale)}</p><SparklineSVG data={[subs.arr * 0.8, subs.arr * 0.85, subs.arr * 0.9, subs.arr * 0.92, subs.arr * 0.95, subs.arr * 0.98, subs.arr]} color="#10B981" /></div>
           </CardContent>
         </Card>
         <Card className="hover:shadow-lg transition-all cursor-pointer group" onClick={() => setCtPage('security')}>
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Platform Health</p><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow group-hover:scale-110 transition-transform"><Shield className="w-4 h-4 text-white" /></div></div>
+            <div className="flex items-center justify-between mb-1"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{t('ct.overview.platformHealth', locale)}</p><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow group-hover:scale-110 transition-transform"><Shield className="w-4 h-4 text-white" /></div></div>
             <p className="text-2xl font-bold">{stats?.tenants?.suspiciousAccounts?.length > 0 ? 'Attention' : '98%'}</p>
             <div className="flex items-center justify-between mt-1"><p className="text-[10px] text-muted-foreground">{stats?.tenants?.suspiciousAccounts?.length || 0} suspicious</p><SparklineSVG data={[2,1,0,1,0,0,0]} color="#22C55E" /></div>
           </CardContent>
@@ -2411,10 +2447,10 @@ function CTOverview() {
             </Card>
           )}
           {tenants.pendingApproval?.length > 0 && (
-            <Card className="border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20"><CardContent className="p-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center"><AlertTriangle className="w-5 h-5 text-amber-600" /></div><div><p className="text-sm font-semibold">Pending Approvals</p><p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{tenants.pendingApproval.length} tenants</p><p className="text-xs text-muted-foreground">Awaiting payment verification</p></div></div><Button size="sm" variant="outline" className="mt-3 w-full border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/40" onClick={() => setCtPage('approvals')}>Review Now</Button></CardContent></Card>
+            <Card className="border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20"><CardContent className="p-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center"><AlertTriangle className="w-5 h-5 text-amber-600" /></div><div><p className="text-sm font-semibold">{t('ct.overview.pendingApprovals', locale)}</p><p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{tenants.pendingApproval.length} {t('ct.overview.awaitingPayment', locale)}</p><p className="text-xs text-muted-foreground">{t('ct.overview.awaitingPaymentDesc', locale)}</p></div></div><Button size="sm" variant="outline" className="mt-3 w-full border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/40" onClick={() => setCtPage('approvals')}>{t('ct.overview.reviewNow', locale)}</Button></CardContent></Card>
           )}
           {tenants.trialsExpiringSoon > 0 && (
-            <Card className="border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20"><CardContent className="p-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center"><Clock className="w-5 h-5 text-red-600" /></div><div><p className="text-sm font-semibold">Trials Expiring Soon</p><p className="text-2xl font-bold text-red-700 dark:text-red-400">{tenants.trialsExpiringSoon}</p><p className="text-xs text-muted-foreground">Within 48 hours</p></div></div><Button size="sm" variant="outline" className="mt-3 w-full border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/40" onClick={() => setCtPage('tenants')}>View Tenants</Button></CardContent></Card>
+            <Card className="border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20"><CardContent className="p-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center"><Clock className="w-5 h-5 text-red-600" /></div><div><p className="text-sm font-semibold">{t('ct.overview.trialsExpiring', locale)}</p><p className="text-2xl font-bold text-red-700 dark:text-red-400">{tenants.trialsExpiringSoon}</p><p className="text-xs text-muted-foreground">Within 48 hours</p></div></div><Button size="sm" variant="outline" className="mt-3 w-full border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/40" onClick={() => setCtPage('tenants')}>View Tenants</Button></CardContent></Card>
           )}
         </motion.div>
 
@@ -2424,7 +2460,7 @@ function CTOverview() {
           {/* Revenue by Industry + Donut side by side */}
           <div className="grid md:grid-cols-5 gap-6">
             <Card className="md:col-span-3">
-              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><BarChart3 className="w-4 h-4 text-primary" />Revenue by Industry</CardTitle></CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><BarChart3 className="w-4 h-4 text-primary" />{t('ct.overview.revenueByIndustry', locale)}</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   {revenueByIndustry.slice(0, 6).map((item: any) => {
@@ -2442,7 +2478,7 @@ function CTOverview() {
               </CardContent>
             </Card>
             <Card className="md:col-span-2">
-              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><PieChart className="w-4 h-4 text-primary" />By Plan</CardTitle></CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><PieChart className="w-4 h-4 text-primary" />{t('ct.overview.byPlan', locale)}</CardTitle></CardHeader>
               <CardContent className="flex flex-col items-center">
                 <div className="relative">
                   <DonutChartSVG segments={revenueByPlan} size={110} strokeWidth={12} />
@@ -2458,7 +2494,7 @@ function CTOverview() {
           {/* Trial Funnel + Geo Distribution */}
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Filter className="w-4 h-4 text-primary" />Conversion Funnel</CardTitle></CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Filter className="w-4 h-4 text-primary" />{t('ct.overview.conversionFunnel', locale)}</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   {funnelSteps.map((step, i) => (
@@ -2474,7 +2510,7 @@ function CTOverview() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Globe2 className="w-4 h-4 text-primary" />Geographic Distribution</CardTitle></CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Globe2 className="w-4 h-4 text-primary" />{t('ct.overview.geoDistribution', locale)}</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-2.5 max-h-56 overflow-y-auto scrollbar-thin">
                   {geoDistribution.map((geo: any) => (
@@ -2494,7 +2530,7 @@ function CTOverview() {
 
           {/* Industries Overview */}
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Factory className="w-4 h-4 text-primary" />Industries Overview</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Factory className="w-4 h-4 text-primary" />{t('ct.overview.industriesOverview', locale)}</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
                 {(stats?.industries?.list || INDUSTRIES_DATA).map((ind: any) => {
@@ -2518,7 +2554,7 @@ function CTOverview() {
         {/* Right Column - Quick Actions + Activity */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="space-y-6">
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Zap className="w-4 h-4 text-primary" />Quick Actions</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Zap className="w-4 h-4 text-primary" />{t('ct.overview.quickActions', locale)}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-2">
               {[
                 { icon: Building2, label: 'Create Tenant', page: 'tenants' as const },
@@ -2537,7 +2573,7 @@ function CTOverview() {
           </Card>
 
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Activity className="w-4 h-4 text-primary" />Live Activity<span className="ml-2 relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" /></span></CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Activity className="w-4 h-4 text-primary" />{t('ct.overview.liveActivity', locale)}<span className="ml-2 relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" /></span></CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-3 max-h-72 overflow-y-auto scrollbar-thin">
                 {auditLogs.slice(0, 8).map((log: any) => (
@@ -2595,6 +2631,7 @@ function CTTenants() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<any>(null);
 
   const { setViewAsTenant, clearViewAsTenant } = useAppStore();
+  const locale = useAppStore(s => s.locale);
 
   const load = useCallback(() => {
     setLoading(true); setError(null);
@@ -2731,20 +2768,20 @@ function CTTenants() {
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20"><Building2 className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Tenants</h1><p className="text-sm text-muted-foreground">{tenants.length} total workspaces</p></div>
+          <div><h1 className="text-2xl font-bold">{t('ct.tenants.title', locale)}</h1><p className="text-sm text-muted-foreground">{tenants.length} {t('ct.tenants.desc', locale).replace('{n}', String(tenants.length))}</p></div>
         </div>
-        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-amber-500 to-amber-600 shadow-lg shadow-amber-500/20 hover:from-amber-600 hover:to-amber-700"><Plus className="w-4 h-4 mr-2" />Create Tenant</Button>
+        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-amber-500 to-amber-600 shadow-lg shadow-amber-500/20 hover:from-amber-600 hover:to-amber-700"><Plus className="w-4 h-4 mr-2" />{t('ct.tenants.create', locale)}</Button>
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Search tenants..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" /></div>
+        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder={t('ct.tenants.search', locale)} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" /></div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent><SelectItem value="all">All Status</SelectItem><SelectItem value="active">Active</SelectItem><SelectItem value="trial">Trial</SelectItem><SelectItem value="suspended">Suspended</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem></SelectContent>
+          <SelectContent><SelectItem value="all">{t('ct.tenants.allStatus', locale)}</SelectItem><SelectItem value="active">Active</SelectItem><SelectItem value="trial">Trial</SelectItem><SelectItem value="suspended">Suspended</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem></SelectContent>
         </Select>
         <Select value={industryFilter} onValueChange={setIndustryFilter}>
           <SelectTrigger className="w-40"><SelectValue placeholder="Industry" /></SelectTrigger>
-          <SelectContent><SelectItem value="all">All Industries</SelectItem>{industryList.map(ind => <SelectItem key={ind} value={ind}>{INDUSTRIES_DATA.find(i => i.slug === ind)?.name || ind}</SelectItem>)}</SelectContent>
+          <SelectContent><SelectItem value="all">{t('ct.tenants.allIndustries', locale)}</SelectItem>{industryList.map(ind => <SelectItem key={ind} value={ind}>{INDUSTRIES_DATA.find(i => i.slug === ind)?.name || ind}</SelectItem>)}</SelectContent>
         </Select>
       </motion.div>
 
@@ -2941,6 +2978,7 @@ function CTTenants() {
 }
 
 function CTApprovals() {
+  const locale = useAppStore(s => s.locale);
   const [tenants, setTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -3021,7 +3059,7 @@ function CTApprovals() {
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20"><CheckCircle className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Flujo de Aprobaciones</h1><p className="text-sm text-muted-foreground">Verify tenant payments and activate subscriptions</p></div>
+          <div><h1 className="text-2xl font-bold">{t('ct.approvals.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.approvals.desc', locale)}</p></div>
         </div>
         {selectedIds.size > 0 && (
           <Button className="bg-gradient-to-r from-green-600 to-green-500 text-white shadow-sm" onClick={handleBatchApprove}>
@@ -3038,7 +3076,7 @@ function CTApprovals() {
 
       {tenants.length === 0 ? (
         <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card><CardContent className="p-12 text-center"><CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" /><h3 className="text-lg font-semibold">All Caught Up!</h3><p className="text-muted-foreground mt-1">No pending payment approvals</p></CardContent></Card>
+          <Card><CardContent className="p-12 text-center"><CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" /><h3 className="text-lg font-semibold">{t('ct.approvals.allCaughtUp', locale)}</h3><p className="text-muted-foreground mt-1">{t('ct.approvals.noPending', locale)}</p></CardContent></Card>
         </motion.div>
       ) : (
         <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid gap-4">
@@ -3179,6 +3217,7 @@ function CTApprovals() {
 }
 
 function CTSecurity() {
+  const locale = useAppStore(s => s.locale);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -3251,7 +3290,7 @@ function CTSecurity() {
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20"><Shield className="w-5 h-5 text-white" /></div>
-        <div><h1 className="text-2xl font-bold">Centro de Operaciones de Seguridad</h1><p className="text-sm text-muted-foreground">Monitor access, detect threats, and enforce policies</p></div>
+        <div><h1 className="text-2xl font-bold">{t('ct.security.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.security.desc', locale)}</p></div>
       </motion.div>
 
       {/* Threat Score + KPIs */}
@@ -3270,7 +3309,7 @@ function CTSecurity() {
         {/* Suspicious Accounts */}
         <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" />Cuentas Sospechosas</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" />{t('ct.security.suspiciousAccounts', locale)}</CardTitle></CardHeader>
             <CardContent>
               {suspicious.length === 0 ? <div className="text-center py-6"><CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" /><p className="text-sm text-muted-foreground">No suspicious accounts detected</p></div> : (
                 <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
@@ -3289,7 +3328,7 @@ function CTSecurity() {
         {/* Active Sessions + 2FA */}
         <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="space-y-6">
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Activity className="w-4 h-4 text-primary" />Sesiones Activas (24h)</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Activity className="w-4 h-4 text-primary" />{t('ct.security.activeSessions', locale)}</CardTitle></CardHeader>
             <CardContent>
               {recentSessions.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">No recent sessions</p> : (
                 <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin">
@@ -3308,7 +3347,7 @@ function CTSecurity() {
           </Card>
 
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Lock className="w-4 h-4 text-primary" />2FA Enrollment</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Lock className="w-4 h-4 text-primary" />{t('ct.security.twoFA', locale)}</CardTitle></CardHeader>
             <CardContent>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">{twoFAEnrolled} / {adminUsers.length} admins enrolled</span>
@@ -3332,7 +3371,7 @@ function CTSecurity() {
       <div className="grid lg:grid-cols-3 gap-6">
         <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><AlertCircle className="w-4 h-4 text-amber-500" />Security Events</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><AlertCircle className="w-4 h-4 text-amber-500" />{t('ct.security.securityEvents', locale)}</CardTitle></CardHeader>
             <CardContent>
               {securityEvents.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">No security events</p> : (
                 <div className="space-y-2 max-h-56 overflow-y-auto scrollbar-thin">
@@ -3354,7 +3393,7 @@ function CTSecurity() {
 
         <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Shield className="w-4 h-4 text-red-500" />Detección de Fuerza Bruta</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Shield className="w-4 h-4 text-red-500" />{t('ct.security.bruteForce', locale)}</CardTitle></CardHeader>
             <CardContent>
               {bruteForceEntries.length === 0 ? (
                 <div className="text-center py-6"><CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" /><p className="text-sm text-muted-foreground">No brute force patterns detected</p></div>
@@ -3378,7 +3417,7 @@ function CTSecurity() {
 
         <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-primary" />Risk Assessment</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-primary" />{t('ct.security.riskAssessment', locale)}</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {riskIndicators.map((ri) => (
@@ -3396,7 +3435,7 @@ function CTSecurity() {
       {/* Security Recommendations with actionable checkboxes */}
       <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}>
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Lock className="w-4 h-4 text-primary" />Security Recommendations</CardTitle></CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Lock className="w-4 h-4 text-primary" />{t('ct.security.recommendations', locale)}</CardTitle></CardHeader>
           <CardContent>
             <div className="grid sm:grid-cols-2 gap-3">
               {recommendations.map((rec) => {
@@ -3419,7 +3458,7 @@ function CTSecurity() {
       {/* IP Monitoring with REAL data only */}
       <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Database className="w-4 h-4 text-primary" />IP Monitoring</CardTitle></CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Database className="w-4 h-4 text-primary" />{t('ct.security.ipMonitoring', locale)}</CardTitle></CardHeader>
           <CardContent>
             {users.filter((u: any) => u.registrationIp || u.lastLogin).length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">No IP data available</p>
@@ -3453,6 +3492,7 @@ function CTSecurity() {
 }
 
 function CTAudit() {
+  const locale = useAppStore(s => s.locale);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -3516,7 +3556,7 @@ function CTAudit() {
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20"><ScrollText className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Bóveda de Auditoría</h1><p className="text-sm text-muted-foreground flex items-center gap-2">{logs.length} immutable records <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" /></span>Live</p></div>
+          <div><h1 className="text-2xl font-bold">{t('ct.audit.title', locale)}</h1><p className="text-sm text-muted-foreground flex items-center gap-2">{logs.length} immutable records <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" /></span>{t('ct.audit.live', locale)}</p></div>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center bg-muted rounded-lg p-0.5">
@@ -3639,6 +3679,7 @@ function CTAudit() {
 }
 
 function CTAnalytics() {
+  const locale = useAppStore(s => s.locale);
   const [analytics, setAnalytics] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -3721,7 +3762,7 @@ function CTAnalytics() {
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20"><BarChart3 className="w-5 h-5 text-white" /></div>
-        <div><h1 className="text-2xl font-bold">Business Intelligence</h1><p className="text-sm text-muted-foreground">Revenue analytics, growth metrics, and strategic insights</p></div>
+        <div><h1 className="text-2xl font-bold">{t('ct.analytics.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.analytics.desc', locale)}</p></div>
       </motion.div>
 
       {/* KPI Row with Sparklines */}
@@ -3945,6 +3986,7 @@ function CTAnalytics() {
 }
 
 function CTFeatureFlags() {
+  const locale = useAppStore(s => s.locale);
   const [flags, setFlags] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -4007,7 +4049,7 @@ function CTFeatureFlags() {
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20"><ToggleLeft className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Feature Flags</h1><p className="text-sm text-muted-foreground">Enable or disable features per tenant</p></div>
+          <div><h1 className="text-2xl font-bold">{t('ct.featureFlags.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.featureFlags.desc', locale)}</p></div>
         </div>
         <Select value={selectedTenant} onValueChange={setSelectedTenant}>
           <SelectTrigger className="w-52"><SelectValue placeholder="Select tenant" /></SelectTrigger>
@@ -4047,6 +4089,7 @@ function CTFeatureFlags() {
 }
 
 function CTPlans() {
+  const locale = useAppStore(s => s.locale);
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -4083,7 +4126,7 @@ function CTPlans() {
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20"><CreditCard className="w-5 h-5 text-white" /></div>
-        <div><h1 className="text-2xl font-bold">Plans & Billing</h1><p className="text-sm text-muted-foreground">Manage subscription tiers, pricing, and revenue</p></div>
+        <div><h1 className="text-2xl font-bold">{t('ct.plansBilling.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.plansBilling.desc', locale)}</p></div>
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="grid lg:grid-cols-3 gap-6">
@@ -4149,6 +4192,7 @@ function CTPlans() {
 }
 
 function CTIndustries() {
+  const locale = useAppStore(s => s.locale);
   const [industries, setIndustries] = useState<any[]>([]);
   const [tenantsByIndustry, setTenantsByIndustry] = useState<Record<string, any[]>>({});
   const [expandedIndustry, setExpandedIndustry] = useState<string | null>(null);
@@ -4211,7 +4255,7 @@ function CTIndustries() {
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20"><Factory className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Industries</h1><p className="text-sm text-muted-foreground">{industries.length} industry verticals configured</p></div>
+          <div><h1 className="text-2xl font-bold">{t('ct.industries.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.industries.desc', locale).replace('{n}', String(industries.length))}</p></div>
         </div>
         <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"><Plus className="w-4 h-4 mr-2" />Add Industry</Button>
       </motion.div>
@@ -4299,6 +4343,7 @@ function CTIndustries() {
 }
 
 function CTMonitoring() {
+  const locale = useAppStore(s => s.locale);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -4330,7 +4375,7 @@ function CTMonitoring() {
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 shadow-lg shadow-blue-500/20"><Monitor className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Monitoring</h1><p className="text-sm text-muted-foreground">System monitoring dashboard</p></div>
+          <div><h1 className="text-2xl font-bold">{t('ct.monitoring.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.monitoring.desc', locale)}</p></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => <Card key={i}><CardContent className="p-5"><div className="space-y-3"><div className="h-4 bg-muted rounded w-24 animate-pulse" /><div className="h-8 bg-muted rounded w-16 animate-pulse" /></div></CardContent></Card>)}
@@ -4679,6 +4724,7 @@ function CTMonitoring() {
 }
 
 function CTVisitorAnalytics() {
+  const locale = useAppStore(s => s.locale);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -4720,7 +4766,7 @@ function CTVisitorAnalytics() {
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 shadow-lg shadow-blue-500/20"><BarChart3 className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Visitor Analytics</h1><p className="text-sm text-muted-foreground">Real-time visitor tracking and geographic insights</p></div>
+          <div><h1 className="text-2xl font-bold">{t('ct.visitorAnalytics.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.visitorAnalytics.desc', locale)}</p></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => <Card key={i}><CardContent className="p-5"><div className="space-y-3"><div className="h-4 bg-muted rounded w-24 animate-pulse" /><div className="h-8 bg-muted rounded w-16 animate-pulse" /></div></CardContent></Card>)}
@@ -4735,7 +4781,7 @@ function CTVisitorAnalytics() {
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 shadow-lg shadow-blue-500/20"><BarChart3 className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Visitor Analytics</h1><p className="text-sm text-muted-foreground">Real-time visitor tracking and geographic insights</p></div>
+          <div><h1 className="text-2xl font-bold">{t('ct.visitorAnalytics.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.visitorAnalytics.desc', locale)}</p></div>
         </div>
         <Card className="border-red-200 dark:border-red-800"><CardContent className="p-6 text-center">
           <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
@@ -5069,6 +5115,7 @@ const COMPETITIVE_DATA = [
 ];
 
 function CTCompetitiveIntel() {
+  const locale = useAppStore(s => s.locale);
   const [activeIndustry, setActiveIndustry] = useState(COMPETITIVE_DATA[0].slug);
 
   const industry = COMPETITIVE_DATA.find(i => i.slug === activeIndustry) || COMPETITIVE_DATA[0];
@@ -5079,7 +5126,7 @@ function CTCompetitiveIntel() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 shadow-lg shadow-blue-500/20"><Globe className="w-5 h-5 text-white" /></div>
-        <div><h1 className="text-2xl font-bold">Competitive Intel</h1><p className="text-sm text-muted-foreground">Per-industry competitive pricing analysis — ZBS vs market leaders</p></div>
+        <div><h1 className="text-2xl font-bold">{t('ct.competitive.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.competitive.desc', locale)}</p></div>
       </div>
 
       {/* Industry Tabs */}
@@ -6128,6 +6175,7 @@ function CTMaintenance() {
 // ============ WORLD-CLASS SYSTEMS COMPARISON ============
 function CTWorldSystems() {
   const { setViewAsTenant, setCtPage } = useAppStore();
+  const locale = useAppStore(s => s.locale);
   const [activeTab, setActiveTab] = useState('overview');
 
   const systems = [
@@ -6183,7 +6231,7 @@ function CTWorldSystems() {
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20"><Trophy className="w-5 h-5 text-white" /></div>
-        <div><h1 className="text-2xl font-bold">World-Class Systems</h1><p className="text-sm text-muted-foreground">How ZBS compares to the top-paid platforms in the world</p></div>
+        <div><h1 className="text-2xl font-bold">{t('ct.worldSystems.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.worldSystems.desc', locale)}</p></div>
       </motion.div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -6314,6 +6362,7 @@ function CTWorldSystems() {
 
 // ============ FULL ACCOUNTING SYSTEM ============
 function CTAccounting() {
+  const locale = useAppStore(s => s.locale);
   const [activeTab, setActiveTab] = useState('chart');
   const DEFAULT_ACCOUNTS = [
     { id: '1', code: '1000', name: 'Cash (TTD)', type: 'Asset' },
@@ -6464,7 +6513,7 @@ function CTAccounting() {
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-700 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/20"><FileSpreadsheet className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Accounting</h1><p className="text-sm text-muted-foreground">Double-entry bookkeeping, chart of accounts, and financial statements</p></div>
+          <div><h1 className="text-2xl font-bold">{t('ct.accounting.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.accounting.desc', locale)}</p></div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowNewAccount(true)}><Plus className="w-4 h-4 mr-2" />New Account</Button>
@@ -7896,6 +7945,7 @@ function ControlTowerView() {
 }
 
 function CTSettingsPage() {
+  const locale = useAppStore(s => s.locale);
   const [priceSettings, setPriceSettings] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
   const [trialConfig, setTrialConfig] = useState<any>({ enabled: true, durationDays: 7 });
@@ -7981,7 +8031,7 @@ function CTSettingsPage() {
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20"><Settings className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Platform Settings</h1><p className="text-sm text-muted-foreground">Global configuration and price management</p></div>
+          <div><h1 className="text-2xl font-bold">{t('ct.settings.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.settings.desc', locale)}</p></div>
         </div>
         <Button onClick={handleSyncAll} disabled={syncing === 'all'} variant="outline"><RefreshCw className={`w-4 h-4 mr-2 ${syncing === 'all' ? 'animate-spin' : ''}`} />Sync All</Button>
       </motion.div>
@@ -8389,102 +8439,108 @@ function SmartImportPage() {
 
 // ============ PANADERIA / PASTELERIA NAV (Bakery sub-workspaces) ============
 
-const PANADERIA_NAV = [
-  { section: 'OPERACIONES', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: 'Pedidos', icon: ShoppingCart, page: 'orders' as const, available: true },
-    { label: 'Punto de Venta', icon: CardIcon, page: 'pos' as const, available: true },
-    { label: 'Pantalla Cocina', icon: Utensils, page: 'kds' as const, available: true, tier: 'Growth+' },
+function getPanaderiaNav(locale: string) {
+  return [
+  { section: t('tenant.section.operationsEs', locale), items: [
+    { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
+    { label: t('tenant.orders', locale), icon: ShoppingCart, page: 'orders' as const, available: true },
+    { label: t('tenant.pos', locale), icon: CardIcon, page: 'pos' as const, available: true },
+    { label: t('tenant.kds', locale), icon: Utensils, page: 'kds' as const, available: true, tier: 'Growth+' },
   ]},
-  { section: 'CATALOGO', items: [
-    { label: 'Productos', icon: Package, page: 'catalog' as const, available: true },
-    { label: 'Recetas', icon: BookOpen, page: 'recipe_costing' as const, available: true },
-    { label: 'Ingredientes', icon: Package, page: 'ingredients' as const, available: true },
+  { section: t('tenant.section.catalogEs', locale), items: [
+    { label: t('tenant.retailProducts', locale), icon: Package, page: 'catalog' as const, available: true },
+    { label: t('tenant.recipeCosting', locale), icon: BookOpen, page: 'recipe_costing' as const, available: true },
+    { label: t('tenant.ingredients', locale), icon: Package, page: 'ingredients' as const, available: true },
   ]},
-  { section: 'INVENTARIO', items: [
-    { label: 'Stock', icon: Database, page: 'inventory' as const, available: true },
-    { label: 'Proveedores', icon: Truck, page: 'suppliers' as const, available: true },
-    { label: 'Produccion', icon: ClipboardList, page: 'production' as const, available: true },
+  { section: t('tenant.section.inventario', locale), items: [
+    { label: t('tenant.inventory', locale), icon: Database, page: 'inventory' as const, available: true },
+    { label: t('tenant.suppliers', locale), icon: Truck, page: 'suppliers' as const, available: true },
+    { label: t('tenant.production', locale), icon: ClipboardList, page: 'production' as const, available: true },
   ]},
-  { section: 'CLIENTES', items: [
-    { label: 'Directorio', icon: Users, page: 'clients' as const, available: true },
+  { section: t('tenant.section.clientes', locale), items: [
+    { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
   ]},
-  { section: 'FINANZAS', items: [
-    { label: 'Cotizaciones', icon: FileText, page: 'quotes' as const, available: true },
-    { label: 'Facturas', icon: Receipt, page: 'invoices' as const, available: true },
-    { label: 'Pagos', icon: CreditCard, page: 'payments' as const, available: true },
-    { label: 'Gastos', icon: Receipt, page: 'expenses' as const, available: true },
-    { label: 'Contabilidad', icon: BookOpen, page: 'bookkeeping' as const, available: true },
+  { section: t('tenant.section.finanzas', locale), items: [
+    { label: t('tenant.quotes', locale), icon: FileText, page: 'quotes' as const, available: true },
+    { label: t('tenant.invoices', locale), icon: Receipt, page: 'invoices' as const, available: true },
+    { label: t('tenant.payments', locale), icon: CreditCard, page: 'payments' as const, available: true },
+    { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
+    { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
-  { section: 'HERRAMIENTAS', items: [
-    { label: 'Team & Roles', icon: Users, page: 'team' as const, available: true },
-    { label: 'Smart Import', icon: Upload, page: 'smart_import' as const, available: true },
+  { section: t('tenant.section.herramientas', locale), items: [
+    { label: t('tenant.team', locale), icon: Users, page: 'team' as const, available: true },
+    { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
   ]},
-  { section: 'CONFIG', items: [
-    { label: 'Configuracion', icon: Settings, page: 'settings' as const, available: true },
+  { section: t('tenant.section.config', locale), items: [
+    { label: t('tenant.settings', locale), icon: Settings, page: 'settings' as const, available: true },
   ]},
 ];
+}
 
-const PASTELERIA_NAV = [
-  { section: 'OPERACIONES', items: [
-    { label: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: 'Pedidos', icon: ShoppingCart, page: 'orders' as const, available: true },
-    { label: 'Punto de Venta', icon: CardIcon, page: 'pos' as const, available: true },
-    { label: 'Pantalla Cocina', icon: Utensils, page: 'kds' as const, available: true, tier: 'Growth+' },
+function getPasteleriaNav(locale: string) {
+  return [
+  { section: t('tenant.section.operationsEs', locale), items: [
+    { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
+    { label: t('tenant.orders', locale), icon: ShoppingCart, page: 'orders' as const, available: true },
+    { label: t('tenant.pos', locale), icon: CardIcon, page: 'pos' as const, available: true },
+    { label: t('tenant.kds', locale), icon: Utensils, page: 'kds' as const, available: true, tier: 'Growth+' },
   ]},
-  { section: 'CATALOGO', items: [
-    { label: 'Productos', icon: Package, page: 'catalog' as const, available: true },
-    { label: 'Matriz Tortas', icon: Layers, page: 'cake_matrix' as const, available: true, tier: 'Growth+' },
-    { label: 'Costeo Recetas', icon: Calculator, page: 'recipe_costing' as const, available: true, tier: 'Growth+' },
-    { label: 'Costeos y Margenes', icon: Percent, page: 'cost_analysis' as const, available: true, tier: 'Growth+' },
-    { label: 'Ingredientes', icon: Package, page: 'ingredients' as const, available: true },
-    { label: 'Galeria Disenos', icon: Image, page: 'design_gallery' as const, available: true },
+  { section: t('tenant.section.catalogEs', locale), items: [
+    { label: t('tenant.retailProducts', locale), icon: Package, page: 'catalog' as const, available: true },
+    { label: t('tenant.cakeMatrix', locale), icon: Layers, page: 'cake_matrix' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.recipeCosting', locale), icon: Calculator, page: 'recipe_costing' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.costAnalysis', locale), icon: Percent, page: 'cost_analysis' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.ingredients', locale), icon: Package, page: 'ingredients' as const, available: true },
+    { label: t('tenant.designGallery', locale), icon: Image, page: 'design_gallery' as const, available: true },
   ]},
-  { section: 'INVENTARIO', items: [
-    { label: 'Stock', icon: Database, page: 'inventory' as const, available: true },
-    { label: 'Proveedores', icon: Truck, page: 'suppliers' as const, available: true },
-    { label: 'Produccion', icon: ClipboardList, page: 'production' as const, available: true },
+  { section: t('tenant.section.inventario', locale), items: [
+    { label: t('tenant.inventory', locale), icon: Database, page: 'inventory' as const, available: true },
+    { label: t('tenant.suppliers', locale), icon: Truck, page: 'suppliers' as const, available: true },
+    { label: t('tenant.production', locale), icon: ClipboardList, page: 'production' as const, available: true },
   ]},
-  { section: 'CLIENTES', items: [
-    { label: 'Directorio', icon: Users, page: 'clients' as const, available: true },
+  { section: t('tenant.section.clientes', locale), items: [
+    { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
   ]},
-  { section: 'FINANZAS', items: [
-    { label: 'Cotizaciones', icon: FileText, page: 'quotes' as const, available: true },
-    { label: 'Facturas', icon: Receipt, page: 'invoices' as const, available: true },
-    { label: 'Pagos', icon: CreditCard, page: 'payments' as const, available: true },
-    { label: 'Gastos', icon: Receipt, page: 'expenses' as const, available: true },
-    { label: 'Contabilidad', icon: BookOpen, page: 'bookkeeping' as const, available: true },
-    { label: 'Reportes', icon: BarChart3, page: 'reports' as const, available: true },
-    { label: 'Asistente Precios', icon: DollarSign, page: 'pricing_assistant' as const, available: true, tier: 'Growth+' },
-    { label: 'Finanzas Ocultas', icon: EyeOff, page: 'stealth_finance' as const, available: true, tier: 'Owner' },
+  { section: t('tenant.section.finanzas', locale), items: [
+    { label: t('tenant.quotes', locale), icon: FileText, page: 'quotes' as const, available: true },
+    { label: t('tenant.invoices', locale), icon: Receipt, page: 'invoices' as const, available: true },
+    { label: t('tenant.payments', locale), icon: CreditCard, page: 'payments' as const, available: true },
+    { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
+    { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
+    { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
+    { label: t('tenant.pricingAssistant', locale), icon: DollarSign, page: 'pricing_assistant' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.stealthFinance', locale), icon: EyeOff, page: 'stealth_finance' as const, available: true, tier: 'Owner' },
   ]},
-  { section: 'HERRAMIENTAS', items: [
-    { label: 'Team & Roles', icon: Users, page: 'team' as const, available: true },
-    { label: 'Smart Import', icon: Upload, page: 'smart_import' as const, available: true },
+  { section: t('tenant.section.herramientas', locale), items: [
+    { label: t('tenant.team', locale), icon: Users, page: 'team' as const, available: true },
+    { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
   ]},
-  { section: 'CONFIG', items: [
-    { label: 'Configuracion', icon: Settings, page: 'settings' as const, available: true },
+  { section: t('tenant.section.config', locale), items: [
+    { label: t('tenant.settings', locale), icon: Settings, page: 'settings' as const, available: true },
   ]},
 ];
+}
 
 // ============ TENANT VIEW ============
 
 function TenantSidebar() {
-  const { currentTenant, tenantPage, setTenantPage, sidebarCollapsed, toggleSidebar, theme, setTheme, logout, user, bakeryWorkspace, setBakeryWorkspace, currentUserRole, stealthMode } = useAppStore();
+  const { currentTenant, tenantPage, setTenantPage, sidebarCollapsed, toggleSidebar, theme, setTheme, logout, user, bakeryWorkspace, setBakeryWorkspace, currentUserRole, stealthMode, locale } = useAppStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const currentIndustry = currentTenant?.industry?.slug || currentTenant?.industryId || 'bakery';
-  const industryNavMap: Record<string, typeof BAKERY_NAV> = {
-    'bakery': bakeryWorkspace === 'panaderia' ? PANADERIA_NAV : PASTELERIA_NAV,
-    'salon-spa': SALON_NAV,
-    'retail': RETAIL_NAV,
-    'events': EVENTS_NAV,
-    'professional': PROFESSIONAL_NAV,
-    'legal': LEGAL_NAV,
-    'insurance': INSURANCE_NAV,
-    'clinics': CLINICS_NAV,
-    'property-management': PROPERTY_MGMT_NAV,
-  };
-  const navItems = industryNavMap[currentIndustry] || BAKERY_NAV;
+  const navItems = (() => {
+    switch (currentIndustry) {
+      case 'bakery': return bakeryWorkspace === 'panaderia' ? getPanaderiaNav(locale) : getPasteleriaNav(locale);
+      case 'salon-spa': return getSalonNav(locale);
+      case 'retail': return getRetailNav(locale);
+      case 'events': return getEventsNav(locale);
+      case 'professional': return getProfessionalNav(locale);
+      case 'legal': return getLegalNav(locale);
+      case 'insurance': return getInsuranceNav(locale);
+      case 'clinics': return getClinicsNav(locale);
+      case 'property-management': return getPropertyMgmtNav(locale);
+      default: return getBakeryNav(locale);
+    }
+  })();
 
   const handleNavClick = (page: string) => {
     setTenantPage(page);
@@ -8502,7 +8558,7 @@ function TenantSidebar() {
       <aside className={`fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-[72px]' : 'w-[260px]'} ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 bg-card border-r border-border`}>
         {/* Close button for mobile */}
         {mobileOpen && <button onClick={() => setMobileOpen(false)} className="absolute top-4 right-4 md:hidden p-1 rounded-md text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>}
-        <div className="h-16 flex items-center px-4 border-b border-border shrink-0">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-border shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-lg" style={{ background: `linear-gradient(135deg, ${currentTenant?.primaryColor || '#1D4ED8'}, ${currentTenant?.accentColor || '#2563EB'})` }}>
             <span className="text-white text-sm font-bold">{(currentTenant?.name || 'Z')[0]}</span>
@@ -8514,6 +8570,7 @@ function TenantSidebar() {
             </div>
           )}
         </div>
+        {!sidebarCollapsed && <LangToggle />}
       </div>
       
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
@@ -15377,6 +15434,7 @@ function TenantAppView() {
 
 // ============ CT ERROR + LOADING HELPERS ============
 function CTErrorDisplay({ error, onRetry }: { error: string; onRetry: () => void }) {
+  const locale = useAppStore(s => s.locale);
   const isAuthError = error?.toLowerCase().includes('token') || error?.toLowerCase().includes('auth') || error?.toLowerCase().includes('session') || error?.toLowerCase().includes('expired') || error?.toLowerCase().includes('login');
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-16 space-y-4">
@@ -15385,17 +15443,17 @@ function CTErrorDisplay({ error, onRetry }: { error: string; onRetry: () => void
       </div>
       <div className="text-center space-y-2">
         <h3 className={`text-lg font-semibold ${isAuthError ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
-          {isAuthError ? 'Session Expired' : 'Error loading data'}
+          {isAuthError ? t('error.sessionExpired', locale) : t('error.loadingData', locale)}
         </h3>
-        <p className="text-sm text-muted-foreground max-w-md">{isAuthError ? 'Your session has expired or is invalid. Please log in again to continue.' : error}</p>
+        <p className="text-sm text-muted-foreground max-w-md">{isAuthError ? t('error.sessionExpiredDesc', locale) : error}</p>
       </div>
       <div className="flex gap-3">
         {isAuthError ? (
           <Button onClick={() => useAppStore.getState().logout()} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white">
-            <LogIn className="w-4 h-4" /> Log In Again
+            <LogIn className="w-4 h-4" /> {t('error.loginAgain', locale)}
           </Button>
         ) : (
-          <Button variant="outline" onClick={onRetry} className="gap-2"><RefreshCw className="w-4 h-4" /> Try Again</Button>
+          <Button variant="outline" onClick={onRetry} className="gap-2"><RefreshCw className="w-4 h-4" /> {t('error.tryAgain', locale)}</Button>
         )}
       </div>
     </motion.div>
