@@ -7386,6 +7386,272 @@ function CTGenericPage({ title, description, icon: Icon }: { title: string; desc
   );
 }
 
+// ============ CT USERS (Platform User Management) ============
+function CTUsersPage() {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(() => {
+    setLoading(true);
+    authFetch('/api/platform/users').then(r => r.json()).then(d => { setUsers(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const roleColors: Record<string, string> = { super_admin: 'bg-red-100 text-red-700', platform_admin: 'bg-purple-100 text-purple-700', tenant_admin: 'bg-blue-100 text-blue-700' };
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3"><div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 shadow-lg"><Users className="w-5 h-5 text-white" /></div><div><h1 className="text-2xl font-bold">Users</h1><p className="text-sm text-muted-foreground">{users.length} platform users</p></div></div>
+        <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />Refresh</Button>
+      </div>
+      {users.length === 0 ? <EmptyState icon={Users} title="No users found" description="Users will appear when they register" /> : (
+        <DataGrid data={users} columns={[
+          { key: 'fullName', label: 'Name', render: (v: string) => <span className="font-medium">{v || 'N/A'}</span> },
+          { key: 'email', label: 'Email' },
+          { key: 'role', label: 'Role', render: (v: string) => <Badge className={roleColors[v] || ''}>{v}</Badge> },
+          { key: 'isActive', label: 'Status', render: (v: boolean) => <Badge className={v ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}>{v ? 'Active' : 'Inactive'}</Badge> },
+          { key: 'lastLogin', label: 'Last Login', render: (v: string) => v ? new Date(v).toLocaleDateString() : 'Never' },
+        ]} />
+      )}
+    </div>
+  );
+}
+
+// ============ CT BILLING ============
+function CTBillingPage() {
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(() => {
+    setLoading(true);
+    authFetch('/api/platform/invoices').then(r => r.json()).then(d => { setInvoices(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const totalAmount = invoices.reduce((s: number, i: any) => s + (i.amountUSD || 0), 0);
+  const statusColors: Record<string, string> = { draft: 'bg-gray-100 text-gray-600', sent: 'bg-blue-100 text-blue-700', paid: 'bg-emerald-100 text-emerald-700', overdue: 'bg-red-100 text-red-700' };
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3"><div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-600 to-green-500 shadow-lg"><Receipt className="w-5 h-5 text-white" /></div><div><h1 className="text-2xl font-bold">Billing</h1><p className="text-sm text-muted-foreground">{invoices.length} invoices | ${totalAmount.toFixed(2)} USD total</p></div></div>
+        <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />Refresh</Button>
+      </div>
+      <div className="grid grid-cols-4 gap-3">
+        {['draft', 'sent', 'paid', 'overdue'].map(s => {
+          const count = invoices.filter((i: any) => i.status === s).length;
+          return <Card key={s}><CardContent className="p-3"><p className="text-xs text-muted-foreground capitalize">{s}</p><p className="text-xl font-bold">{count}</p></CardContent></Card>;
+        })}
+      </div>
+      {invoices.length === 0 ? <EmptyState icon={Receipt} title="No invoices yet" description="Platform invoices will appear here" /> : (
+        <DataGrid data={invoices} columns={[
+          { key: 'invoiceNumber', label: 'Invoice', render: (v: string) => <span className="font-mono font-medium">{v}</span> },
+          { key: 'amountUSD', label: 'Amount', render: (v: number) => <span className="font-bold">${(v || 0).toFixed(2)}</span> },
+          { key: 'status', label: 'Status', render: (v: string) => <Badge className={statusColors[v] || ''}>{v}</Badge> },
+          { key: 'issueDate', label: 'Issued', render: (v: string) => v ? new Date(v).toLocaleDateString() : '-' },
+          { key: 'dueDate', label: 'Due', render: (v: string) => v ? new Date(v).toLocaleDateString() : '-' },
+        ]} />
+      )}
+    </div>
+  );
+}
+
+// ============ CT SYSTEM EVENTS ============
+function CTSystemEventsPage() {
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(() => {
+    setLoading(true);
+    authFetch('/api/platform/events').then(r => r.json()).then(d => { setEvents(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const severityColors: Record<string, string> = { info: 'bg-blue-100 text-blue-700', warning: 'bg-amber-100 text-amber-700', error: 'bg-red-100 text-red-700', success: 'bg-emerald-100 text-emerald-700' };
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3"><div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg"><Activity className="w-5 h-5 text-white" /></div><div><h1 className="text-2xl font-bold">System Events</h1><p className="text-sm text-muted-foreground">{events.length} events logged</p></div></div>
+        <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />Refresh</Button>
+      </div>
+      {events.length === 0 ? <EmptyState icon={Activity} title="No events recorded" description="System events will appear as they occur" /> : (
+        <div className="space-y-2">
+          {events.slice(0, 50).map((ev: any) => (
+            <Card key={ev.id}><CardContent className="p-3 flex items-center gap-3">
+              <Badge className={severityColors[ev.severity] || ''}>{ev.severity || 'info'}</Badge>
+              <div className="flex-1"><div className="text-sm font-medium">{ev.title || ev.type}</div>{ev.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{ev.description}</p>}</div>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{ev.createdAt ? new Date(ev.createdAt).toLocaleString() : ''}</span>
+            </CardContent></Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ CT COMMUNICATIONS ============
+function CTCommsPage() {
+  const [tenants, setTenants] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [form, setForm] = useState({ subject: '', message: '', tenantIds: [] as string[] });
+
+  const load = useCallback(() => {
+    setLoading(true);
+    authFetch('/api/platform/tenants').then(r => r.json()).then(d => { setTenants(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const handleSend = async () => {
+    if (!form.subject || !form.message) return toast.error('Subject and message required');
+    setSending(true);
+    try {
+      const res = await authFetch('/api/platform/send-invoice', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'broadcast', subject: form.subject, message: form.message }),
+      });
+      if (res.ok) { toast.success('Broadcast sent!'); setForm({ subject: '', message: '', tenantIds: [] }); }
+      else toast.error('Failed to send broadcast');
+    } catch { toast.error('Network error'); }
+    setSending(false);
+  };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3"><div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-500 shadow-lg"><Mail className="w-5 h-5 text-white" /></div><div><h1 className="text-2xl font-bold">Communications</h1><p className="text-sm text-muted-foreground">Broadcast center — {tenants.length} active tenants</p></div></div>
+      <Card><CardContent className="p-6 space-y-4">
+        <div><Label>Subject</Label><Input value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} placeholder="Broadcast subject line" /></div>
+        <div><Label>Message</Label><Textarea value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} rows={5} placeholder="Write your broadcast message to all tenants..." /></div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground"><Send className="w-4 h-4" />Message will be sent to all {tenants.length} tenants via email</div>
+        <Button onClick={handleSend} disabled={!form.subject || !form.message || sending} className="bg-gradient-to-r from-blue-700 to-blue-500">{sending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}{sending ? 'Sending...' : 'Send Broadcast'}</Button>
+      </CardContent></Card>
+      <Card><CardHeader><CardTitle className="text-base">Active Tenants</CardTitle></CardHeader><CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {tenants.slice(0, 12).map((t: any) => (
+            <div key={t.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg"><div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">{t.name?.charAt(0)}</div><div><div className="text-sm font-medium">{t.name}</div><div className="text-xs text-muted-foreground">{t.slug}</div></div><Badge variant="secondary" className="ml-auto text-xs">{t.status}</Badge></div>
+          ))}
+        </div>
+      </CardContent></Card>
+    </div>
+  );
+}
+
+// ============ CT TEMPLATES ============
+function CTTemplatesPage() {
+  const templates = [
+    { name: 'Welcome Email', description: 'Sent when a new tenant registers', type: 'Email', icon: Mail, status: 'Active' },
+    { name: 'Invoice Template', description: 'Monthly billing invoice layout', type: 'Document', icon: FileText, status: 'Active' },
+    { name: 'Trial Expiring', description: 'Notifies tenants 3 days before trial ends', type: 'Email', icon: Clock, status: 'Active' },
+    { name: 'Payment Confirmation', description: 'Sent after successful payment', type: 'Email', icon: CheckCircle, status: 'Active' },
+    { name: 'Lease Renewal Notice', description: '30-day notice for upcoming lease renewals', type: 'Email', icon: CalendarDays, status: 'Active' },
+    { name: 'Maintenance Confirmation', description: 'Sent when maintenance request is resolved', type: 'Email', icon: Wrench, status: 'Active' },
+  ];
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3"><div className="p-2.5 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 shadow-lg"><FileText className="w-5 h-5 text-white" /></div><div><h1 className="text-2xl font-bold">Templates</h1><p className="text-sm text-muted-foreground">{templates.length} global communication templates</p></div></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {templates.map((t, i) => (
+          <Card key={i} className="hover:shadow-md transition-shadow"><CardContent className="p-4">
+            <div className="flex items-center gap-3 mb-2"><div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center"><t.icon className="w-4 h-4 text-muted-foreground" /></div><div><h3 className="font-semibold text-sm">{t.name}</h3><Badge variant="secondary" className="text-xs">{t.type}</Badge></div></div>
+            <p className="text-xs text-muted-foreground">{t.description}</p>
+          </CardContent></Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============ CT DATA EXPORTS ============
+function CTExportsPage() {
+  const [exporting, setExporting] = useState<string | null>(null);
+  const exports = [
+    { key: 'tenants', label: 'Tenant List', icon: Building2, description: 'All registered tenants with industry, plan, and status', endpoint: '/api/platform/tenants' },
+    { key: 'users', label: 'Platform Users', icon: Users, description: 'All platform users with roles and activity', endpoint: '/api/platform/users' },
+    { key: 'invoices', label: 'Platform Invoices', icon: Receipt, description: 'All billing invoices with amounts and status', endpoint: '/api/platform/invoices' },
+    { key: 'audit', label: 'Audit Logs', icon: ScrollText, description: 'System audit trail with actions and timestamps', endpoint: '/api/platform/audit-logs' },
+    { key: 'events', label: 'System Events', icon: Activity, description: 'Platform events and notifications', endpoint: '/api/platform/events' },
+    { key: 'analytics', label: 'Visitor Analytics', icon: BarChart3, description: 'Web analytics data with page views and sources', endpoint: '/api/platform/visitor-analytics' },
+  ];
+
+  const handleExport = async (exp: typeof exports[0]) => {
+    setExporting(exp.key);
+    try {
+      const res = await authFetch(exp.endpoint);
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : [data];
+      if (items.length === 0) { toast.error('No data to export'); setExporting(null); return; }
+      const headers = Object.keys(items[0]);
+      const csv = [headers.join(','), ...items.map((r: any) => headers.map(h => `"${String(r[h] || '').replace(/"/g, '""')}"`).join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `${exp.key}_export_${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${items.length} records`);
+    } catch { toast.error('Export failed'); }
+    setExporting(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3"><div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 shadow-lg"><Download className="w-5 h-5 text-white" /></div><div><h1 className="text-2xl font-bold">Data Exports</h1><p className="text-sm text-muted-foreground">Export platform data as CSV files</p></div></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {exports.map(exp => (
+          <Card key={exp.key} className="hover:shadow-md transition-shadow"><CardContent className="p-4">
+            <div className="flex items-center gap-3 mb-3"><div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center"><exp.icon className="w-4 h-4 text-muted-foreground" /></div><h3 className="font-semibold">{exp.label}</h3></div>
+            <p className="text-xs text-muted-foreground mb-3">{exp.description}</p>
+            <Button variant="outline" size="sm" className="w-full" onClick={() => handleExport(exp)} disabled={!!exporting}>
+              {exporting === exp.key ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}{exporting === exp.key ? 'Exporting...' : 'Export CSV'}
+            </Button>
+          </CardContent></Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============ CT MODULE REGISTRY ============
+function CTModuleRegistryPage() {
+  const [industries, setIndustries] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(() => {
+    setLoading(true);
+    authFetch('/api/platform/industries').then(r => r.json()).then(d => { setIndustries(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const moduleFeatures: Record<string, string[]> = {
+    bakery: ['Orders & POS', 'Recipes & Costing', 'Ingredients & Inventory', 'Production Planning', 'Kitchen Display', 'Design Gallery'],
+    'salon-spa': ['Appointments', 'Stylists', 'Salon Services', 'Client Profiles', 'Memberships', 'Gift Cards', 'Analytics'],
+    clinics: ['Patient Records', 'Medical Appointments', 'Prescriptions', 'Insurance Management'],
+    legal: ['Case Management', 'Time Tracking', 'Contract Management', 'Billing & Invoicing'],
+    insurance: ['Policy Management', 'Claims Processing', 'Client Portal', 'Renewal Tracking'],
+    retail: ['Product Catalog', 'POS System', 'Inventory Management', 'Suppliers', 'Purchase Orders'],
+    events: ['Event Calendar', 'Venue Management', 'Guest Lists', 'Budget Tracker', 'Catering', 'Vendors'],
+    'property-management': ['Property Management', 'Unit Tracking', 'Lease Management', 'Rent Collection', 'Maintenance', 'Owner Reporting', 'Accounting'],
+  };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3"><div className="p-2.5 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-500 shadow-lg"><Zap className="w-5 h-5 text-white" /></div><div><h1 className="text-2xl font-bold">Module Registry</h1><p className="text-sm text-muted-foreground">{industries.length} industry modules available</p></div></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {industries.map((ind: any) => (
+          <Card key={ind.id} className="hover:shadow-md transition-shadow"><CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: (ind.color || '#3B82F6') + '20' }}><span style={{ color: ind.color }}>{ind.icon}</span></div>
+              <div><h3 className="font-bold">{ind.name}</h3><Badge variant="outline" className="text-xs">{ind.slug}</Badge></div>
+              <Badge className={ind.status === 'active' ? 'bg-emerald-100 text-emerald-700 ml-auto' : 'bg-gray-100 text-gray-600'}>{ind.status}</Badge>
+            </div>
+            <div className="space-y-1">{(moduleFeatures[ind.slug] || []).map((f: string, i: number) => (
+              <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground"><Check className="w-3.5 h-3.5 text-emerald-500" />{f}</div>
+            ))}</div>
+          </CardContent></Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ControlTowerView() {
   const { ctPage, sidebarCollapsed } = useAppStore();
 
@@ -7401,15 +7667,15 @@ function ControlTowerView() {
       case 'audit': return <CTAudit />;
       case 'analytics': return <CTVisitorAnalytics />;
       case 'settings': return <CTSettingsPage />;
-      case 'users': return <CTGenericPage title="Users" description="Platform user management" icon={Users} />;
-      case 'billing': return <CTGenericPage title="Billing" description="Platform billing and invoices" icon={Receipt} />;
-      case 'events': return <CTGenericPage title="System Events" description="Real-time event stream" icon={Activity} />;
+      case 'users': return <CTUsersPage />;
+      case 'billing': return <CTBillingPage />;
+      case 'events': return <CTSystemEventsPage />;
       case 'metrics': return <CTAnalytics />;
       case 'competitive': return <CTCompetitiveIntel />;
-      case 'comms': return <CTGenericPage title="Communications" description="Broadcast center" icon={Mail} />;
-      case 'templates': return <CTGenericPage title="Templates" description="Global templates" icon={FileText} />;
-      case 'exports': return <CTGenericPage title="Data Exports" description="Export platform data" icon={Download} />;
-      case 'modules': return <CTGenericPage title="Module Registry" description="Available modules catalog" icon={Zap} />;
+      case 'comms': return <CTCommsPage />;
+      case 'templates': return <CTTemplatesPage />;
+      case 'exports': return <CTExportsPage />;
+      case 'modules': return <CTModuleRegistryPage />;
       case 'monitoring': return <CTMonitoring />;
       case 'tax_compliance': return <CTTaxCompliance />;
       case 'property': return <CTProperties />;
