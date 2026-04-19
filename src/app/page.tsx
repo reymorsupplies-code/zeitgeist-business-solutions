@@ -4348,6 +4348,9 @@ function CTMonitoring() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tablesOpen, setTablesOpen] = useState(true);
+  const [bloatOpen, setBloatOpen] = useState(false);
+  const [indexOpen, setIndexOpen] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(true);
 
   const fetchMetrics = useCallback(async () => {
     try {
@@ -4390,11 +4393,11 @@ function CTMonitoring() {
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 shadow-lg shadow-blue-500/20"><Monitor className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Monitoring</h1><p className="text-sm text-muted-foreground">System monitoring dashboard</p></div>
+          <div><h1 className="text-2xl font-bold">{t('ct.monitoring.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.monitoring.desc', locale)}</p></div>
         </div>
         <Card className="border-red-200 dark:border-red-800"><CardContent className="p-6 text-center">
           <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-red-600">Failed to fetch metrics</h3>
+          <h3 className="text-lg font-semibold text-red-600">{t('ct.monitoring.failedMetrics', locale)}</h3>
           <p className="text-sm text-muted-foreground mt-1">{error}</p>
           <Button onClick={fetchMetrics} className="mt-4" variant="outline"><RefreshCw className="w-4 h-4 mr-2" />Retry</Button>
         </CardContent></Card>
@@ -4412,6 +4415,11 @@ function CTMonitoring() {
   const org = data?.organization || {};
   const backups = data?.backups || {};
   const fetchedAt = data?.fetchedAt;
+  const storage = data?.storage || {};
+  const bloat = data?.bloat || [];
+  const indexHealth = data?.indexHealth || [];
+  const growth = data?.growth || {};
+  const chartData = growth?.chartData || [];
 
   const statusColor = p.status === 'ACTIVE_HEALTHY' ? 'bg-green-500' : p.status === 'ACTIVE' ? 'bg-blue-500' : 'bg-amber-500';
   const statusLabel = p.status === 'ACTIVE_HEALTHY' ? 'Healthy' : p.status || 'Unknown';
@@ -4419,7 +4427,8 @@ function CTMonitoring() {
   const planColor = org.plan === 'pro' ? 'bg-purple-500' : org.plan === 'team' ? 'bg-blue-500' : 'bg-gray-500';
 
   const pctColor = (pct: number) => pct > 80 ? 'bg-red-500' : pct > 50 ? 'bg-amber-500' : 'bg-green-500';
-  const pctTextColor = (pct: number) => pct > 80 ? 'text-red-600' : pct > 50 ? 'text-amber-600' : 'text-green-600';
+  const pctBg = (pct: number) => pct > 80 ? 'bg-red-100 dark:bg-red-950/20' : pct > 50 ? 'bg-amber-100 dark:bg-amber-950/20' : 'bg-green-100 dark:bg-green-950/20';
+  const pctTextColor = (pct: number) => pct > 80 ? 'text-red-600 dark:text-red-400' : pct > 50 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400';
 
   const cardAnim = (i: number) => ({ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { delay: i * 0.04, duration: 0.3 } });
 
@@ -4431,7 +4440,7 @@ function CTMonitoring() {
   };
 
   const formatUptime = (u: string) => {
-    if (!u || u === 'Unknown') return '—';
+    if (!u || u === 'Unknown') return '\u2014';
     const parts = u.split(':').map(Number);
     if (parts.length >= 3) {
       if (parts[0] > 0) return `${parts[0]}d ${parts[1]}h`;
@@ -4442,9 +4451,42 @@ function CTMonitoring() {
   };
 
   const regionLabel = (r: string) => {
-    const map: Record<string, string> = { 'us-east-1': 'US East (N. Virginia)', 'us-west-1': 'US West (Oregon)', 'eu-west-1': 'EU (Ireland)', 'ap-southeast-1': 'AP (Singapore)', 'sa-east-1': 'SA (São Paulo)' };
+    const map: Record<string, string> = { 'us-east-1': 'US East (N. Virginia)', 'us-west-1': 'US West (Oregon)', 'eu-west-1': 'EU (Ireland)', 'ap-southeast-1': 'AP (Singapore)', 'sa-east-1': 'SA (S\u00e3o Paulo)' };
     return map[r] || r || 'Unknown';
   };
+
+  const planAction = (pct: number) => {
+    if (pct > 75) return { label: t('ct.monitoring.criticalUrgent', locale), color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-950/30', icon: AlertCircle };
+    if (pct > 50) return { label: t('ct.monitoring.upgradeNow', locale), color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-950/30', icon: AlertTriangle };
+    if (pct > 30) return { label: t('ct.monitoring.upgradeSoon', locale), color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-100 dark:bg-yellow-950/30', icon: Info };
+    return { label: t('ct.monitoring.noActionNeeded', locale), color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-950/30', icon: CheckCircle };
+  };
+
+  function SpaceGauge({ pct, size = 160, strokeWidth = 12 }: { pct: number; size?: number; strokeWidth?: number }) {
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const center = size / 2;
+    const clampedPct = Math.min(Math.max(pct, 0), 100);
+    const gaugeColor = clampedPct > 80 ? '#ef4444' : clampedPct > 50 ? '#f59e0b' : '#22c55e';
+    return (
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full">
+          <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" strokeWidth={strokeWidth} className="text-muted/30" />
+          <motion.circle cx={center} cy={center} r={radius} fill="none" stroke={gaugeColor} strokeWidth={strokeWidth}
+            strokeLinecap="round" strokeDasharray={`${(clampedPct / 100) * circumference} ${circumference}`}
+            transform={`rotate(-90 ${center} ${center})`}
+            initial={{ strokeDasharray: `0 ${circumference}` }}
+            animate={{ strokeDasharray: `${(clampedPct / 100) * circumference} ${circumference}` }}
+            transition={{ duration: 1.2, ease: 'easeOut' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-3xl font-bold" style={{ color: gaugeColor }}>{Math.round(clampedPct)}%</span>
+          <span className="text-[11px] text-muted-foreground mt-0.5">{t('ct.monitoring.used', locale)}</span>
+        </div>
+      </div>
+    );
+  }
 
   const planComparison = [
     { resource: 'Database Size', free: '0.5 GB', pro: '8 GB', icon: Database, warn: db.sizeUsedPct > 70 },
@@ -4457,11 +4499,19 @@ function CTMonitoring() {
     { resource: 'Point-in-time Recovery', free: 'No', pro: '7 days', icon: Shield, warn: false },
   ];
 
-  // Merge row counts into table data
-  const tableData = tables.map((t: any) => {
-    const rc = rowCounts.find((r: any) => r.tbl === t.name);
-    return { ...t, rows: rc?.rows || 0 };
+  const tableData = tables.map((tbl: any) => {
+    const rc = rowCounts.find((r: any) => r.tbl === tbl.name);
+    return { ...tbl, rows: rc?.rows || 0 };
   });
+
+  const sparklineMax = chartData.length > 0 ? Math.max(...chartData.map((c: any) => c.mb)) : 1;
+  const sparklineMin = chartData.length > 0 ? Math.min(...chartData.map((c: any) => c.mb)) : 0;
+  const sparklineRange = sparklineMax - sparklineMin || 1;
+  const sparklineH = 48;
+  const sparklineW = 320;
+
+  const action = planAction(db.sizeUsedPct || 0);
+  const ActionIcon = action.icon;
 
   return (
     <div className="space-y-6">
@@ -4469,15 +4519,203 @@ function CTMonitoring() {
       <motion.div {...cardAnim(0)} className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 shadow-lg shadow-blue-500/20"><Monitor className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Monitoring</h1><p className="text-sm text-muted-foreground">Supabase infrastructure health &amp; metrics</p></div>
+          <div><h1 className="text-2xl font-bold">{t('ct.monitoring.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('ct.monitoring.desc', locale)}</p></div>
         </div>
         <div className="flex items-center gap-2">
-          {fetchedAt && <span className="text-xs text-muted-foreground">Updated {new Date(fetchedAt).toLocaleTimeString()}</span>}
+          {fetchedAt && <span className="text-xs text-muted-foreground">{new Date(fetchedAt).toLocaleTimeString()}</span>}
           <Button size="sm" variant="outline" onClick={fetchMetrics} disabled={loading}><RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />Refresh</Button>
         </div>
       </motion.div>
 
-      {/* Section 1: Project Overview */}
+      {/* SECTION A: SPACE CONTROL (Hero) */}
+      <motion.div {...cardAnim(1)}>
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600"><Database className="w-4 h-4 text-white" /></div>
+              <CardTitle className="text-base">{t('ct.monitoring.spaceControl', locale)}</CardTitle>
+              <Badge variant="outline" className="ml-auto text-[10px] font-mono">{db.limitGB ? `${db.limitGB} GB ${t('ct.monitoring.planLimit', locale)}` : '\u2014'}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left: Gauge + Key Metrics */}
+              <div className="flex flex-col items-center justify-center gap-4">
+                <SpaceGauge pct={db.sizeUsedPct || 0} size={180} strokeWidth={14} />
+                <div className="grid grid-cols-2 gap-3 w-full max-w-xs">
+                  <div className={`p-3 rounded-lg ${pctBg(db.sizeUsedPct || 0)} text-center`}>
+                    <p className={`text-xl font-bold ${pctTextColor(db.sizeUsedPct || 0)}`}>{db.size || '0'}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('ct.monitoring.currentSize', locale)}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 text-center">
+                    <p className="text-xl font-bold text-muted-foreground">{db.remainingMB != null ? `${db.remainingMB.toFixed(1)} MB` : '\u2014'}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('ct.monitoring.remaining', locale)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Middle: Storage Breakdown + Growth */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" />{t('ct.monitoring.storageBreakdown', locale)}</h4>
+                  <div className="space-y-2.5">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">{t('ct.monitoring.tables', locale)}</span>
+                        <span className="font-medium">{storage.tablesLabel || '\u2014'} ({storage.pct?.tables || 0}%)</span>
+                      </div>
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${storage.pct?.tables || 0}%` }} transition={{ duration: 0.8, delay: 0.3 }} className="h-full rounded-full bg-blue-500" />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">{t('ct.monitoring.indexes', locale)}</span>
+                        <span className="font-medium">{storage.indexesLabel || '\u2014'} ({storage.pct?.indexes || 0}%)</span>
+                      </div>
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${storage.pct?.indexes || 0}%` }} transition={{ duration: 0.8, delay: 0.4 }} className="h-full rounded-full bg-purple-500" />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">{t('ct.monitoring.toast', locale)}</span>
+                        <span className="font-medium">{storage.toastLabel || '\u2014'} ({storage.pct?.toast || 0}%)</span>
+                      </div>
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${storage.pct?.toast || 0}%` }} transition={{ duration: 0.8, delay: 0.5 }} className="h-full rounded-full bg-teal-500" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Growth Projection */}
+                <div className={`p-3 rounded-lg border ${action.bg}`}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <TrendingUp className="w-4 h-4 text-muted-foreground" />
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('ct.monitoring.growthProjection', locale)}</h4>
+                  </div>
+                  <p className="text-sm font-medium">{growth.rateLabel || t('ct.monitoring.stable', locale)}</p>
+                  {growth.bytesPerHour != null && growth.bytesPerHour > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {t('ct.monitoring.growthRate', locale)}: {(growth.bytesPerHour * 24 / (1024 * 1024)).toFixed(2)} {t('ct.monitoring.mbPerDay', locale)}
+                      {growth.projectionDays != null && growth.projectionDays > 0 && (
+                        <> &middot; {t('ct.monitoring.capacityIn', locale)} {growth.projectionDays < 1 ? `${Math.round(growth.projectionDays * 24)}h` : `${Math.round(growth.projectionDays)}d`}</>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Right: Plan Action + Quick Stats */}
+              <div className="space-y-4">
+                <div className={`p-4 rounded-xl border-2 border-dashed ${db.sizeUsedPct > 75 ? 'border-red-300 dark:border-red-700' : 'border-muted'} ${action.bg}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <ActionIcon className={`w-5 h-5 ${action.color}`} />
+                    <span className={`text-sm font-bold ${action.color}`}>{action.label}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {(db.sizeGB || 0).toFixed(3)} GB {t('ct.monitoring.ofLimit', locale)} {db.limitGB || 0.5} GB. {db.remainingMB ? `${db.remainingMB.toFixed(1)} MB ${t('ct.monitoring.remaining', locale).toLowerCase()}.` : ''}
+                  </p>
+                  {db.sizeUsedPct > 50 && (
+                    <Button size="sm" className="mt-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white w-full">
+                      <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                      {planLabel === 'Free' ? 'Upgrade to Pro' : 'View Plans'}
+                      <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="p-3 rounded-lg bg-muted/40 text-center">
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{tableData.length}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('ct.monitoring.tables', locale)}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/40 text-center">
+                    <p className="text-lg font-bold text-green-600 dark:text-green-400">{db.cacheHitPct}%</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Cache Hit</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/40 text-center">
+                    <p className="text-lg font-bold">{bloat.filter((b: any) => b.needsVacuum).length}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('ct.monitoring.bloatAnalysis', locale)}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/40 text-center">
+                    <p className="text-lg font-bold">{indexHealth.filter((i: any) => i.status === 'UNUSED').length}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('ct.monitoring.indexHealth', locale)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* SECTION B: SPACE TIMELINE */}
+      {chartData.length > 1 && (
+        <motion.div {...cardAnim(2)}>
+          <Card>
+            <CardHeader className="pb-3 cursor-pointer select-none" onClick={() => setTimelineOpen(!timelineOpen)}>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4.5 h-4.5 text-blue-500" />
+                <CardTitle className="text-base">{t('ct.monitoring.spaceTimeline', locale)}</CardTitle>
+                <span className="text-[10px] text-muted-foreground ml-1">{chartData.length} snapshots</span>
+                <ChevronDown className={`w-4 h-4 ml-auto text-muted-foreground transition-transform ${timelineOpen ? 'rotate-180' : ''}`} />
+              </div>
+            </CardHeader>
+            {timelineOpen && (
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-3">{t('ct.monitoring.spaceTimelineDesc', locale)}</p>
+                <div className="rounded-lg border p-3 bg-muted/20">
+                  <svg viewBox={`0 0 ${sparklineW} ${sparklineH + 16}`} className="w-full" preserveAspectRatio="none" style={{ height: sparklineH + 16 }}>
+                    {[0, 0.25, 0.5, 0.75, 1].map((pct) => (
+                      <line key={pct} x1={0} y1={pct * sparklineH} x2={sparklineW} y2={pct * sparklineH} stroke="currentColor" strokeWidth="0.5" className="text-muted/30" />
+                    ))}
+                    {chartData.length > 1 && (
+                      <polygon
+                        fill="currentColor"
+                        className="text-blue-500/10"
+                        points={chartData.map((c: any, i: number) => {
+                          const x = (i / (chartData.length - 1)) * sparklineW;
+                          const y = sparklineH - ((c.mb - sparklineMin) / sparklineRange) * sparklineH;
+                          return `${x},${y}`;
+                        }).join(' ') + ` ${sparklineW},${sparklineH} 0,${sparklineH}`}
+                      />
+                    )}
+                    {chartData.length > 1 && (
+                      <polyline
+                        fill="none"
+                        stroke="#3b82f6"
+                        strokeWidth="2"
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                        points={chartData.map((c: any, i: number) => {
+                          const x = (i / (chartData.length - 1)) * sparklineW;
+                          const y = sparklineH - ((c.mb - sparklineMin) / sparklineRange) * sparklineH;
+                          return `${x},${y}`;
+                        }).join(' ')}
+                      />
+                    )}
+                    {chartData.length > 0 && (() => {
+                      const last = chartData[chartData.length - 1];
+                      const lx = sparklineW;
+                      const ly = sparklineH - ((last.mb - sparklineMin) / sparklineRange) * sparklineH;
+                      return <circle cx={lx} cy={ly} r="3" fill="#3b82f6" />;
+                    })()}
+                    {db.limitGB && (
+                      <line x1={0} y1={sparklineH - ((db.limitGB * 1024 - sparklineMin) / sparklineRange) * sparklineH} x2={sparklineW} y2={sparklineH - ((db.limitGB * 1024 - sparklineMin) / sparklineRange) * sparklineH}
+                        stroke="#ef4444" strokeWidth="1" strokeDasharray="4 2" className="opacity-60" />
+                    )}
+                    <text x={sparklineW - 2} y={sparklineH + 12} textAnchor="end" fill="currentColor" className="text-[8px] text-muted-foreground">{chartData[chartData.length - 1]?.mb?.toFixed(2) || ''} MB</text>
+                    {db.limitGB && <text x={2} y={Math.max(0, sparklineH - ((db.limitGB * 1024 - sparklineMin) / sparklineRange) * sparklineH - 3)} fill="#ef4444" className="text-[8px] opacity-70">{db.limitGB * 1024} MB limit</text>}
+                  </svg>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Project Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {[
           { label: 'Project', value: p.name || 'ZBS', sub: p.ref, icon: Globe2 },
@@ -4488,7 +4726,7 @@ function CTMonitoring() {
         ].map((item, i) => {
           const Icon = item.icon;
           return (
-            <motion.div key={item.label} {...cardAnim(i + 1)}>
+            <motion.div key={item.label} {...cardAnim(i + 3)}>
               <Card className="h-full">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
@@ -4510,26 +4748,29 @@ function CTMonitoring() {
         })}
       </div>
 
-      {/* Section 2: Database Health */}
-      <motion.div {...cardAnim(6)}>
+      {/* Database Health */}
+      <motion.div {...cardAnim(8)}>
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-2"><Database className="w-4.5 h-4.5 text-blue-500" /><CardTitle className="text-base">Database Health</CardTitle>
+            <div className="flex items-center gap-2"><Database className="w-4.5 h-4.5 text-blue-500" /><CardTitle className="text-base">{t('ct.monitoring.dbHealth', locale)}</CardTitle>
               <Badge variant="outline" className="ml-auto text-[10px] font-mono">{db.version ? db.version.split(', ')[0] : 'Unknown'}</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-5">
-            {/* DB Size */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Database Size</span>
-                <span className={`font-semibold ${pctTextColor(db.sizeUsedPct)}`}>{db.size} / 0.5 GB ({db.sizeUsedPct}%)</span>
+                <span className="text-muted-foreground">{t('ct.monitoring.currentSize', locale)}</span>
+                <span className={`font-semibold ${pctTextColor(db.sizeUsedPct)}`}>{db.size} / {db.limitGB || 0.5} GB ({db.sizeUsedPct}%)</span>
               </div>
               <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
                 <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(db.sizeUsedPct, 100)}%` }} transition={{ duration: 0.8, delay: 0.3 }} className={`h-full rounded-full ${pctColor(db.sizeUsedPct)}`} />
               </div>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>0</span>
+                <span>{((db.limitGB || 0.5) / 2).toFixed(1)} GB</span>
+                <span>{db.limitGB || 0.5} GB</span>
+              </div>
             </div>
-            {/* Cache Hit */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/40">
                 <div className="relative w-14 h-14 flex-shrink-0">
@@ -4546,7 +4787,6 @@ function CTMonitoring() {
                   <p className="text-[11px] text-muted-foreground">{db.cacheHitPct >= 95 ? 'Excellent' : db.cacheHitPct >= 80 ? 'Good' : 'Needs attention'}</p>
                 </div>
               </div>
-              {/* Transactions */}
               <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/40">
                 <div className="w-14 h-14 flex items-center justify-center rounded-full bg-green-100 dark:bg-green-950/30"><ArrowUpRight className="w-6 h-6 text-green-600" /></div>
                 <div>
@@ -4554,7 +4794,6 @@ function CTMonitoring() {
                   <p className="text-[11px] text-muted-foreground">{(db.transactions?.commits || 0).toLocaleString()} commits / {(db.transactions?.rollbacks || 0).toLocaleString()} rollbacks</p>
                 </div>
               </div>
-              {/* Blocked Queries */}
               <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/40">
                 <div className={`w-14 h-14 flex items-center justify-center rounded-full ${(db.blockedQueries || 0) > 0 ? 'bg-red-100 dark:bg-red-950/30' : 'bg-green-100 dark:bg-green-950/30'}`}>
                   <AlertCircle className={`w-6 h-6 ${(db.blockedQueries || 0) > 0 ? 'text-red-600' : 'text-green-600'}`} />
@@ -4565,7 +4804,6 @@ function CTMonitoring() {
                 </div>
               </div>
             </div>
-            {/* Backups */}
             <div className="flex items-center gap-4 pt-2 border-t text-sm">
               <span className="text-muted-foreground">Backups:</span>
               <Badge variant={backups.enabled ? 'default' : 'secondary'} className={backups.enabled ? 'bg-green-600' : ''}>{backups.enabled ? 'Enabled' : 'Disabled'}</Badge>
@@ -4576,11 +4814,11 @@ function CTMonitoring() {
         </Card>
       </motion.div>
 
-      {/* Section 3: Connection Pool */}
-      <motion.div {...cardAnim(7)}>
+      {/* Connection Pool */}
+      <motion.div {...cardAnim(9)}>
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-2"><Users className="w-4.5 h-4.5 text-blue-500" /><CardTitle className="text-base">Connection Pool</CardTitle>
+            <div className="flex items-center gap-2"><Users className="w-4.5 h-4.5 text-blue-500" /><CardTitle className="text-base">{t('ct.monitoring.connectionPool', locale)}</CardTitle>
               {conn.usedPct > 80 && <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 ml-1"><AlertTriangle className="w-3 h-3 mr-1" />High usage</Badge>}
             </div>
           </CardHeader>
@@ -4609,37 +4847,52 @@ function CTMonitoring() {
         </Card>
       </motion.div>
 
-      {/* Section 4: Table Overview */}
-      <motion.div {...cardAnim(8)}>
+      {/* Table Overview (Enhanced) */}
+      <motion.div {...cardAnim(10)}>
         <Card>
           <CardHeader className="pb-3 cursor-pointer select-none" onClick={() => setTablesOpen(!tablesOpen)}>
             <div className="flex items-center gap-2">
               <Layers className="w-4.5 h-4.5 text-blue-500" />
-              <CardTitle className="text-base">Table Overview</CardTitle>
-              <Badge variant="secondary" className="ml-1">{tableData.length} tables</Badge>
+              <CardTitle className="text-base">{t('ct.monitoring.tableOverview', locale)}</CardTitle>
+              <Badge variant="secondary" className="ml-1">{tableData.length} {t('ct.monitoring.tables', locale)}</Badge>
               <ChevronDown className={`w-4 h-4 ml-auto text-muted-foreground transition-transform ${tablesOpen ? 'rotate-180' : ''}`} />
             </div>
           </CardHeader>
           {tablesOpen && (
             <CardContent>
-              <div className="max-h-72 overflow-y-auto rounded-lg border">
+              <div className="max-h-96 overflow-y-auto rounded-lg border">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 sticky top-0">
                     <tr>
                       <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Table</th>
                       <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">Rows</th>
-                      <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">Size</th>
+                      <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">Data</th>
+                      <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">{t('ct.monitoring.indexes', locale)}</th>
+                      <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs w-32">%</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {tableData.length === 0 && <tr><td colSpan={3} className="text-center py-6 text-muted-foreground text-sm">No tables found</td></tr>}
-                    {tableData.map((t: any, i: number) => (
-                      <tr key={t.name} className={`border-t ${i % 2 === 0 ? '' : 'bg-muted/20'}`}>
-                        <td className="px-3 py-2 font-mono text-xs">{t.name}</td>
-                        <td className="px-3 py-2 text-right text-xs tabular-nums">{t.rows > 0 ? t.rows.toLocaleString() : '—'}</td>
-                        <td className="px-3 py-2 text-right text-xs tabular-nums">{t.size || '—'}</td>
-                      </tr>
-                    ))}
+                    {tableData.length === 0 && <tr><td colSpan={5} className="text-center py-6 text-muted-foreground text-sm">No tables found</td></tr>}
+                    {tableData.map((tbl: any, i: number) => {
+                      const totalBytes = tbl.totalBytes || tbl.bytes || 0;
+                      const pct = storage.totalBytes > 0 ? (totalBytes / storage.totalBytes) * 100 : 0;
+                      return (
+                        <tr key={tbl.name} className={`border-t ${i % 2 === 0 ? '' : 'bg-muted/20'}`}>
+                          <td className="px-3 py-2 font-mono text-xs">{tbl.name}</td>
+                          <td className="px-3 py-2 text-right text-xs tabular-nums">{tbl.rows > 0 ? tbl.rows.toLocaleString() : '\u2014'}</td>
+                          <td className="px-3 py-2 text-right text-xs tabular-nums">{tbl.tableSize || tbl.totalSize || '\u2014'}</td>
+                          <td className="px-3 py-2 text-right text-xs tabular-nums">{tbl.indexSize || '\u2014'}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-1.5">
+                              <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
+                                <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(pct, 100)}%` }} transition={{ duration: 0.6, delay: i * 0.03 }} className="h-full rounded-full bg-blue-500" />
+                              </div>
+                              <span className="text-[10px] text-muted-foreground w-8 text-right">{pct.toFixed(1)}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -4648,11 +4901,109 @@ function CTMonitoring() {
         </Card>
       </motion.div>
 
-      {/* Section 5: Plan Limits Comparison */}
-      <motion.div {...cardAnim(9)}>
+      {/* BLOAT ANALYSIS */}
+      {bloat.length > 0 && (
+        <motion.div {...cardAnim(11)}>
+          <Card>
+            <CardHeader className="pb-3 cursor-pointer select-none" onClick={() => setBloatOpen(!bloatOpen)}>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4.5 h-4.5 text-amber-500" />
+                <CardTitle className="text-base">{t('ct.monitoring.bloatAnalysis', locale)}</CardTitle>
+                <Badge variant={bloat.some((b: any) => b.needsVacuum) ? 'destructive' : 'secondary'} className="ml-1">{bloat.filter((b: any) => b.needsVacuum).length} need attention</Badge>
+                <ChevronDown className={`w-4 h-4 ml-auto text-muted-foreground transition-transform ${bloatOpen ? 'rotate-180' : ''}`} />
+              </div>
+            </CardHeader>
+            {bloatOpen && (
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-3">{t('ct.monitoring.bloatDesc', locale)}</p>
+                <div className="max-h-60 overflow-y-auto rounded-lg border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 sticky top-0">
+                      <tr>
+                        <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">{t('ct.monitoring.tables', locale)}</th>
+                        <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">{t('ct.monitoring.deadTuples', locale)}</th>
+                        <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">{t('ct.monitoring.liveTuples', locale)}</th>
+                        <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">{t('ct.monitoring.bloatPct', locale)}</th>
+                        <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">{t('ct.monitoring.lastVacuum', locale)}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bloat.map((b: any, i: number) => (
+                        <tr key={i} className={`border-t ${b.needsVacuum ? 'bg-amber-50/50 dark:bg-amber-950/10' : ''} ${i % 2 === 0 ? '' : 'bg-muted/20'}`}>
+                          <td className="px-3 py-2 font-mono text-xs">{b.table}</td>
+                          <td className="px-3 py-2 text-right text-xs tabular-nums">{b.deadTuples?.toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right text-xs tabular-nums">{b.liveTuples?.toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right text-xs">
+                            <span className={b.bloatPct > 15 ? 'text-red-600 font-semibold' : b.bloatPct > 5 ? 'text-amber-600' : 'text-muted-foreground'}>
+                              {b.bloatPct}%
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-right text-xs text-muted-foreground">{b.lastAutovacuum || b.lastVacuum || t('ct.monitoring.never', locale)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        </motion.div>
+      )}
+
+      {/* INDEX HEALTH */}
+      {indexHealth.length > 0 && (
+        <motion.div {...cardAnim(12)}>
+          <Card>
+            <CardHeader className="pb-3 cursor-pointer select-none" onClick={() => setIndexOpen(!indexOpen)}>
+              <div className="flex items-center gap-2">
+                <Layers className="w-4.5 h-4.5 text-blue-500" />
+                <CardTitle className="text-base">{t('ct.monitoring.indexHealth', locale)}</CardTitle>
+                <Badge variant={indexHealth.some((i: any) => i.status === 'UNUSED') ? 'destructive' : 'secondary'} className="ml-1">{indexHealth.filter((i: any) => i.status === 'UNUSED').length} {t('ct.monitoring.unused', locale).toLowerCase()}</Badge>
+                <ChevronDown className={`w-4 h-4 ml-auto text-muted-foreground transition-transform ${indexOpen ? 'rotate-180' : ''}`} />
+              </div>
+            </CardHeader>
+            {indexOpen && (
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-3">{t('ct.monitoring.indexHealthDesc', locale)}</p>
+                <div className="max-h-60 overflow-y-auto rounded-lg border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 sticky top-0">
+                      <tr>
+                        <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Index</th>
+                        <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">{t('ct.monitoring.tables', locale)}</th>
+                        <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">Size</th>
+                        <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">{t('ct.monitoring.scans', locale)}</th>
+                        <th className="text-center px-3 py-2 font-medium text-muted-foreground text-xs">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {indexHealth.map((idx: any, i: number) => (
+                        <tr key={i} className={`border-t ${idx.status === 'UNUSED' ? 'bg-red-50/50 dark:bg-red-950/10' : ''} ${i % 2 === 0 ? '' : 'bg-muted/20'}`}>
+                          <td className="px-3 py-2 font-mono text-xs">{idx.index}</td>
+                          <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{idx.table?.split('.').pop()}</td>
+                          <td className="px-3 py-2 text-right text-xs">{idx.size}</td>
+                          <td className="px-3 py-2 text-right text-xs tabular-nums">{idx.scans?.toLocaleString()}</td>
+                          <td className="px-3 py-2 text-center">
+                            <Badge variant={idx.status === 'UNUSED' ? 'destructive' : idx.status === 'RARELY_USED' ? 'outline' : 'secondary'} className="text-[10px]">
+                              {idx.status === 'UNUSED' ? t('ct.monitoring.unused', locale) : idx.status === 'RARELY_USED' ? t('ct.monitoring.rarelyUsed', locale) : t('ct.monitoring.healthy', locale)}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Plan Limits Comparison */}
+      <motion.div {...cardAnim(13)}>
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-2"><CreditCard className="w-4.5 h-4.5 text-blue-500" /><CardTitle className="text-base">Free vs Pro Plan Comparison</CardTitle></div>
+            <div className="flex items-center gap-2"><CreditCard className="w-4.5 h-4.5 text-blue-500" /><CardTitle className="text-base">{t('ct.monitoring.planComparison', locale)}</CardTitle></div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="max-h-80 overflow-y-auto rounded-lg border">
@@ -4684,24 +5035,24 @@ function CTMonitoring() {
                 </tbody>
               </table>
             </div>
-
-            {/* Upgrade CTA */}
-            <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 p-4 flex items-start gap-4">
-              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-950/40 flex-shrink-0"><Sparkles className="w-5 h-5 text-purple-600" /></div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-sm text-purple-900 dark:text-purple-300">Upgrade to Pro — $25/month</h4>
-                <p className="text-xs text-muted-foreground mt-1">Get 8 GB database, 500 connections, 250 GB bandwidth, no auto-pause, 7-day point-in-time recovery, and priority support.</p>
+            {planLabel === 'Free' && (
+              <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 p-4 flex items-start gap-4">
+                <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-950/40 flex-shrink-0"><Sparkles className="w-5 h-5 text-purple-600" /></div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-sm text-purple-900 dark:text-purple-300">Upgrade to Pro \u2014 $25/month</h4>
+                  <p className="text-xs text-muted-foreground mt-1">Get 8 GB database, 500 connections, 250 GB bandwidth, no auto-pause, 7-day point-in-time recovery, and priority support.</p>
+                </div>
+                <Button size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600 text-white flex-shrink-0">Upgrade <ArrowRight className="w-3.5 h-3.5 ml-1" /></Button>
               </div>
-              <Button size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600 text-white flex-shrink-0">Upgrade <ArrowRight className="w-3.5 h-3.5 ml-1" /></Button>
-            </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* Section 6: Recommendations */}
-      <motion.div {...cardAnim(10)}>
+      {/* Recommendations */}
+      <motion.div {...cardAnim(14)}>
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2"><AlertCircle className="w-4 h-4" />Recommendations &amp; Insights</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2"><AlertCircle className="w-4 h-4" />{t('ct.monitoring.recommendations', locale)}</h3>
           {recs.map((rec: any, i: number) => {
             const cfg = recConfig[rec.type] || recConfig.info;
             const RecIcon = cfg.icon;
@@ -4722,6 +5073,8 @@ function CTMonitoring() {
     </div>
   );
 }
+
+
 
 function CTVisitorAnalytics() {
   const locale = useAppStore(s => s.locale);
@@ -6397,7 +6750,7 @@ function CTWorldSystems() {
               <div className="space-y-2 text-sm">
                 <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Next.js 16 App Router</span><p className="text-muted-foreground">Latest React Server Components architecture. Automatic code splitting, streaming SSR, optimized bundle size.</p></div></div>
                 <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Edge Runtime Middleware</span><p className="text-muted-foreground">JWT verification runs at the Edge (Vercel). Zero cold-start overhead on auth checks. Global latency under 50ms.</p></div></div>
-                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Triple Database Transport</span><p className="text-muted-foreground">Prisma ORM (type-safe) > pg direct (bypasses PgBouncer) > Supabase REST API (universal fallback). Auto-detection and failover.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Triple Database Transport</span><p className="text-muted-foreground">Prisma ORM (type-safe) &gt; pg direct (bypasses PgBouncer) &gt; Supabase REST API (universal fallback). Auto-detection and failover.</p></div></div>
                 <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Supabase PostgreSQL + Vercel Edge</span><p className="text-muted-foreground">Managed PostgreSQL with point-in-time recovery, daily automated backups, connection pooling via PgBouncer.</p></div></div>
                 <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">86 API Routes</span><p className="text-muted-foreground">Full REST API covering 8 industries. Platform admin APIs, tenant-scoped APIs, auth flow, monitoring, and reporting.</p></div></div>
               </div>
