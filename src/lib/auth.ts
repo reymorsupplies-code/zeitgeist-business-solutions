@@ -4,12 +4,16 @@
  * - JWT token issuance & verification
  * - Rate limiting (in-memory)
  * - Input validation helpers
+ * - Column whitelist helper for dynamic SQL
  */
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'zbs-dev-secret-do-not-use-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('[AUTH] FATAL: JWT_SECRET environment variable is not configured. The application cannot start securely.');
+}
 const JWT_EXPIRES_IN = '7d';
 const BCRYPT_ROUNDS = 12;
 
@@ -35,12 +39,12 @@ export interface JWTPayload {
 }
 
 export function signToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(payload, JWT_SECRET!, { expiresIn: JWT_EXPIRES_IN });
 }
 
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload;
+    return jwt.verify(token, JWT_SECRET!) as JWTPayload;
   } catch {
     return null;
   }
@@ -50,10 +54,6 @@ export function extractBearerToken(request: Request | NextRequest): string | nul
   const authHeader = request.headers.get('authorization');
   if (authHeader?.startsWith('Bearer ')) {
     return authHeader.slice(7);
-  }
-  // Also check cookie for SSR compatibility
-  if (request instanceof Request) {
-    // NextRequest has cookies
   }
   return null;
 }
@@ -123,6 +123,115 @@ export function validateRequiredFields(data: Record<string, any>, fields: string
   return null;
 }
 
+// ─── Column Whitelist for Dynamic SQL ───
+
+/**
+ * Whitelists of allowed column names per table.
+ * Prevents column name injection in dynamic UPDATE/INSERT queries.
+ */
+const COLUMN_WHITELISTS: Record<string, Set<string>> = {
+  Client: new Set([
+    'name', 'email', 'phone', 'address', 'notes', 'tags',
+    'companyName', 'taxId', 'website', 'isDeleted', 'updatedAt',
+  ]),
+  Order: new Set([
+    'orderNumber', 'clientName', 'clientEmail', 'clientPhone',
+    'items', 'subtotal', 'taxAmount', 'totalAmount', 'status',
+    'orderType', 'deliveryDate', 'deliveryAddress', 'notes',
+    'isDeleted', 'updatedAt', 'priority', 'dueDate',
+  ]),
+  Product: new Set([
+    'name', 'description', 'price', 'costPrice', 'category',
+    'sku', 'image', 'isActive', 'stock', 'tags', 'notes',
+    'isDeleted', 'updatedAt', 'unit', 'minStock',
+  ]),
+  Ingredient: new Set([
+    'name', 'description', 'unit', 'costPrice', 'stock',
+    'minStock', 'supplier', 'category', 'isDeleted', 'updatedAt',
+  ]),
+  Appointment: new Set([
+    'date', 'time', 'duration', 'clientName', 'clientPhone',
+    'clientEmail', 'service', 'notes', 'status', 'isDeleted', 'updatedAt',
+  ]),
+  Expense: new Set([
+    'description', 'amount', 'category', 'date', 'paymentMethod',
+    'notes', 'receiptNumber', 'isDeleted', 'updatedAt',
+  ]),
+  Invoice: new Set([
+    'invoiceNumber', 'clientName', 'clientEmail', 'items',
+    'subtotal', 'taxAmount', 'totalAmount', 'status', 'dueDate',
+    'notes', 'isDeleted', 'updatedAt',
+  ]),
+  Payment: new Set([
+    'amount', 'method', 'reference', 'date', 'notes',
+    'invoiceId', 'status', 'isDeleted', 'updatedAt',
+  ]),
+  Document: new Set([
+    'name', 'type', 'category', 'content', 'fileUrl',
+    'notes', 'isDeleted', 'updatedAt',
+  ]),
+  SalonService: new Set([
+    'name', 'description', 'price', 'duration', 'category',
+    'isActive', 'isDeleted', 'updatedAt',
+  ]),
+  Membership: new Set([
+    'name', 'description', 'price', 'duration', 'benefits',
+    'isActive', 'isDeleted', 'updatedAt',
+  ]),
+  Booking: new Set([
+    'clientName', 'clientPhone', 'clientEmail', 'date', 'time',
+    'guestCount', 'venue', 'eventPackage', 'status', 'notes',
+    'isDeleted', 'updatedAt',
+  ]),
+  Project: new Set([
+    'name', 'description', 'status', 'startDate', 'endDate',
+    'clientName', 'budget', 'isDeleted', 'updatedAt',
+  ]),
+  Policy: new Set([
+    'name', 'type', 'premium', 'coverage', 'status',
+    'clientName', 'startDate', 'endDate', 'isDeleted', 'updatedAt',
+  ]),
+  LegalCase: new Set([
+    'caseNumber', 'clientName', 'caseType', 'description',
+    'status', 'court', 'nextDate', 'isDeleted', 'updatedAt',
+  ]),
+  Supplier: new Set([
+    'name', 'contactPerson', 'email', 'phone', 'address',
+    'category', 'notes', 'isDeleted', 'updatedAt',
+  ]),
+  Recipe: new Set([
+    'name', 'description', 'yield', 'costPrice', 'sellPrice',
+    'category', 'instructions', 'isDeleted', 'updatedAt',
+  ]),
+  RetailProduct: new Set([
+    'name', 'description', 'price', 'costPrice', 'category',
+    'sku', 'stock', 'barcode', 'isActive', 'isDeleted', 'updatedAt',
+  ]),
+};
+
+/**
+ * Filter fields against a column whitelist for a given table.
+ * Returns only fields whose keys are in the whitelist.
+ * Prevents column name injection in dynamic SQL.
+ */
+export function whitelistFields(tableName: string, fields: Record<string, any>): Record<string, any> {
+  const allowed = COLUMN_WHITELISTS[tableName];
+  if (!allowed) {
+    // If no whitelist defined for this table, allow nothing by default (fail-safe)
+    console.warn(`[AUTH] No column whitelist defined for table "${tableName}". Rejecting all fields.`);
+    return {};
+  }
+  const filtered: Record<string, any> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (allowed.has(key)) {
+      filtered[key] = value;
+    } else {
+      console.warn(`[AUTH] Blocked column "${key}" in dynamic SQL for table "${tableName}"`);
+    }
+  }
+  return filtered;
+}
+
 // ─── Auth Guard for API Routes ───
 
 export interface AuthResult {
@@ -147,6 +256,21 @@ export function authenticateRequest(request: Request | NextRequest): AuthResult 
   return { success: true, payload };
 }
 
+/**
+ * Extract tenantId from request headers (set by middleware).
+ * Returns null if not found.
+ */
+export function getTenantIdFromRequest(request: Request | NextRequest): string | null {
+  return request.headers.get('x-tenant-id');
+}
+
+/**
+ * Check if the authenticated user is a super admin (isSuperAdmin === true ONLY).
+ */
+export function isStrictSuperAdmin(auth: AuthResult): boolean {
+  return auth.success && auth.payload?.isSuperAdmin === true;
+}
+
 // ─── Tenant Ownership Verification ───
 
 export interface OwnershipResult {
@@ -158,6 +282,7 @@ export interface OwnershipResult {
 /**
  * Verify that the authenticated user belongs to the given tenant.
  * Uses JWT tenantId claim for fast verification.
+ * Super admins (isSuperAdmin === true) can access any tenant.
  */
 export function verifyTenantAccess(
   auth: AuthResult,
@@ -167,8 +292,8 @@ export function verifyTenantAccess(
     return { success: false, error: auth.error, status: auth.status };
   }
 
-  // Super admins can access any tenant
-  if (auth.payload?.isSuperAdmin) {
+  // Super admins (ONLY isSuperAdmin === true) can access any tenant
+  if (auth.payload?.isSuperAdmin === true) {
     return { success: true };
   }
 
@@ -235,7 +360,7 @@ export function apiGuard(
   }
 
   // Super admins bypass RBAC
-  if (auth.payload?.isSuperAdmin) return null;
+  if (auth.payload?.isSuperAdmin === true) return null;
 
   const userRole = auth.payload?.tenantRole || 'viewer';
   if (!hasPermission(userRole, resource, action)) {

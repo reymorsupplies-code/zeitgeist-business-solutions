@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateRequest, verifyTenantAccess } from '@/lib/auth';
+import { authenticateRequest, verifyTenantAccess, whitelistFields } from '@/lib/auth';
 import { pgQuery } from '@/lib/pg-query';
 
 /**
@@ -118,6 +118,10 @@ export async function PUT(req: NextRequest) {
   if (!auth.success) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   }
+  // Tenant isolation — verify tenantId from JWT
+  const tenantId = req.headers.get('x-tenant-id');
+  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+
 
   try {
     const body = await req.json();
@@ -166,6 +170,10 @@ export async function DELETE(req: NextRequest) {
   if (!auth.success) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   }
+  // Tenant isolation — verify tenantId from JWT
+  const tenantId = req.headers.get('x-tenant-id');
+  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+
 
   try {
     const { id } = await req.json();

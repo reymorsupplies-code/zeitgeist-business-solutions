@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Account disabled' }, { status: 403 });
     }
 
-    const isSuperAdmin = user.role === 'super_admin' || user.role === 'admin';
+    const isSuperAdmin = user.role === 'super_admin';
 
     let tenant: any = null;
     let tenantRole: string | null = null;
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
             const pg = require('pg');
             const client = new pg.Client({
               connectionString: dbUrl,
-              ssl: { rejectUnauthorized: false },
+              ssl: { rejectUnauthorized: true },
             });
             await client.connect();
             const result = await client.query(

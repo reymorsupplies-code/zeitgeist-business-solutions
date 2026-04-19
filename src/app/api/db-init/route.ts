@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   // Verify init key for production environments
   const initKey = req.headers.get('x-init-key');
   const jwtSecret = process.env.JWT_SECRET;
-  if (jwtSecret && jwtSecret !== 'zbs-dev-secret-do-not-use-in-production') {
+  if (jwtSecret) {
     // Production mode: require init key matching JWT_SECRET
     if (!initKey || initKey !== jwtSecret) {
       return NextResponse.json(
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   const client = new pg.Client({
     connectionString: dbUrl,
-    ssl: { rejectUnauthorized: false },
+    ssl: { rejectUnauthorized: true },
   });
 
   let connected = false;
@@ -1318,7 +1318,7 @@ export async function GET() {
 
   const client = new pg.Client({
     connectionString: dbUrl,
-    ssl: { rejectUnauthorized: false },
+    ssl: { rejectUnauthorized: true },
   });
 
   try {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateRequest, verifyTenantAccess } from '@/lib/auth';
+import { authenticateRequest, verifyTenantAccess, whitelistFields } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { pgQuery, pgQueryOne } from '@/lib/pg-query';
 
@@ -65,11 +65,15 @@ export async function PUT(req: NextRequest) {
   if (!auth.success) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   }
+  // Tenant isolation — verify tenantId from JWT
+  const tenantId = req.headers.get('x-tenant-id');
+  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+
   const { id, ...fields } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
   try {
-    const updated = await db.invoice.update({ where: { id }, data: fields });
+    const updated = await db.invoice.update({ where: { id, tenantId }, data: whitelistFields('Invoice', fields) });
     return NextResponse.json(updated);
   } catch {
     try {
@@ -95,15 +99,19 @@ export async function DELETE(req: NextRequest) {
   if (!auth.success) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   }
+  // Tenant isolation — verify tenantId from JWT
+  const tenantId = req.headers.get('x-tenant-id');
+  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
   try {
-    await db.invoice.update({ where: { id }, data: { isDeleted: true } });
+    await db.invoice.update({ where: { id, tenantId }, data: { isDeleted: true } });
     return NextResponse.json({ success: true });
   } catch {
     try {
-      await pgQuery(`UPDATE "Invoice" SET "isDeleted" = true, "updatedAt" = NOW() WHERE id = $1`, [id]);
+      await pgQuery(`UPDATE "Invoice" SET "isDeleted" = true, "updatedAt" = NOW() WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
       return NextResponse.json({ success: true });
     } catch (err: any) {
       return NextResponse.json({ error: err.message }, { status: 500 });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateRequest, verifyTenantAccess } from '@/lib/auth';
+import { authenticateRequest, verifyTenantAccess, whitelistFields } from '@/lib/auth';
 import { db } from '@/lib/db';
 
 export async function GET(req: NextRequest, {params}: { params: Promise<{ tenantId: string }> }) {

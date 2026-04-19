@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ valid: false, error: 'Token expired or invalid' }, { status: 401 });
   }
 
-  const isSuperAdmin = payload.isSuperAdmin || payload.role === 'super_admin' || payload.role === 'admin';
+  const isSuperAdmin = payload.isSuperAdmin === true;
 
   // Fetch full user data
   let user: any = null;

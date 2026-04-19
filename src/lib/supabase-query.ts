@@ -3,7 +3,8 @@
  * Falls back to this when Prisma/pooler can't connect (e.g., IPv6-only, pooler not registered)
  * Uses the Supabase Management API /database/query endpoint
  */
-const PROJECT_REF = process.env.NEXT_PUBLIC_SUPABASE_REF || 'lvgmgdggaiwqjbctnqqm';
+const PROJECT_REF = process.env.NEXT_PUBLIC_SUPABASE_REF;
+if (!PROJECT_REF) throw new Error('[SUPABASE] NEXT_PUBLIC_SUPABASE_REF is not configured');
 const BASE = 'https://api.supabase.com';
 
 export function getSupabaseToken(): string | undefined {

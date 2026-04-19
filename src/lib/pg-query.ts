@@ -38,7 +38,7 @@ function getPool(): pg.Pool | null {
   if (!_pool) {
     _pool = new Pool({
       connectionString: url,
-      ssl: { rejectUnauthorized: false },
+      ssl: { rejectUnauthorized: true },
       max: 5,
       idleTimeoutMillis: 10000,
     });

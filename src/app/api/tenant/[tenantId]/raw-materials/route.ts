@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery, pgQueryOne } from '@/lib/pg-query';
-import { authenticateRequest, verifyTenantAccess } from '@/lib/auth';
+import { authenticateRequest, verifyTenantAccess, whitelistFields } from '@/lib/auth';
 
 // ─── GET: List all raw materials for tenant ───
 // Supports query params: ?category=flour&low_stock=true

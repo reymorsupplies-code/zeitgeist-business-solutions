@@ -94,7 +94,7 @@ export const useAppStore = create<AppState>((set) => ({
   setTenantPage: (tenantPage) => set({ tenantPage }),
   
   user: null,
-  setUser: (user) => set({ user, isAuthenticated: !!user, isSuperAdmin: user?.role === 'super_admin' || user?.role === 'admin' }),
+  setUser: (user) => set({ user, isAuthenticated: !!user, isSuperAdmin: user?.isSuperAdmin === true }),
   isAuthenticated: false,
   isSuperAdmin: false,
   currentTenant: null,
