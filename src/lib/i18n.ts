@@ -1255,6 +1255,11 @@ const es: TranslationMap = {
   'tenant.nav.inventorySection': 'INVENTARIO',
   'tenant.nav.analyticsSection': 'ANALITICAS',
   'tenant.nav.toolsSection': 'HERRAMIENTAS',
+  'tenant.nav.designs': 'Disenos',
+  'tenant.nav.cakeMatrix': 'Matriz de Pasteles',
+  'tenant.nav.recipeCosting': 'Costeo de Recetas',
+  'tenant.nav.pricing': 'Asistente de Precios',
+  'tenant.nav.documents': 'Documentos',
 
   // ====== Tenant Dashboard ======
   'tenant.dashboard.title': 'Panel de Control',
@@ -1414,6 +1419,15 @@ const es: TranslationMap = {
   'tenant.expenses.deleteExpense': 'Eliminar Gasto',
   'tenant.expenses.toastCreated': 'Gasto registrado exitosamente',
   'tenant.expenses.toastDeleted': 'Gasto eliminado exitosamente',
+  'tenant.expenses.ingredients': 'Ingredientes',
+  'tenant.expenses.utilities': 'Servicios',
+  'tenant.expenses.rent': 'Renta',
+  'tenant.expenses.salaries': 'Salarios',
+  'tenant.expenses.equipment': 'Equipo',
+  'tenant.expenses.packaging': 'Empaque',
+  'tenant.expenses.marketing': 'Marketing',
+  'tenant.expenses.other': 'Otros',
+  'tenant.expenses.thisMonth': 'Este Mes',
 
   // ====== Tenant Invoices ======
   'tenant.invoices.title': 'Facturas',
@@ -1435,6 +1449,10 @@ const es: TranslationMap = {
   'tenant.invoices.totalOutstanding': 'Pendiente de Cobro',
   'tenant.invoices.toastCreated': 'Factura creada exitosamente',
   'tenant.invoices.toastSent': 'Factura enviada al cliente',
+  'tenant.invoices.paid': 'Pagada',
+  'tenant.invoices.unpaid': 'No Pagada',
+  'tenant.invoices.overdue': 'Vencida',
+  'tenant.invoices.draft': 'Borrador',
 
   // ====== Tenant Bookkeeping ======
   'tenant.bookkeeping.title': 'Contabilidad',
@@ -1446,6 +1464,18 @@ const es: TranslationMap = {
   'tenant.bookkeeping.profitMargin': 'Margen de Utilidad',
   'tenant.bookkeeping.monthlyReport': 'Reporte Mensual',
   'tenant.bookkeeping.exportReport': 'Exportar Reporte',
+  'tenant.bookkeeping.jan': 'Ene',
+  'tenant.bookkeeping.feb': 'Feb',
+  'tenant.bookkeeping.mar': 'Mar',
+  'tenant.bookkeeping.apr': 'Abr',
+  'tenant.bookkeeping.may': 'May',
+  'tenant.bookkeeping.jun': 'Jun',
+  'tenant.bookkeeping.jul': 'Jul',
+  'tenant.bookkeeping.aug': 'Ago',
+  'tenant.bookkeeping.sep': 'Sep',
+  'tenant.bookkeeping.oct': 'Oct',
+  'tenant.bookkeeping.nov': 'Nov',
+  'tenant.bookkeeping.dec': 'Dic',
 
   // ====== Tenant Settings ======
   'tenant.settings.title': 'Configuracion',
@@ -1486,6 +1516,12 @@ const es: TranslationMap = {
   'tenant.catalog.totalProducts': 'Total de Productos',
   'tenant.catalog.toastCreated': 'Producto creado exitosamente',
   'tenant.catalog.toastDeleted': 'Producto eliminado exitosamente',
+  'tenant.catalog.birthdayCakes': 'Pasteles de Cumpleanos',
+  'tenant.catalog.weddingCakes': 'Pasteles de Boda',
+  'tenant.catalog.cupcakes': 'Cupcakes',
+  'tenant.catalog.pastries': 'Pasteleria',
+  'tenant.catalog.bread': 'Pan',
+  'tenant.catalog.customCakes': 'Pasteles Personalizados',
 
   // ====== Tenant Ingredients ======
   'tenant.ingredients.title': 'Ingredientes',
@@ -1503,6 +1539,14 @@ const es: TranslationMap = {
   'tenant.ingredients.lowStockAlert': 'Alerta de Stock Bajo',
   'tenant.ingredients.totalIngredients': 'Total de Ingredientes',
   'tenant.ingredients.toastCreated': 'Ingrediente creado exitosamente',
+  'tenant.ingredients.baking': 'Reposteria',
+  'tenant.ingredients.dairy': 'Lacteos',
+  'tenant.ingredients.filling': 'Rellenos',
+  'tenant.ingredients.kg': 'kg',
+  'tenant.ingredients.liters': 'litros',
+  'tenant.ingredients.units': 'unidades',
+  'tenant.ingredients.grams': 'gramos',
+  'tenant.ingredients.milliliters': 'mililitros',
 
   // ====== Tenant Designs ======
   'tenant.designs.title': 'Galeria de Disenos',
@@ -1510,6 +1554,9 @@ const es: TranslationMap = {
   'tenant.designs.search': 'Buscar diseno...',
   'tenant.designs.noDesigns': 'No se encontraron disenos',
   'tenant.designs.totalDesigns': 'Total de Disenos',
+  'tenant.designs.beginner': 'Principiante',
+  'tenant.designs.intermediate': 'Intermedio',
+  'tenant.designs.advanced': 'Avanzado',
 
   // ====== Tenant Cake Matrix ======
   'tenant.cakeMatrix.title': 'Matriz de Pasteles',
@@ -1522,6 +1569,7 @@ const es: TranslationMap = {
   'tenant.cakeMatrix.costAnalysis': 'Analisis de Costos',
   'tenant.cakeMatrix.calculate': 'Calcular',
   'tenant.cakeMatrix.toastUpdated': 'Precios actualizados exitosamente',
+  'tenant.cakeMatrix.sizes': 'Tamanos',
 
   // ====== Tenant Recipe Costing ======
   'tenant.recipeCosting.title': 'Costeo de Recetas',
@@ -1553,6 +1601,9 @@ const es: TranslationMap = {
   'tenant.clients.lastOrder': 'Ultimo Pedido',
   'tenant.clients.newThisMonth': 'Nuevos Este Mes',
   'tenant.clients.toastCreated': 'Cliente creado exitosamente',
+  'tenant.clients.vip': 'VIP',
+  'tenant.clients.active': 'Activo',
+  'tenant.clients.new': 'Nuevo',
 
   // ====== Tenant Team ======
   'tenant.team.title': 'Equipo y Roles',
@@ -1569,6 +1620,12 @@ const es: TranslationMap = {
   'tenant.team.totalMembers': 'Total de Miembros',
   'tenant.team.toastCreated': 'Miembro agregado exitosamente',
   'tenant.team.toastDeleted': 'Miembro eliminado exitosamente',
+  'tenant.team.headBaker': 'Jefe de Pasteleria',
+  'tenant.team.decorator': 'Decorador',
+  'tenant.team.cashier': 'Cajero',
+  'tenant.team.Head Baker': 'Jefe de Pasteleria',
+  'tenant.team.Decorator': 'Decorador',
+  'tenant.team.Cashier': 'Cajero',
 
   // ====== Tenant Inventory ======
   'tenant.inventory.title': 'Inventario',
@@ -1611,6 +1668,9 @@ const es: TranslationMap = {
   'tenant.production.completeBatch': 'Completar Lote',
   'tenant.production.toastStarted': 'Lote iniciado',
   'tenant.production.toastCompleted': 'Lote completado',
+  'tenant.production.pending': 'Pendiente',
+  'tenant.production.inProgress': 'En Proceso',
+  'tenant.production.completed': 'Completado',
 
   // ====== Tenant Smart Import ======
   'tenant.smartImport.title': 'Importacion Inteligente',
@@ -1629,6 +1689,9 @@ const es: TranslationMap = {
   'tenant.smartImport.rowsSkipped': 'Filas Omiridas',
   'tenant.smartImport.complete': 'Importacion Completa',
   'tenant.smartImport.toastImported': 'Datos importados exitosamente',
+  'tenant.smartImport.overwriteExisting': 'Sobrescribir Existentes',
+  'tenant.smartImport.skipDuplicates': 'Omitir Duplicados',
+  'tenant.smartImport.updateExisting': 'Actualizar Existentes',
 
   // ====== Tenant Pricing ======
   'tenant.pricing.title': 'Asistente de Precios',
@@ -1646,6 +1709,10 @@ const es: TranslationMap = {
   'tenant.pricing.applyAll': 'Aplicar a Todos',
   'tenant.pricing.toastAnalyzed': 'Analisis completado',
   'tenant.pricing.toastApplied': 'Precios actualizados',
+  'tenant.pricing.costPlus': 'Costo + Margen',
+  'tenant.pricing.competitor': 'Competidor',
+  'tenant.pricing.market': 'Mercado',
+  'tenant.pricing.custom': 'Personalizado',
 
   // ====== Tenant Reports ======
   'tenant.reports.title': 'Reportes',
@@ -1663,6 +1730,9 @@ const es: TranslationMap = {
   'tenant.reports.averageOrder': 'Promedio por Pedido',
   'tenant.reports.topSelling': 'Mas Vendidos',
   'tenant.reports.toastGenerated': 'Reporte generado exitosamente',
+  'tenant.reports.pdf': 'PDF',
+  'tenant.reports.excel': 'Excel',
+  'tenant.reports.csv': 'CSV',
 
   // ====== Tenant Documents ======
   'tenant.documents.title': 'Documentos',
@@ -1680,6 +1750,11 @@ const es: TranslationMap = {
   'tenant.documents.downloadDocument': 'Descargar Documento',
   'tenant.documents.deleteDocument': 'Eliminar Documento',
   'tenant.documents.allDocuments': 'Todos los Documentos',
+  'tenant.documents.invoices': 'Facturas',
+  'tenant.documents.contracts': 'Contratos',
+  'tenant.documents.recipes': 'Recetas',
+  'tenant.documents.certificates': 'Certificados',
+  'tenant.documents.other': 'Otros',
 
   // ====== Common (tenant scope) ======
   'common.cancel': 'Cancelar',
@@ -2947,6 +3022,11 @@ const en: TranslationMap = {
   'tenant.nav.inventorySection': 'INVENTORY',
   'tenant.nav.analyticsSection': 'ANALYTICS',
   'tenant.nav.toolsSection': 'TOOLS',
+  'tenant.nav.designs': 'Designs',
+  'tenant.nav.cakeMatrix': 'Cake Matrix',
+  'tenant.nav.recipeCosting': 'Recipe Costing',
+  'tenant.nav.pricing': 'Pricing',
+  'tenant.nav.documents': 'Documents',
 
   // ====== Tenant Dashboard ======
   'tenant.dashboard.title': 'Dashboard',
@@ -3106,6 +3186,15 @@ const en: TranslationMap = {
   'tenant.expenses.deleteExpense': 'Delete Expense',
   'tenant.expenses.toastCreated': 'Expense recorded successfully',
   'tenant.expenses.toastDeleted': 'Expense deleted successfully',
+  'tenant.expenses.ingredients': 'Ingredients',
+  'tenant.expenses.utilities': 'Utilities',
+  'tenant.expenses.rent': 'Rent',
+  'tenant.expenses.salaries': 'Salaries',
+  'tenant.expenses.equipment': 'Equipment',
+  'tenant.expenses.packaging': 'Packaging',
+  'tenant.expenses.marketing': 'Marketing',
+  'tenant.expenses.other': 'Other',
+  'tenant.expenses.thisMonth': 'This Month',
 
   // ====== Tenant Invoices ======
   'tenant.invoices.title': 'Invoices',
@@ -3127,6 +3216,10 @@ const en: TranslationMap = {
   'tenant.invoices.totalOutstanding': 'Outstanding',
   'tenant.invoices.toastCreated': 'Invoice created successfully',
   'tenant.invoices.toastSent': 'Invoice sent to customer',
+  'tenant.invoices.paid': 'Paid',
+  'tenant.invoices.unpaid': 'Unpaid',
+  'tenant.invoices.overdue': 'Overdue',
+  'tenant.invoices.draft': 'Draft',
 
   // ====== Tenant Bookkeeping ======
   'tenant.bookkeeping.title': 'Bookkeeping',
@@ -3138,6 +3231,18 @@ const en: TranslationMap = {
   'tenant.bookkeeping.profitMargin': 'Profit Margin',
   'tenant.bookkeeping.monthlyReport': 'Monthly Report',
   'tenant.bookkeeping.exportReport': 'Export Report',
+  'tenant.bookkeeping.jan': 'Jan',
+  'tenant.bookkeeping.feb': 'Feb',
+  'tenant.bookkeeping.mar': 'Mar',
+  'tenant.bookkeeping.apr': 'Apr',
+  'tenant.bookkeeping.may': 'May',
+  'tenant.bookkeeping.jun': 'Jun',
+  'tenant.bookkeeping.jul': 'Jul',
+  'tenant.bookkeeping.aug': 'Aug',
+  'tenant.bookkeeping.sep': 'Sep',
+  'tenant.bookkeeping.oct': 'Oct',
+  'tenant.bookkeeping.nov': 'Nov',
+  'tenant.bookkeeping.dec': 'Dec',
 
   // ====== Tenant Settings ======
   'tenant.settings.title': 'Settings',
@@ -3178,6 +3283,12 @@ const en: TranslationMap = {
   'tenant.catalog.totalProducts': 'Total Products',
   'tenant.catalog.toastCreated': 'Product created successfully',
   'tenant.catalog.toastDeleted': 'Product deleted successfully',
+  'tenant.catalog.birthdayCakes': 'Birthday Cakes',
+  'tenant.catalog.weddingCakes': 'Wedding Cakes',
+  'tenant.catalog.cupcakes': 'Cupcakes',
+  'tenant.catalog.pastries': 'Pastries',
+  'tenant.catalog.bread': 'Bread',
+  'tenant.catalog.customCakes': 'Custom Cakes',
 
   // ====== Tenant Ingredients ======
   'tenant.ingredients.title': 'Ingredients',
@@ -3195,6 +3306,14 @@ const en: TranslationMap = {
   'tenant.ingredients.lowStockAlert': 'Low Stock Alert',
   'tenant.ingredients.totalIngredients': 'Total Ingredients',
   'tenant.ingredients.toastCreated': 'Ingredient created successfully',
+  'tenant.ingredients.baking': 'Baking',
+  'tenant.ingredients.dairy': 'Dairy',
+  'tenant.ingredients.filling': 'Filling',
+  'tenant.ingredients.kg': 'kg',
+  'tenant.ingredients.liters': 'liters',
+  'tenant.ingredients.units': 'units',
+  'tenant.ingredients.grams': 'grams',
+  'tenant.ingredients.milliliters': 'milliliters',
 
   // ====== Tenant Designs ======
   'tenant.designs.title': 'Design Gallery',
@@ -3202,6 +3321,9 @@ const en: TranslationMap = {
   'tenant.designs.search': 'Search design...',
   'tenant.designs.noDesigns': 'No designs found',
   'tenant.designs.totalDesigns': 'Total Designs',
+  'tenant.designs.beginner': 'Beginner',
+  'tenant.designs.intermediate': 'Intermediate',
+  'tenant.designs.advanced': 'Advanced',
 
   // ====== Tenant Cake Matrix ======
   'tenant.cakeMatrix.title': 'Cake Matrix',
@@ -3214,6 +3336,7 @@ const en: TranslationMap = {
   'tenant.cakeMatrix.costAnalysis': 'Cost Analysis',
   'tenant.cakeMatrix.calculate': 'Calculate',
   'tenant.cakeMatrix.toastUpdated': 'Prices updated successfully',
+  'tenant.cakeMatrix.sizes': 'Sizes',
 
   // ====== Tenant Recipe Costing ======
   'tenant.recipeCosting.title': 'Recipe Costing',
@@ -3245,6 +3368,9 @@ const en: TranslationMap = {
   'tenant.clients.lastOrder': 'Last Order',
   'tenant.clients.newThisMonth': 'New This Month',
   'tenant.clients.toastCreated': 'Client created successfully',
+  'tenant.clients.vip': 'VIP',
+  'tenant.clients.active': 'Active',
+  'tenant.clients.new': 'New',
 
   // ====== Tenant Team ======
   'tenant.team.title': 'Team & Roles',
@@ -3261,6 +3387,12 @@ const en: TranslationMap = {
   'tenant.team.totalMembers': 'Total Members',
   'tenant.team.toastCreated': 'Member added successfully',
   'tenant.team.toastDeleted': 'Member removed successfully',
+  'tenant.team.headBaker': 'Head Baker',
+  'tenant.team.decorator': 'Decorator',
+  'tenant.team.cashier': 'Cashier',
+  'tenant.team.Head Baker': 'Head Baker',
+  'tenant.team.Decorator': 'Decorator',
+  'tenant.team.Cashier': 'Cashier',
 
   // ====== Tenant Inventory ======
   'tenant.inventory.title': 'Inventory',
@@ -3303,6 +3435,9 @@ const en: TranslationMap = {
   'tenant.production.completeBatch': 'Complete Batch',
   'tenant.production.toastStarted': 'Batch started',
   'tenant.production.toastCompleted': 'Batch completed',
+  'tenant.production.pending': 'Pending',
+  'tenant.production.inProgress': 'In Progress',
+  'tenant.production.completed': 'Completed',
 
   // ====== Tenant Smart Import ======
   'tenant.smartImport.title': 'Smart Import',
@@ -3321,6 +3456,9 @@ const en: TranslationMap = {
   'tenant.smartImport.rowsSkipped': 'Rows Skipped',
   'tenant.smartImport.complete': 'Import Complete',
   'tenant.smartImport.toastImported': 'Data imported successfully',
+  'tenant.smartImport.overwriteExisting': 'Overwrite Existing',
+  'tenant.smartImport.skipDuplicates': 'Skip Duplicates',
+  'tenant.smartImport.updateExisting': 'Update Existing',
 
   // ====== Tenant Pricing ======
   'tenant.pricing.title': 'Pricing Assistant',
@@ -3338,6 +3476,10 @@ const en: TranslationMap = {
   'tenant.pricing.applyAll': 'Apply to All',
   'tenant.pricing.toastAnalyzed': 'Analysis completed',
   'tenant.pricing.toastApplied': 'Prices updated',
+  'tenant.pricing.costPlus': 'Cost Plus',
+  'tenant.pricing.competitor': 'Competitor',
+  'tenant.pricing.market': 'Market',
+  'tenant.pricing.custom': 'Custom',
 
   // ====== Tenant Reports ======
   'tenant.reports.title': 'Reports',
@@ -3355,6 +3497,9 @@ const en: TranslationMap = {
   'tenant.reports.averageOrder': 'Average Order',
   'tenant.reports.topSelling': 'Top Selling',
   'tenant.reports.toastGenerated': 'Report generated successfully',
+  'tenant.reports.pdf': 'PDF',
+  'tenant.reports.excel': 'Excel',
+  'tenant.reports.csv': 'CSV',
 
   // ====== Tenant Documents ======
   'tenant.documents.title': 'Documents',
@@ -3372,6 +3517,11 @@ const en: TranslationMap = {
   'tenant.documents.downloadDocument': 'Download Document',
   'tenant.documents.deleteDocument': 'Delete Document',
   'tenant.documents.allDocuments': 'All Documents',
+  'tenant.documents.invoices': 'Invoices',
+  'tenant.documents.contracts': 'Contracts',
+  'tenant.documents.recipes': 'Recipes',
+  'tenant.documents.certificates': 'Certificates',
+  'tenant.documents.other': 'Other',
 
   // ====== Common (tenant scope) ======
   'common.cancel': 'Cancel',
@@ -3425,6 +3575,11 @@ export function getNavLabels(locale: Locale) {
     team: t('tenant.nav.team', locale),
     smartImport: t('tenant.nav.smartImport', locale),
     settings: t('tenant.nav.settings', locale),
+    designs: t('tenant.nav.designs', locale),
+    cakeMatrix: t('tenant.nav.cakeMatrix', locale),
+    recipeCosting: t('tenant.nav.recipeCosting', locale),
+    pricing: t('tenant.nav.pricing', locale),
+    documents: t('tenant.nav.documents', locale),
   };
 
   const sections: Array<{ section: string; items: Array<{ key: string; label: string; icon: string }> }> = [
@@ -3435,14 +3590,15 @@ export function getNavLabels(locale: Locale) {
       { key: 'orders', label: labels.orders, icon: 'ShoppingCart' },
       { key: 'pos', label: labels.pos, icon: 'Calculator' },
       { key: 'kitchen', label: labels.kitchen, icon: 'ChefHat' },
+      { key: 'quotes', label: labels.quotes, icon: 'FileText' },
     ]},
     { section: t('tenant.nav.catalogSection', locale), items: [
       { key: 'catalog', label: labels.catalog, icon: 'Cake' },
       { key: 'ingredients', label: labels.ingredients, icon: 'Wheat' },
+      { key: 'designs', label: labels.designs, icon: 'Palette' },
       { key: 'clients', label: labels.clients, icon: 'Users' },
     ]},
     { section: t('tenant.nav.financeSection', locale), items: [
-      { key: 'quotes', label: labels.quotes, icon: 'FileText' },
       { key: 'invoices', label: labels.invoices, icon: 'Receipt' },
       { key: 'payments', label: labels.payments, icon: 'CreditCard' },
       { key: 'expenses', label: labels.expenses, icon: 'TrendingDown' },
@@ -3455,10 +3611,14 @@ export function getNavLabels(locale: Locale) {
     ]},
     { section: t('tenant.nav.analyticsSection', locale), items: [
       { key: 'reports', label: labels.reports, icon: 'BarChart3' },
+      { key: 'cakeMatrix', label: labels.cakeMatrix, icon: 'Grid3X3' },
+      { key: 'recipeCosting', label: labels.recipeCosting, icon: 'Scale' },
+      { key: 'pricing', label: labels.pricing, icon: 'BadgeDollarSign' },
     ]},
     { section: t('tenant.nav.toolsSection', locale), items: [
       { key: 'team', label: labels.team, icon: 'UserCog' },
       { key: 'smartImport', label: labels.smartImport, icon: 'Upload' },
+      { key: 'documents', label: labels.documents, icon: 'FolderOpen' },
       { key: 'settings', label: labels.settings, icon: 'Settings' },
     ]},
   ];

@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import {
   Shield, ShieldCheck, ShieldAlert, ShieldX,
   UserCheck, UserX, Lock, Unlock, Ban, RotateCcw,
-  Search, MoreHorizontal, Eye, EyeOff, Key, Globe, Timer,
+  Search, MoreHorizontal,
   Users, Activity, AlertTriangle, CheckCircle2, XCircle,
 } from 'lucide-react';
 
@@ -375,10 +375,10 @@ function CTSecurity() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              {t('shared.cancel', locale)}
+              {t('ct.shared.cancel', locale)}
             </Button>
             <Button variant={dialogAction === 'lock' || dialogAction === 'suspend' ? 'destructive' : 'default'} onClick={confirmAction}>
-              {t('shared.confirm', locale)}
+              {t('ct.shared.confirm', locale)}
             </Button>
           </DialogFooter>
         </DialogContent>

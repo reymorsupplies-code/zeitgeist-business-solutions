@@ -18,13 +18,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import {
-  BarChart3, TrendingUp, TrendingDown, DollarSign, Users, ShoppingCart,
+  TrendingUp, DollarSign, Users, ShoppingCart,
   RefreshCw, Download, ChevronDown, Activity, Zap, Clock, ArrowUpRight,
   ArrowDownRight, Minus, Globe, Package, Calendar,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell,
+  BarChart, Bar,
 } from 'recharts';
 
 const REVENUE_DATA = [

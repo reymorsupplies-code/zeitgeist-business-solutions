@@ -22,8 +22,8 @@ import { toast } from 'sonner';
 import {
   Shield, FileText, Download, Search, MoreHorizontal, Clock,
   AlertTriangle, CheckCircle2, Activity, Eye, Filter,
-  History, Hash, Fingerprint, ScrollText, BarChart3,
-  ArrowDownToLine, ChevronDown,
+  History, Fingerprint, ScrollText,
+  ChevronDown,
 } from 'lucide-react';
 
 const MOCK_EVENTS = [
@@ -240,7 +240,7 @@ function CTAudit() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t('shared.all', locale)}</SelectItem>
+                <SelectItem value="all">{t('ct.shared.all', locale)}</SelectItem>
                 <SelectItem value="info">{t('ct.audit.severityInfo', locale)}</SelectItem>
                 <SelectItem value="low">{t('ct.audit.severityLow', locale)}</SelectItem>
                 <SelectItem value="medium">{t('ct.audit.severityMedium', locale)}</SelectItem>

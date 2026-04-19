@@ -23,8 +23,8 @@ import {
 import { toast } from 'sonner';
 import {
   CheckCircle2, XCircle, Clock, AlertTriangle,
-  Plus, Search, MoreHorizontal, FileDown, ChevronDown,
-  Filter, ArrowUpDown, ArrowUp, ArrowDown, ClipboardList,
+  Plus, Search, MoreHorizontal,
+  Filter, ClipboardList,
 } from 'lucide-react';
 
 const MOCK_APPROVALS = [

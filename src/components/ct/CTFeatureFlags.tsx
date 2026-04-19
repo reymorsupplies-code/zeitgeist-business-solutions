@@ -23,8 +23,8 @@ import {
 import { toast } from 'sonner';
 import {
   Flag, Plus, Search, MoreHorizontal, Power, PowerOff,
-  Copy, Archive, Trash2, Settings, Edit, Eye, ToggleLeft, ToggleRight,
-  Globe, Zap, Shield, Users, BarChart3,
+  Copy, Archive, Trash2, Edit, ToggleLeft, ToggleRight,
+  Globe, Zap,
 } from 'lucide-react';
 
 interface FeatureFlag {
@@ -351,10 +351,10 @@ function CTFeatureFlags() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              {t('shared.cancel', locale)}
+              {t('ct.shared.cancel', locale)}
             </Button>
             <Button onClick={() => { toast.success(t('ct.featureFlags.toastCreated', locale)); setCreateOpen(false); }}>
-              {t('shared.create', locale)}
+              {t('ct.shared.create', locale)}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -369,10 +369,10 @@ function CTFeatureFlags() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialog({ open: false, key: null })}>
-              {t('shared.cancel', locale)}
+              {t('ct.shared.cancel', locale)}
             </Button>
             <Button variant="destructive" onClick={() => deleteDialog.key && deleteFlag(deleteDialog.key)}>
-              {t('shared.delete', locale)}
+              {t('ct.shared.delete', locale)}
             </Button>
           </DialogFooter>
         </DialogContent>

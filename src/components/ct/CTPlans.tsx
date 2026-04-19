@@ -13,10 +13,10 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
   Check, X, Star, Zap, Building2, Crown, CreditCard,
-  Download, ArrowUpRight, ArrowDownRight, Shield, Users,
+  Download, Shield, Users,
   Database, BarChart3, HeadphonesIcon, Lock, Link2,
-  Palette, Clock, FolderSync, Eye, Rocket, Award,
-  Sparkles, HelpCircle,
+  Award,
+  Sparkles,
 } from 'lucide-react';
 
 const PLANS = [
@@ -286,7 +286,7 @@ function CTPlans() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t('shared.name', locale)}</TableHead>
+                <TableHead>{t('ct.shared.name', locale)}</TableHead>
                 <TableHead className="text-center">{t('ct.plans.free', locale)}</TableHead>
                 <TableHead className="text-center">{t('ct.plans.starter', locale)}</TableHead>
                 <TableHead className="text-center">{t('ct.plans.professional', locale)}</TableHead>
@@ -374,7 +374,7 @@ function CTPlans() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUpgradeDialog({ open: false, plan: null, action: 'upgrade' })}>
-              {t('shared.cancel', locale)}
+              {t('ct.shared.cancel', locale)}
             </Button>
             <Button variant={upgradeDialog.action === 'upgrade' ? 'default' : 'destructive'} onClick={confirmPlanChange}>
               {upgradeDialog.action === 'upgrade' ? t('ct.plans.upgrade', locale) : t('ct.plans.downgrade', locale)}
