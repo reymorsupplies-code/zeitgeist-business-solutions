@@ -6131,22 +6131,28 @@ function CTWorldSystems() {
 // ============ FULL ACCOUNTING SYSTEM ============
 function CTAccounting() {
   const [activeTab, setActiveTab] = useState('chart');
-  const [accounts, setAccounts] = useState<any[]>([
-    { id: '1', code: '1000', name: 'Cash (TTD)', type: 'Asset', balance: 0 },
-    { id: '2', code: '1100', name: 'Accounts Receivable', type: 'Asset', balance: 0 },
-    { id: '3', code: '1200', name: 'Security Deposits Held', type: 'Liability', balance: 0 },
-    { id: '4', code: '2000', name: 'Accounts Payable', type: 'Liability', balance: 0 },
-    { id: '5', code: '2100', name: 'Accrued Expenses', type: 'Liability', balance: 0 },
-    { id: '6', code: '3000', name: 'Owner Equity', type: 'Equity', balance: 0 },
-    { id: '7', code: '4000', name: 'Subscription Revenue', type: 'Revenue', balance: 0 },
-    { id: '8', code: '4100', name: 'Property Rental Income', type: 'Revenue', balance: 0 },
-    { id: '9', code: '5000', name: 'Platform Operations', type: 'Expense', balance: 0 },
-    { id: '10', code: '5100', name: 'Maintenance & Repairs', type: 'Expense', balance: 0 },
-    { id: '11', code: '5200', name: 'Property Taxes', type: 'Expense', balance: 0 },
-    { id: '12', code: '5300', name: 'Insurance', type: 'Expense', balance: 0 },
-    { id: '13', code: '5400', name: 'Marketing & Sales', type: 'Expense', balance: 0 },
-    { id: '14', code: '5500', name: 'Payroll', type: 'Expense', balance: 0 },
-  ]);
+  const DEFAULT_ACCOUNTS = [
+    { id: '1', code: '1000', name: 'Cash (TTD)', type: 'Asset' },
+    { id: '2', code: '1100', name: 'Accounts Receivable', type: 'Asset' },
+    { id: '3', code: '1200', name: 'Security Deposits Held', type: 'Liability' },
+    { id: '4', code: '2000', name: 'Accounts Payable', type: 'Liability' },
+    { id: '5', code: '2100', name: 'Accrued Expenses', type: 'Liability' },
+    { id: '6', code: '3000', name: 'Owner Equity', type: 'Equity' },
+    { id: '7', code: '4000', name: 'Subscription Revenue', type: 'Revenue' },
+    { id: '8', code: '4100', name: 'Property Rental Income', type: 'Revenue' },
+    { id: '9', code: '5000', name: 'Platform Operations', type: 'Expense' },
+    { id: '10', code: '5100', name: 'Maintenance & Repairs', type: 'Expense' },
+    { id: '11', code: '5200', name: 'Property Taxes', type: 'Expense' },
+    { id: '12', code: '5300', name: 'Insurance', type: 'Expense' },
+    { id: '13', code: '5400', name: 'Marketing & Sales', type: 'Expense' },
+    { id: '14', code: '5500', name: 'Payroll', type: 'Expense' },
+  ];
+  const [accounts, setAccounts] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      try { const saved = localStorage.getItem('zbs-chart-of-accounts'); if (saved) return JSON.parse(saved); } catch {}
+    }
+    return DEFAULT_ACCOUNTS.map(a => ({ ...a, balance: 0 }));
+  });
   const [journalEntries, setJournalEntries] = useState<any[]>([]);
   const [showNewEntry, setShowNewEntry] = useState(false);
   const [showNewAccount, setShowNewAccount] = useState(false);
@@ -6174,11 +6180,12 @@ function CTAccounting() {
         totalCredit: (entry.lines || []).reduce((s: number, l: any) => s + (Number(l.credit) || 0), 0),
       })));
       setAccounts(prev => {
+        const base = prev.length > 0 ? prev : DEFAULT_ACCOUNTS.map(a => ({ ...a, balance: 0 }));
         const balances: Record<string, number> = {};
-        prev.forEach(a => { balances[a.code] = 0; });
+        base.forEach(a => { balances[a.code] = 0; });
         entries.forEach((entry: any) => {
           (entry.lines || []).forEach((line: any) => {
-            const acc = prev.find(a => a.code === line.accountCode);
+            const acc = base.find(a => a.code === line.accountCode);
             if (acc) {
               if (acc.type === 'Asset' || acc.type === 'Expense') {
                 balances[line.accountCode] = (balances[line.accountCode] || 0) + (Number(line.debit) || 0) - (Number(line.credit) || 0);
@@ -6188,7 +6195,10 @@ function CTAccounting() {
             }
           });
         });
-        return prev.map(a => ({ ...a, balance: balances[a.code] || 0 }));
+        const updated = base.map(a => ({ ...a, balance: balances[a.code] || 0 }));
+        if (typeof window !== 'undefined') { try { localStorage.setItem('zbs-chart-of-accounts', JSON.stringify(updated)); } catch {}
+        }
+        return updated;
       });
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -6246,7 +6256,12 @@ function CTAccounting() {
   };
 
   const addAccount = (name: string, code: string, type: string) => {
-    setAccounts(prev => [...prev, { id: Date.now().toString(), code, name, type, balance: 0 }]);
+    setAccounts(prev => {
+      const updated = [...prev, { id: Date.now().toString(), code, name, type, balance: 0 }];
+      if (typeof window !== 'undefined') { try { localStorage.setItem('zbs-chart-of-accounts', JSON.stringify(updated)); } catch {}
+      }
+      return updated;
+    });
     setShowNewAccount(false);
     toast.success('Account created');
   };
