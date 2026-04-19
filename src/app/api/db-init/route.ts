@@ -1,13 +1,51 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
 
 /**
  * Database initialization endpoint.
  * Uses pg directly to create all tables from Prisma schema.
- * Called automatically by the login flow if DB tables are missing.
+ * Protected by rate limiting and init-key verification.
  */
-export async function POST() {
+
+// Rate limiting: max 3 init calls per 10 minutes
+const initCalls: { count: number; resetAt: number }[] = [];
+const MAX_INIT_CALLS = 3;
+const INIT_WINDOW_MS = 10 * 60 * 1000;
+
+function checkInitRateLimit(): boolean {
+  const now = Date.now();
+  const window = initCalls.find(c => now < c.resetAt);
+  if (!window || window.count < MAX_INIT_CALLS) {
+    if (!window) initCalls.push({ count: 1, resetAt: now + INIT_WINDOW_MS });
+    else window.count++;
+    return true;
+  }
+  return false;
+}
+
+export async function POST(req: NextRequest) {
+  // Rate limit check
+  if (!checkInitRateLimit()) {
+    return NextResponse.json(
+      { error: 'Too many initialization requests. Try again later.' },
+      { status: 429 }
+    );
+  }
+
+  // Verify init key for production environments
+  const initKey = req.headers.get('x-init-key');
+  const jwtSecret = process.env.JWT_SECRET;
+  if (jwtSecret && jwtSecret !== 'zbs-dev-secret-do-not-use-in-production') {
+    // Production mode: require init key matching JWT_SECRET
+    if (!initKey || initKey !== jwtSecret) {
+      return NextResponse.json(
+        { error: 'Invalid or missing initialization key' },
+        { status: 403 }
+      );
+    }
+  }
+
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) {
     return NextResponse.json({ error: 'DATABASE_URL not configured' }, { status: 500 });

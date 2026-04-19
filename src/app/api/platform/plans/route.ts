@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { pgQuery } from '@/lib/pg-query';
+import pg from 'pg';
 
 export async function GET() {
   try {
@@ -8,10 +8,10 @@ export async function GET() {
     try {
       plans = await db.plan.findMany({ orderBy: { sortOrder: 'asc' } });
     } catch {
-      // Fallback to Management API
-      plans = await pgQuery<any>(
-        `SELECT * FROM "Plan" ORDER BY "sortOrder" ASC`
-      );
+      const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+      const result = await pool.query(`SELECT * FROM "Plan" ORDER BY "sortOrder" ASC`);
+      plans = result.rows;
+      await pool.end();
     }
     return NextResponse.json(plans);
   } catch (error: any) {
@@ -57,42 +57,72 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Plan ID required' }, { status: 400 });
     }
 
+    // Validate ID format early
+    if (!/^[a-zA-Z0-9_-]+$/.test(data.id)) {
+      return NextResponse.json({ error: 'Invalid plan ID' }, { status: 400 });
+    }
+
     let plan: any;
     try {
       plan = await db.plan.update({
         where: { id: data.id },
         data: {
           ...(data.name && { name: data.name }),
-          ...(data.priceUSD !== undefined && { priceUSD: data.priceUSD }),
-          ...(data.priceTTD !== undefined && { priceTTD: data.priceTTD }),
+          ...(data.priceUSD !== undefined && { priceUSD: Number(data.priceUSD) }),
+          ...(data.priceTTD !== undefined && { priceTTD: Number(data.priceTTD) }),
           ...(data.tagline !== undefined && { tagline: data.tagline }),
-          ...(data.maxUsers !== undefined && { maxUsers: data.maxUsers }),
-          ...(data.maxBranches !== undefined && { maxBranches: data.maxBranches }),
+          ...(data.maxUsers !== undefined && { maxUsers: Number(data.maxUsers) }),
+          ...(data.maxBranches !== undefined && { maxBranches: Number(data.maxBranches) }),
           ...(data.features !== undefined && { features: typeof data.features === 'string' ? data.features : JSON.stringify(data.features) }),
-          ...(data.isPopular !== undefined && { isPopular: data.isPopular }),
+          ...(data.isPopular !== undefined && { isPopular: Boolean(data.isPopular) }),
         }
       });
     } catch {
-      // Fallback to Management API
+      // Fallback: parameterized query (no string interpolation)
+      const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
       const setClauses: string[] = [`"updatedAt" = NOW()`];
-      if (data.name !== undefined) setClauses.push(`"name" = '${data.name.replace(/'/g, "''")}'`);
-      if (data.priceUSD !== undefined) setClauses.push(`"priceUSD" = ${data.priceUSD}`);
-      if (data.priceTTD !== undefined) setClauses.push(`"priceTTD" = ${data.priceTTD}`);
-      if (data.tagline !== undefined) setClauses.push(`"tagline" = ${data.tagline === null ? 'NULL' : `'${data.tagline.replace(/'/g, "''")}'`}`);
-      if (data.maxUsers !== undefined) setClauses.push(`"maxUsers" = ${data.maxUsers}`);
-      if (data.maxBranches !== undefined) setClauses.push(`"maxBranches" = ${data.maxBranches}`);
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (data.name !== undefined) {
+        setClauses.push(`"name" = $${paramIndex++}`);
+        params.push(String(data.name));
+      }
+      if (data.priceUSD !== undefined) {
+        setClauses.push(`"priceUSD" = $${paramIndex++}`);
+        params.push(Number(data.priceUSD));
+      }
+      if (data.priceTTD !== undefined) {
+        setClauses.push(`"priceTTD" = $${paramIndex++}`);
+        params.push(Number(data.priceTTD));
+      }
+      if (data.tagline !== undefined) {
+        setClauses.push(`"tagline" = $${paramIndex++}`);
+        params.push(data.tagline === null ? null : String(data.tagline));
+      }
+      if (data.maxUsers !== undefined) {
+        setClauses.push(`"maxUsers" = $${paramIndex++}`);
+        params.push(Number(data.maxUsers));
+      }
+      if (data.maxBranches !== undefined) {
+        setClauses.push(`"maxBranches" = $${paramIndex++}`);
+        params.push(Number(data.maxBranches));
+      }
       if (data.features !== undefined) {
         const featuresStr = typeof data.features === 'string' ? data.features : JSON.stringify(data.features);
-        setClauses.push(`"features" = '${featuresStr.replace(/'/g, "''")}'`);
+        setClauses.push(`"features" = $${paramIndex++}`);
+        params.push(featuresStr);
       }
-      if (data.isPopular !== undefined) setClauses.push(`"isPopular" = ${data.isPopular}`);
+      if (data.isPopular !== undefined) {
+        setClauses.push(`"isPopular" = $${paramIndex++}`);
+        params.push(Boolean(data.isPopular));
+      }
 
-      if (!/^[a-zA-Z0-9_-]+$/.test(data.id)) {
-        return NextResponse.json({ error: 'Invalid plan ID' }, { status: 400 });
-      }
-      const sql = `UPDATE "Plan" SET ${setClauses.join(', ')} WHERE id = '${data.id}' RETURNING *`;
-      const rows = await pgQuery<any>(sql);
-      plan = rows[0] || null;
+      params.push(data.id);
+      const sql = `UPDATE "Plan" SET ${setClauses.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+      const result = await pool.query(sql, params);
+      plan = result.rows[0] || null;
+      await pool.end();
     }
 
     if (!plan) {

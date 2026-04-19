@@ -16,6 +16,7 @@ const PUBLIC_ROUTES = [
   '/api/seed',
   '/api/contact',
   '/api/health',
+  '/api/db-init',
 ];
 
 // Routes that only super admins can access
