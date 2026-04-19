@@ -125,3 +125,27 @@ Stage Summary:
 - Key fix: Middleware now uses jose library which is designed for Edge Runtime
 - User must log out and log back in to get a fresh 7-day token
 - Finance & Accounting and Competitive Intel "working" was a false positive — they just silently swallow errors
+
+---
+Task ID: 2
+Agent: Super Z (Main) + 3 full-stack-developer subagents
+Task: Fix DB errors + build comprehensive EN/ES i18n system
+
+Work Log:
+- Fixed pg-query.ts: use DIRECT_URL instead of DATABASE_URL to bypass PgBouncer
+- Fixed pg-query.ts: extractOrderBy regex now handles t."column" qualified refs
+- Fixed pg-query.ts: simple query protocol when no params
+- Expanded i18n dictionary from ~110 to 500+ keys covering entire application
+- Created LangToggle component (EN|ES button) placed in PortalNavbar, CTSidebar, TenantSidebar
+- Converted CT_NAV static constant to getCTNav(locale) function
+- Converted all 11 tenant NAV constants to locale-aware functions
+- Replaced 34 inline locale==='es' ternaries with t() calls
+- Replaced all CT page titles/descriptions with t() calls
+- Fixed mixed-language sections (Security, Audit, Approvals were in Spanish)
+- Build successful, committed as fb51b18, pushed
+
+Stage Summary:
+- DB errors fixed: "prepared statement does not exist" (PgBouncer bypass) + "column t does not exist" (ORDER BY regex)
+- i18n now covers: Portal, Auth, CT sidebar (20+ items), CT pages (17+ pages), Tenant sidebar (11 industries), Common UI, Errors
+- EN/ES toggle visible in 3 locations
+- Convention: all new text should use t('section.context.key', locale) 
