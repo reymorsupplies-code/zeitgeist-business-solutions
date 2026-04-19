@@ -6151,46 +6151,98 @@ function CTAccounting() {
   const [showNewEntry, setShowNewEntry] = useState(false);
   const [showNewAccount, setShowNewAccount] = useState(false);
   const [entryForm, setEntryForm] = useState({ date: new Date().toISOString().slice(0, 10), description: '', lines: [{ accountId: '', debit: '', credit: '' }] });
+  const [loading, setLoading] = useState(true);
 
   const addEntryLine = () => setEntryForm(f => ({ ...f, lines: [...f.lines, { accountId: '', debit: '', credit: '' }] }));
   const removeEntryLine = (idx: number) => setEntryForm(f => ({ ...f, lines: f.lines.filter((_, i) => i !== idx) }));
 
-  const saveJournalEntry = () => {
+  const loadEntries = useCallback(() => {
+    setLoading(true);
+    authFetch('/api/platform/journal-entries').then(r => r.json()).then(data => {
+      const entries = Array.isArray(data) ? data : [];
+      setJournalEntries(entries.map((entry: any) => ({
+        id: entry.id,
+        date: entry.date?.slice(0, 10) || entry.date,
+        description: entry.description,
+        lines: (entry.lines || []).map((line: any) => ({
+          accountId: line.accountCode,
+          account: { name: line.accountName, code: line.accountCode, type: line.accountType },
+          debit: Number(line.debit) || 0,
+          credit: Number(line.credit) || 0,
+        })),
+        totalDebit: (entry.lines || []).reduce((s: number, l: any) => s + (Number(l.debit) || 0), 0),
+        totalCredit: (entry.lines || []).reduce((s: number, l: any) => s + (Number(l.credit) || 0), 0),
+      })));
+      setAccounts(prev => {
+        const balances: Record<string, number> = {};
+        prev.forEach(a => { balances[a.code] = 0; });
+        entries.forEach((entry: any) => {
+          (entry.lines || []).forEach((line: any) => {
+            const acc = prev.find(a => a.code === line.accountCode);
+            if (acc) {
+              if (acc.type === 'Asset' || acc.type === 'Expense') {
+                balances[line.accountCode] = (balances[line.accountCode] || 0) + (Number(line.debit) || 0) - (Number(line.credit) || 0);
+              } else {
+                balances[line.accountCode] = (balances[line.accountCode] || 0) + (Number(line.credit) || 0) - (Number(line.debit) || 0);
+              }
+            }
+          });
+        });
+        return prev.map(a => ({ ...a, balance: balances[a.code] || 0 }));
+      });
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+  useEffect(() => { loadEntries(); }, [loadEntries]);
+
+  const deleteEntry = async (id: string) => {
+    try {
+      const res = await authFetch(`/api/platform/journal-entries?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) { const d = await res.json().catch(() => null); toast.error(d?.error || 'Failed to delete'); return; }
+      toast.success('Entry deleted');
+      loadEntries();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to delete');
+    }
+  };
+
+  const saveJournalEntry = async () => {
     const totalDebit = entryForm.lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
     const totalCredit = entryForm.lines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
     if (totalDebit === 0 && totalCredit === 0) { toast.error('Add at least one line with a debit or credit amount'); return; }
     if (Math.abs(totalDebit - totalCredit) > 0.01) { toast.error(`Debits (TT$${totalDebit}) must equal Credits (TT$${totalCredit})`); return; }
 
-    const newEntry = {
-      id: Date.now().toString(),
-      date: entryForm.date,
-      description: entryForm.description,
-      lines: entryForm.lines.map(l => ({
-        accountId: l.accountId,
-        account: accounts.find(a => a.id === l.accountId),
-        debit: Number(l.debit) || 0,
-        credit: Number(l.credit) || 0,
-      })),
-      totalDebit, totalCredit,
-    };
+    try {
+      const payload = {
+        date: entryForm.date,
+        description: entryForm.description,
+        status: 'posted',
+        lines: entryForm.lines.map(l => {
+          const acc = accounts.find(a => a.id === l.accountId);
+          return {
+            accountCode: acc?.code || '',
+            accountName: acc?.name || '',
+            accountType: acc?.type || '',
+            debit: Number(l.debit) || 0,
+            credit: Number(l.credit) || 0,
+          };
+        }),
+      };
+      const res = await authFetch('/api/platform/journal-entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data?.error || 'Failed to save entry'); return; }
 
-    const updatedAccounts = [...accounts];
-    newEntry.lines.forEach(line => {
-      const acc = updatedAccounts.find(a => a.id === line.accountId);
-      if (acc) {
-        if (acc.type === 'Asset' || acc.type === 'Expense') {
-          acc.balance += line.debit - line.credit;
-        } else {
-          acc.balance += line.credit - line.debit;
-        }
-      }
-    });
-
-    setAccounts(updatedAccounts);
-    setJournalEntries(prev => [newEntry, ...prev]);
-    setShowNewEntry(false);
-    setEntryForm({ date: new Date().toISOString().slice(0, 10), description: '', lines: [{ accountId: '', debit: '', credit: '' }] });
-    toast.success('Journal entry recorded');
+      toast.success('Journal entry recorded');
+      setShowNewEntry(false);
+      setEntryForm({ date: new Date().toISOString().slice(0, 10), description: '', lines: [{ accountId: '', debit: '', credit: '' }] });
+      loadEntries();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save entry');
+    }
   };
 
   const addAccount = (name: string, code: string, type: string) => {
@@ -6260,13 +6312,15 @@ function CTAccounting() {
         </TabsContent>
 
         <TabsContent value="journal" className="mt-4">
-          {journalEntries.length === 0 ? (
+          {loading ? (
+            <Card><CardContent className="p-12 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" /><p className="text-sm text-muted-foreground mt-2">Loading journal entries...</p></CardContent></Card>
+          ) : journalEntries.length === 0 ? (
             <Card className="border-dashed"><CardContent className="p-12 text-center"><FileText className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" /><h3 className="text-lg font-semibold text-muted-foreground">No Journal Entries</h3><p className="text-sm text-muted-foreground mt-1">Create your first double-entry journal entry to begin tracking finances.</p></CardContent></Card>
           ) : (
             <div className="space-y-3">
               {journalEntries.map((entry) => (
                 <Card key={entry.id}><CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2"><span className="font-medium">{entry.description || 'Untitled Entry'}</span><span className="text-xs text-muted-foreground">{entry.date}</span></div>
+                  <div className="flex items-center justify-between mb-2"><span className="font-medium">{entry.description || 'Untitled Entry'}</span><div className="flex items-center gap-2"><span className="text-xs text-muted-foreground">{entry.date}</span><Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteEntry(entry.id)}><Trash2 className="w-3.5 h-3.5" /></Button></div></div>
                   <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left p-1 font-medium text-muted-foreground">Account</th><th className="text-right p-1 font-medium text-muted-foreground">Debit</th><th className="text-right p-1 font-medium text-muted-foreground">Credit</th></tr></thead>
                     <tbody>{entry.lines.map((line: any, i: number) => (
                       <tr key={i} className="border-b border-dashed"><td className="p-1">{line.account?.name || 'Unknown'}</td><td className="p-1 text-right">{line.debit ? formatCurrency(line.debit, 'TTD') : ''}</td><td className="p-1 text-right">{line.credit ? formatCurrency(line.credit, 'TTD') : ''}</td></tr>

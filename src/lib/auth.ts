@@ -9,7 +9,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'zbs-secret-change-in-production-' + (process.env.DATABASE_URL || 'fallback');
+const JWT_SECRET = process.env.JWT_SECRET || 'zbs-dev-secret-do-not-use-in-production';
 const JWT_EXPIRES_IN = '24h';
 const BCRYPT_ROUNDS = 12;
 

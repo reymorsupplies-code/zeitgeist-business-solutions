@@ -87,6 +87,9 @@ export async function PUT(req: NextRequest) {
       }
       if (data.isPopular !== undefined) setClauses.push(`"isPopular" = ${data.isPopular}`);
 
+      if (!/^[a-zA-Z0-9_-]+$/.test(data.id)) {
+        return NextResponse.json({ error: 'Invalid plan ID' }, { status: 400 });
+      }
       const sql = `UPDATE "Plan" SET ${setClauses.join(', ')} WHERE id = '${data.id}' RETURNING *`;
       const rows = await pgQuery<any>(sql);
       plan = rows[0] || null;

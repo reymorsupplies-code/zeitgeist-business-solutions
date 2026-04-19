@@ -13,7 +13,6 @@ const PUBLIC_ROUTES = [
   '/api/auth/login',
   '/api/auth/register',
   '/api/auth/verify',
-  '/api/db-init',
   '/api/seed',
   '/api/contact',
   '/api/health',
