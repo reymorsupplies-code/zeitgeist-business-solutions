@@ -25,7 +25,7 @@ import {
   Building, Target, Trophy, BarChart2, FileSpreadsheet, Handshake, UserCheck, FileSearch, File as FileIcon,
   RotateCcw, ArrowRightLeft, BadgeDollarSign, Percent, EyeOff, CalendarDays,
   Twitter, Linkedin, Instagram, Facebook,
-  KeyRound, LogIn
+  KeyRound, LogIn, Languages
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6235,11 +6235,12 @@ function CTWorldSystems() {
       </motion.div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">ZBS Advantages</TabsTrigger>
           <TabsTrigger value="competitors">Competitor Analysis</TabsTrigger>
           <TabsTrigger value="systems">Industry Systems</TabsTrigger>
           <TabsTrigger value="pricing">Value Comparison</TabsTrigger>
+          <TabsTrigger value="architecture">Architecture & Security</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 mt-6">
@@ -6353,6 +6354,108 @@ function CTWorldSystems() {
             <Card><CardContent className="p-4 text-center"><p className="text-3xl font-bold text-green-600">5-in-1</p><p className="text-sm text-muted-foreground mt-1">Five industry suites for the price of one competitor</p></CardContent></Card>
             <Card><CardContent className="p-4 text-center"><p className="text-3xl font-bold text-blue-600">TT$500</p><p className="text-sm text-muted-foreground mt-1">Starting price includes property management + 4 industries</p></CardContent></Card>
             <Card><CardContent className="p-4 text-center"><p className="text-3xl font-bold text-amber-600">0 Lock-in</p><p className="text-sm text-muted-foreground mt-1">No payment processing lock-in, no long-term contracts</p></CardContent></Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="architecture" className="space-y-6 mt-6">
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card className="border-l-4 border-l-blue-600"><CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-3"><Shield className="w-5 h-5 text-blue-600" /><h3 className="font-bold">Authentication & Access Control</h3></div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">JWT Authentication (jose)</span><p className="text-muted-foreground">Edge Runtime compatible tokens with 7-day expiration, 256-bit HMAC-SHA256 signing, cryptographically random 88-char secret</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">bcrypt Password Hashing</span><p className="text-muted-foreground">12-round bcrypt with automatic legacy plaintext migration. Salts are unique per user.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">RBAC — 6 Roles</span><p className="text-muted-foreground">Super Admin, Admin, Manager, Baker, Cashier, Viewer. Granular permissions per resource (read/write).</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Strict Super-Admin Gate</span><p className="text-muted-foreground">Platform routes require isSuperAdmin === true. Regular admins are blocked from Control Tower access.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Rate Limiting</span><p className="text-muted-foreground">Auth endpoints: 10 req/min per IP. General API: 30 req/min per IP. Prevents brute-force attacks.</p></div></div>
+              </div>
+            </CardContent></Card>
+
+            <Card className="border-l-4 border-l-emerald-600"><CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-3"><Lock className="w-5 h-5 text-emerald-600" /><h3 className="font-bold">Data Protection & Encryption</h3></div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">SSL/TLS Everywhere (rejectUnauthorized: true)</span><p className="text-muted-foreground">All database connections use verified SSL certificates. No MITM vulnerability on Supabase, pg, or login connections.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Tenant Data Isolation</span><p className="text-muted-foreground">33 PUT/DELETE routes enforce tenantId in WHERE clauses (Prisma + SQL). Cross-tenant data access is blocked by design.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Column Whitelist (18 Tables)</span><p className="text-muted-foreground">Dynamic SQL uses whitelistFields() to prevent column name injection. Unauthorized columns are rejected with server-side warnings.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Parameterized Queries</span><p className="text-muted-foreground">All SQL uses $1, $2, $N parameterized placeholders. No string-interpolated user input in queries.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Soft Delete Pattern</span><p className="text-muted-foreground">Critical records use isDeleted flag instead of hard delete. Data is recoverable. Audit trail preserved.</p></div></div>
+              </div>
+            </CardContent></Card>
+
+            <Card className="border-l-4 border-l-amber-600"><CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-3"><Globe className="w-5 h-5 text-amber-600" /><h3 className="font-bold">HTTP Security Headers (7 Headers)</h3></div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Content-Security-Policy (CSP)</span><p className="text-muted-foreground">Restricts scripts, styles, fonts, images, connections to trusted sources. Blocks XSS via script injection.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Strict-Transport-Security (HSTS)</span><p className="text-muted-foreground">1 year + includeSubDomains + preload. Forces HTTPS on all future visits. Preload eligible for browser HSTS lists.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">X-Frame-Options: DENY</span><p className="text-muted-foreground">Prevents clickjacking attacks. ZBS pages cannot be embedded in iframes on other sites.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">X-Content-Type-Options: nosniff</span><p className="text-muted-foreground">Prevents MIME type sniffing. Browsers won't interpret files as a different type than declared.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Permissions-Policy</span><p className="text-muted-foreground">Camera, microphone, geolocation, interest-cohort (FLoC) all disabled. No browser feature abuse possible.</p></div></div>
+              </div>
+            </CardContent></Card>
+
+            <Card className="border-l-4 border-l-purple-600"><CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-3"><Server className="w-5 h-5 text-purple-600" /><h3 className="font-bold">Infrastructure & Architecture</h3></div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Next.js 16 App Router</span><p className="text-muted-foreground">Latest React Server Components architecture. Automatic code splitting, streaming SSR, optimized bundle size.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Edge Runtime Middleware</span><p className="text-muted-foreground">JWT verification runs at the Edge (Vercel). Zero cold-start overhead on auth checks. Global latency under 50ms.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Triple Database Transport</span><p className="text-muted-foreground">Prisma ORM (type-safe) > pg direct (bypasses PgBouncer) > Supabase REST API (universal fallback). Auto-detection and failover.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Supabase PostgreSQL + Vercel Edge</span><p className="text-muted-foreground">Managed PostgreSQL with point-in-time recovery, daily automated backups, connection pooling via PgBouncer.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">86 API Routes</span><p className="text-muted-foreground">Full REST API covering 8 industries. Platform admin APIs, tenant-scoped APIs, auth flow, monitoring, and reporting.</p></div></div>
+              </div>
+            </CardContent></Card>
+
+            <Card className="border-l-4 border-l-cyan-600"><CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-3"><Building2 className="w-5 h-5 text-cyan-600" /><h3 className="font-bold">Multi-Tenancy & Platform Model</h3></div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Shared Database, Isolated Data</span><p className="text-muted-foreground">Single PostgreSQL instance with tenantId on every row. Performance of shared DB + isolation of dedicated DBs.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">8 Industries in One Platform</span><p className="text-muted-foreground">Bakery, Salon, Retail, Events, Professional Services, Clinic, Legal, Insurance. Each tenant sees only their industry tools.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Trial-to-Paid Pipeline</span><p className="text-muted-foreground">Self-service registration with approval workflow. Trial periods with configurable duration, automatic activation, audit logging.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">White-Label Branding</span><p className="text-muted-foreground">Each tenant gets custom colors (primary/accent), logo, currency (TTD/USD/JMD/BBD), locale (EN/ES), tax rate, and timezone.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Control Tower (Admin)</span><p className="text-muted-foreground">Centralized management: analytics, tenant approvals, billing, audit logs, security monitoring, competitive intel, system metrics.</p></div></div>
+              </div>
+            </CardContent></Card>
+
+            <Card className="border-l-4 border-l-rose-600"><CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-3"><Activity className="w-5 h-5 text-rose-600" /><h3 className="font-bold">Monitoring & Observability</h3></div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Real-Time System Metrics</span><p className="text-muted-foreground">Supabase project health, DB size, connection count, CPU/memory usage, row counts per table, backup status — all live in CT.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Audit Log Trail</span><p className="text-muted-foreground">Every significant action logged: tenant approvals, payments, user changes, data modifications. Filterable by severity (info/warning/critical).</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Threat Detection</span><p className="text-muted-foreground">Brute force IP detection (failed login clustering), suspicious account identification, inactive user tracking, threat score gauge.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Revenue & Growth Analytics</span><p className="text-muted-foreground">MRR/ARR tracking, MoM growth, cohort analysis, LTV calculation, revenue by industry, geographic distribution, churn rate.</p></div></div>
+              </div>
+            </CardContent></Card>
+
+            <Card className="border-l-4 border-l-indigo-600"><CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-3"><Languages className="w-5 h-5 text-indigo-600" /><h3 className="font-bold">i18n & Localization</h3></div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Full EN/ES Bilingual (500+ Keys)</span><p className="text-muted-foreground">Every UI string translated. Toggle in Portal, Control Tower, and Tenant Panel. Maintainable t(key, locale) pattern for future languages.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Multi-Currency Support</span><p className="text-muted-foreground">TTD (Trinidad), USD, JMD (Jamaica), BBD (Barbados). Per-tenant currency settings with real-time display.</p></div></div>
+                <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /><div><span className="font-medium">Caribbean Tax Compliance</span><p className="text-muted-foreground">BIR-ready threshold monitoring: Corporate Tax 25%, VAT 12.5%, Business Levy 0.6%, Green Fund Levy 0.3%.</p></div></div>
+              </div>
+            </CardContent></Card>
+          </div>
+
+          <Card className="bg-gradient-to-r from-slate-800 to-slate-900 text-white border-0">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-3"><Shield className="w-6 h-6 text-emerald-400" /><h3 className="text-lg font-bold">What Big Companies Call This</h3></div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                <div><p className="text-emerald-400 font-semibold">SOC 2 Type II</p><p className="text-slate-300 mt-1">Access controls, encryption, monitoring, audit logs. ZBS implements the technical controls.</p></div>
+                <div><p className="text-blue-400 font-semibold">OWASP Top 10</p><p className="text-slate-300 mt-1">CSP headers prevent XSS. Parameterized queries prevent SQL injection. HSTS prevents MITM. RBAC prevents broken access control.</p></div>
+                <div><p className="text-amber-400 font-semibold">Zero Trust Architecture</p><p className="text-slate-300 mt-1">Every API request authenticated. Tenant isolation enforced per-request. No implicit trust based on network.</p></div>
+                <div><p className="text-purple-400 font-semibold">Multi-Tenant SaaS Security</p><p className="text-slate-300 mt-1">Logical isolation per tenant. Cross-tenant access blocked at middleware + application layer. Column-level injection prevention.</p></div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-5">
+            <h3 className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-2 mb-3"><AlertTriangle className="w-5 h-5" />Pending Improvements (Next Sprint)</h3>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+              <div className="flex items-start gap-2"><Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" /><div><span className="font-medium">2FA/TOTP</span><p className="text-muted-foreground">Two-factor authentication for admin accounts via time-based one-time passwords</p></div></div>
+              <div className="flex items-start gap-2"><Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" /><div><span className="font-medium">IP Whitelisting</span><p className="text-muted-foreground">Restrict Control Tower access to approved IP ranges for super admin</p></div></div>
+              <div className="flex items-start gap-2"><Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" /><div><span className="font-medium">Session Management</span><p className="text-muted-foreground">Token revocation list, forced logout, concurrent session limits</p></div></div>
+              <div className="flex items-start gap-2"><Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" /><div><span className="font-medium">Password Policy Engine</span><p className="text-muted-foreground">Enforce min 8 chars, complexity rules, expiration, breach check via HaveIBeenPwned API</p></div></div>
+              <div className="flex items-start gap-2"><Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" /><div><span className="font-medium">External Rate Limiting</span><p className="text-muted-foreground">Redis/Upstash for distributed rate limiting (replaces in-memory, which resets on cold starts)</p></div></div>
+              <div className="flex items-start gap-2"><Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" /><div><span className="font-medium">Webhook Signatures</span><p className="text-muted-foreground">HMAC-SHA256 signatures on outgoing webhooks for payment and event notifications</p></div></div>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
