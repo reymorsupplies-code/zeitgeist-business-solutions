@@ -11629,6 +11629,7 @@ function TenantPOSPage() {
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const [todaySales, setTodaySales] = useState<any[]>([]);
   const [heldSales, setHeldSales] = useState<any[]>([]);
+  const [showHeldSales, setShowHeldSales] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const tid = currentTenant?.id;
@@ -11664,10 +11665,24 @@ function TenantPOSPage() {
   const todaySalesTotal = todaySales.reduce((s: number, sale: any) => s + (sale.totalAmount || 0), 0);
 
   const addToCart = (p: any) => {
-    if (!p || (p.quantity || 0) <= 0) return;
-    setCart(prev => { const existing = prev.find(i => i.id === p.id); return existing ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }]; });
+    const existing = cart.find((c: any) => c.id === p.id);
+    const currentCartQty = existing ? existing.qty : 0;
+    const available = (p.quantity || 0) - currentCartQty;
+    if (available <= 0) {
+      toast.error(t('pos.outOfStock', locale));
+      return;
+    }
+    setCart(prev => { const ex = prev.find(i => i.id === p.id); return ex ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }]; });
   };
-  const updateQty = (id: string, qty: number) => { if (qty <= 0) setCart(prev => prev.filter(i => i.id !== id)); else setCart(prev => prev.map(i => i.id === id ? { ...i, qty } : i)); };
+  const updateQty = (id: string, qty: number) => {
+    if (qty <= 0) { setCart(prev => prev.filter(i => i.id !== id)); return; }
+    const product = products.find((p: any) => p.id === id);
+    if (product && qty > (product.quantity || 0)) {
+      toast.error(t('pos.outOfStock', locale));
+      return;
+    }
+    setCart(prev => prev.map(i => i.id === id ? { ...i, qty } : i));
+  };
 
   const handleBarcodeScanned = (product: any) => {
     if (product && product.id) {
@@ -11683,7 +11698,7 @@ function TenantPOSPage() {
     const updated = [...heldSales, held];
     saveHeldSales(updated);
     setCart([]); setDiscountPct(0); setCashReceived(0); setCustomerName('');
-    toast.success(t('pos.heldSales', locale));
+    toast.success(t('pos.saleHeld', locale));
   };
 
   const handleResumeSale = (held: any) => {
@@ -11709,8 +11724,9 @@ function TenantPOSPage() {
         paymentMethod, cashReceived: paymentMethod === 'cash' ? cashReceived : 0, changeAmount: change,
         currency, customerName: customerName || t('pos.walkIn', locale), status: 'completed',
       };
-      await authFetchJSON(`/api/tenant/${tid}/pos-sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderBody) });
-      setReceiptOrder({ ...orderBody, id: `POS-${Date.now().toString(36).toUpperCase()}`, date: new Date().toISOString() });
+      const result = await authFetchJSON(`/api/tenant/${tid}/pos-sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderBody) });
+      const receiptOrder = { ...orderBody, id: result.saleNumber || `POS-${Date.now().toString(36).toUpperCase()}`, date: new Date().toISOString() };
+      setReceiptOrder(receiptOrder);
       setCart([]); setDiscountPct(0); setCashReceived(0); setCustomerName('');
       const today = new Date().toISOString().split('T')[0];
       authFetch(`/api/tenant/${tid}/pos-sales?from=${today}`).then(r => r.json()).then(d => { setTodaySales(Array.isArray(d) ? d : []); }).catch(() => {});
@@ -11729,7 +11745,7 @@ function TenantPOSPage() {
         <div><h1 className="text-2xl font-bold">{t('pos.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('pos.subtitle', locale)}</p></div>
         <div className="flex items-center gap-2">
           {heldSales.length > 0 && (
-            <Button variant="outline" size="sm" onClick={() => {}}>
+            <Button variant="outline" size="sm" onClick={() => setShowHeldSales(true)}>
               {t('pos.heldSales', locale)} <Badge className="ml-1 bg-amber-500 text-white">{heldSales.length}</Badge>
             </Button>
           )}
@@ -11826,7 +11842,7 @@ function TenantPOSPage() {
       </div>
 
       {/* Held Sales Dialog */}
-      <Dialog open={heldSales.length > 0} onOpenChange={() => {}}>
+      <Dialog open={showHeldSales} onOpenChange={setShowHeldSales}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{t('pos.heldSales', locale)}</DialogTitle></DialogHeader>
           <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -11940,6 +11956,7 @@ function TenantSuppliersPage() {
   };
 
   const handleDelete = async (row: any) => {
+    if (!confirm(t('common.confirmDelete', locale))) return;
     try {
       await authFetchJSON(`/api/tenant/${tid}/suppliers`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: row.id }) });
       load(); toast.success(t('suppliers.deleted', locale));
@@ -13171,7 +13188,7 @@ function TenantInventoryPage() {
                 {i.name}: {i.quantity || 0} (min: {i.minStock})
               </Badge>
             ))}
-            {lowStockItems.length > 10 && <Badge variant="outline">+{lowStockItems.length - 10} more</Badge>}
+            {lowStockItems.length > 10 && <Badge variant="outline">{t('retailInv.moreAlerts', locale).replace('{n}', String(lowStockItems.length - 10))}</Badge>}
           </div>
         </Card>
       )}
@@ -13262,7 +13279,7 @@ function TenantInventoryPage() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader><TableRow>
-                    <TableHead>Date</TableHead>
+                    <TableHead>{t('common.date', locale)}</TableHead>
                     <TableHead>{t('retailInv.productName', locale)}</TableHead>
                     <TableHead>{t('retailInv.type', locale)}</TableHead>
                     <TableHead className="text-right">{t('retailInv.quantity', locale)}</TableHead>
@@ -16982,7 +16999,7 @@ function TenantPurchaseOrdersPage() {
             <div><Label>{t('po.notes', locale)}</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} className="mt-1" /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>{t('common.cancel', locale)}</Button>
             <Button onClick={handleCreate} disabled={!form.supplierId || form.items.length === 0 || saving} className="bg-gradient-to-r from-blue-700 to-blue-500">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('po.new', locale)}</Button>
           </DialogFooter>
         </DialogContent>
@@ -17016,7 +17033,7 @@ function TenantPurchaseOrdersPage() {
             </div>
           </Card>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReceive(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowReceive(false)}>{t('common.cancel', locale)}</Button>
             <Button onClick={handleReceive} disabled={saving || !receiveItems.some(i => i.qtyToReceive > 0)} className="bg-gradient-to-r from-blue-700 to-blue-500">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('po.confirmReceive', locale)}</Button>
           </DialogFooter>
         </DialogContent>
@@ -17197,6 +17214,7 @@ function TenantReturnsPage() {
   };
 
   const handleDelete = async (ret: any) => {
+    if (!confirm(t('common.confirmDelete', locale))) return;
     try {
       await authFetchJSON(`/api/tenant/${tenantId}/returns`, {
         method: 'DELETE',
@@ -17295,13 +17313,13 @@ function TenantReturnsPage() {
                   <TableHead>{t('returns.refundMethod', locale)}</TableHead>
                   <TableHead>{t('returns.reason', locale)}</TableHead>
                   <TableHead>{t('returns.status', locale)}</TableHead>
-                  <TableHead className="text-xs text-muted-foreground">Date</TableHead>
+                  <TableHead className="text-xs text-muted-foreground">{t('returns.date', locale)}</TableHead>
                   <TableHead className="text-center">{t('common.actions', locale)}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredReturns.map((ret: any) => {
-                  const items = typeof ret.items === 'string' ? JSON.parse(ret.items) : (ret.items || []);
+                  const items = (() => { try { return typeof ret.items === 'string' ? JSON.parse(ret.items) : (ret.items || []); } catch { return []; } })();
                   return (
                     <TableRow key={ret.id}>
                       <TableCell className="font-mono text-xs font-medium">{ret.returnNumber || ret.id?.slice(0, 8)}</TableCell>
@@ -17360,7 +17378,7 @@ function TenantReturnsPage() {
           <div className="space-y-4 mt-4">
             {/* Select original sale */}
             <div>
-              <Label>{t('returns.originalSale')} *</Label>
+              <Label>{t('returns.originalSale', locale)} *</Label>
               <Select value={form.saleId} onValueChange={handleSelectSale}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder={t('returns.selectSale', locale)} />
@@ -17368,7 +17386,7 @@ function TenantReturnsPage() {
                 <SelectContent>
                   {sales.filter(s => s.status === 'completed').map(s => (
                     <SelectItem key={s.id} value={s.id}>
-                      {s.saleNumber} — {s.customerName || 'Walk-in'} — {formatCurrency(s.totalAmount, s.currency || currency)} — {s.createdAt ? new Date(s.createdAt).toLocaleDateString() : ''}
+                      {s.saleNumber} — {s.customerName || t('returns.walkIn', locale)} — {formatCurrency(s.totalAmount, s.currency || currency)} — {s.createdAt ? new Date(s.createdAt).toLocaleDateString() : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -17406,10 +17424,10 @@ function TenantReturnsPage() {
                               <Input
                                 type="number"
                                 min={1}
-                                max={item.qty || 99}
+                                max={item.qty || 0}
                                 disabled={!item.selected}
                                 value={item.returnQty || ''}
-                                onChange={e => updateReturnItem(idx, 'returnQty', Math.min(parseInt(e.target.value) || 0, item.qty || 99))}
+                                onChange={e => updateReturnItem(idx, 'returnQty', Math.min(parseInt(e.target.value) || 0, item.qty || 0))}
                                 className="w-16 h-7 text-xs text-right"
                               />
                             </td>
@@ -19881,7 +19899,7 @@ function TenantRegisterPage() {
             </div>
             <div>
               <Label>{t('shift.notes', locale)}</Label>
-              <Textarea value={closeForm.notes} onChange={e => setCloseForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional notes..." className="mt-1" rows={2} />
+              <Textarea value={closeForm.notes} onChange={e => setCloseForm(f => ({ ...f, notes: e.target.value }))} placeholder={t('shift.optionalNotes', locale)} className="mt-1" rows={2} />
             </div>
           </div>
           <DialogFooter>
@@ -20203,14 +20221,14 @@ function TenantLayawaysPage() {
             </TableHeader>
             <TableBody>
               {filtered.map((l: any) => {
-                const items = typeof l.items === 'string' ? JSON.parse(l.items) : (l.items || []);
+                const items = (() => { try { return typeof l.items === 'string' ? JSON.parse(l.items) : (l.items || []); } catch { return []; } })();
                 const progress = getProgress(l);
                 const daysRem = getDaysRemaining(l);
                 return (
                   <TableRow key={l.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs font-semibold">{l.layawayNumber}</TableCell>
                     <TableCell><div><p className="font-medium text-sm">{l.customerName}</p><p className="text-xs text-muted-foreground">{l.customerPhone}</p></div></TableCell>
-                    <TableCell className="text-sm">{items.length} {items.length === 1 ? 'item' : 'items'}</TableCell>
+                    <TableCell className="text-sm">{items.length} {items.length === 1 ? t('layaway.item', locale) : t('layaway.items_count', locale)}</TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(l.totalAmount, currency)}</TableCell>
                     <TableCell className="text-right text-sm">{formatCurrency(l.depositAmount, currency)}</TableCell>
                     <TableCell className="text-right text-sm font-medium">{formatCurrency(l.balanceRemaining, currency)}</TableCell>
@@ -20301,8 +20319,8 @@ function TenantLayawaysPage() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {selectedLayaway && (() => {
             const l = selectedLayaway;
-            const items = typeof l.items === 'string' ? JSON.parse(l.items) : (l.items || []);
-            const payments = typeof l.payments === 'string' ? JSON.parse(l.payments) : (l.payments || []);
+            const items = (() => { try { return typeof l.items === 'string' ? JSON.parse(l.items) : (l.items || []); } catch { return []; } })();
+            const payments = (() => { try { return typeof l.payments === 'string' ? JSON.parse(l.payments) : (l.payments || []); } catch { return []; } })();
             const progress = getProgress(l);
             const daysRem = getDaysRemaining(l);
             return (<>
@@ -20318,7 +20336,7 @@ function TenantLayawaysPage() {
                   {daysRem !== null && <p className={`text-xs mt-1 font-medium ${daysRem < 0 ? 'text-red-500' : daysRem <= 7 ? 'text-amber-500' : 'text-muted-foreground'}`}>{daysRem < 0 ? t('layaway.overdue', locale) : t('layaway.daysRemaining', locale).replace('{n}', String(daysRem))}</p>}
                 </div>
                 <div><h4 className="text-sm font-semibold mb-2">{t('layaway.items', locale)}</h4><div className="rounded-lg border"><Table><TableHeader><TableRow className="bg-muted/50"><TableHead className="text-xs">{t('layaway.product', locale)}</TableHead><TableHead className="text-xs text-right">{t('layaway.unitPrice', locale)}</TableHead><TableHead className="text-xs text-right">{t('layaway.quantity', locale)}</TableHead><TableHead className="text-xs text-right">{t('layaway.lineTotal', locale)}</TableHead></TableRow></TableHeader><TableBody>{items.map((item: any, idx: number) => (<TableRow key={idx}><TableCell className="text-sm">{item.name}{item.sku ? <span className="text-xs text-muted-foreground ml-2">({item.sku})</span> : ''}</TableCell><TableCell className="text-right text-sm">{formatCurrency(item.unitPrice, currency)}</TableCell><TableCell className="text-right text-sm">{item.quantity}</TableCell><TableCell className="text-right text-sm font-medium">{formatCurrency(item.lineTotal, currency)}</TableCell></TableRow>))}</TableBody></Table></div></div>
-                <div><h4 className="text-sm font-semibold mb-2">{t('layaway.paymentHistory', locale)}</h4>{payments.length === 0 ? <p className="text-sm text-muted-foreground">No payments recorded.</p> : (<div className="rounded-lg border"><Table><TableHeader><TableRow className="bg-muted/50"><TableHead className="text-xs">{t('layaway.date', locale)}</TableHead><TableHead className="text-xs text-right">{t('layaway.amount', locale)}</TableHead><TableHead className="text-xs">{t('layaway.method', locale)}</TableHead><TableHead className="text-xs">{t('layaway.ref', locale)}</TableHead></TableRow></TableHeader><TableBody>{payments.map((p: any, idx: number) => (<TableRow key={idx}><TableCell className="text-sm">{new Date(p.date).toLocaleDateString()}</TableCell><TableCell className="text-right text-sm font-medium">{formatCurrency(p.amount, currency)}</TableCell><TableCell className="text-sm">{p.method}</TableCell><TableCell className="text-sm text-muted-foreground">{p.reference || '—'}</TableCell></TableRow>))}</TableBody></Table></div>)}</div>
+                <div><h4 className="text-sm font-semibold mb-2">{t('layaway.paymentHistory', locale)}</h4>{payments.length === 0 ? <p className="text-sm text-muted-foreground">{t('layaway.noPayments', locale)}</p> : (<div className="rounded-lg border"><Table><TableHeader><TableRow className="bg-muted/50"><TableHead className="text-xs">{t('layaway.date', locale)}</TableHead><TableHead className="text-xs text-right">{t('layaway.amount', locale)}</TableHead><TableHead className="text-xs">{t('layaway.method', locale)}</TableHead><TableHead className="text-xs">{t('layaway.ref', locale)}</TableHead></TableRow></TableHeader><TableBody>{payments.map((p: any, idx: number) => (<TableRow key={idx}><TableCell className="text-sm">{new Date(p.date).toLocaleDateString()}</TableCell><TableCell className="text-right text-sm font-medium">{formatCurrency(p.amount, currency)}</TableCell><TableCell className="text-sm">{p.method}</TableCell><TableCell className="text-sm text-muted-foreground">{p.reference || '—'}</TableCell></TableRow>))}</TableBody></Table></div>)}</div>
                 {(l.notes || l.expiryDate) && (<div className="bg-muted/30 rounded-lg p-3 space-y-1 text-sm">{l.expiryDate && <p><span className="text-muted-foreground">{t('layaway.expiryDate', locale)}:</span> <span className="font-medium">{new Date(l.expiryDate).toLocaleDateString()}</span></p>}{l.dueDate && <p><span className="text-muted-foreground">{t('layaway.dueDate', locale)}:</span> <span className="font-medium">{new Date(l.dueDate).toLocaleDateString()}</span></p>}{l.notes && <p><span className="text-muted-foreground">{t('layaway.notes', locale)}:</span> <span>{l.notes}</span></p>}</div>)}
               </div>
             </>);

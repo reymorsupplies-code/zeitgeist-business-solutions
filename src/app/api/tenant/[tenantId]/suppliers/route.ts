@@ -54,11 +54,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 }
 
 // ─── PUT: Update supplier ───
-export async function PUT(req: NextRequest) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
   const { id, ...fields } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
@@ -86,11 +87,12 @@ export async function PUT(req: NextRequest) {
 }
 
 // ─── DELETE: Soft delete ───
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });

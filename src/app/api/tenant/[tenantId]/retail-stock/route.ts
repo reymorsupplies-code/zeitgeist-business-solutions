@@ -31,7 +31,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     if (productId) { sql += ` AND sm."ingredientId" = $${paramIdx++}`; queryParams.push(productId); }
     if (fromDate) { sql += ` AND sm."createdAt" >= $${paramIdx++}`; queryParams.push(fromDate); }
     if (toDate) { sql += ` AND sm."createdAt" <= $${paramIdx++}`; queryParams.push(toDate); }
-    sql += ` ORDER BY sm."createdAt" DESC LIMIT ${limit}`;
+    sql += ` ORDER BY sm."createdAt" DESC LIMIT $${paramIdx}`;
+    queryParams.push(limit);
 
     const movements = await pgQuery<any>(sql, queryParams);
 
@@ -40,10 +41,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
                       FROM "POSSale" ps
                       WHERE ps."tenantId" = $1 AND ps.status = 'completed' AND ps."isDeleted" = false
                       ${fromDate ? `AND ps."createdAt" >= $${paramIdx++}` : ''}
-                      ORDER BY ps."createdAt" DESC LIMIT ${limit}`;
+                      ORDER BY ps."createdAt" DESC LIMIT $${paramIdx}`;
     const salesParams: any[] = [tenantId];
     if (fromDate) salesParams.push(fromDate);
-    const sales = await pgQuery<any>(salesSql, salesParams.length > 1 ? salesParams : [tenantId]);
+    salesParams.push(limit);
+    const sales = await pgQuery<any>(salesSql, salesParams);
 
     return NextResponse.json({ movements, sales });
   } catch (err: any) {
@@ -67,7 +69,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       return NextResponse.json({ error: 'Product ID, type, and quantity are required' }, { status: 400 });
     }
 
-    // Get current stock
+    // Get current stock (read-only for audit trail)
     const product = await pgQuery<any>(
       `SELECT quantity, name FROM "RetailProduct" WHERE id = $1 AND "tenantId" = $2`,
       [productId, tenantId]
@@ -77,35 +79,39 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     }
 
     const previousStock = product[0].quantity || 0;
+    const absQty = Math.abs(quantity);
     let newStock = previousStock;
 
     if (type === 'entry') {
-      newStock = previousStock + Math.abs(quantity);
+      newStock = previousStock + absQty;
+      // Atomic stock increment
+      await pgQuery(`UPDATE "RetailProduct" SET quantity = quantity + $1, "updatedAt" = NOW() WHERE id = $2 AND "tenantId" = $3`, [absQty, productId, tenantId]);
     } else if (type === 'exit') {
-      newStock = Math.max(0, previousStock - Math.abs(quantity));
+      if (previousStock < absQty) {
+        return NextResponse.json({ error: `Insufficient stock. Available: ${previousStock}, requested: ${absQty}` }, { status: 400 });
+      }
+      newStock = previousStock - absQty;
+      // Atomic stock decrement with guard
+      await pgQuery(`UPDATE "RetailProduct" SET quantity = GREATEST(0, quantity - $1), "updatedAt" = NOW() WHERE id = $2 AND "tenantId" = $3 AND quantity >= $1`, [absQty, productId, tenantId]);
     } else if (type === 'adjustment') {
-      newStock = Math.abs(quantity);
+      newStock = Math.max(0, absQty);
+      // Atomic absolute set
+      await pgQuery(`UPDATE "RetailProduct" SET quantity = GREATEST(0, $1), "updatedAt" = NOW() WHERE id = $2 AND "tenantId" = $3`, [absQty, productId, tenantId]);
     }
 
-    // Create stock movement record
+    // Create stock movement record (after successful update)
     const movementId = `sm-${Date.now()}`;
     await pgQuery(
       `INSERT INTO "StockMovement" (id, "tenantId", "ingredientId", type, quantity, "previousStock", "newStock", "unitCost", reason, reference, "batchNumber", "expiryDate", method)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULL, $12)`,
-      [movementId, tenantId, productId, type, Math.abs(quantity), previousStock, newStock, unitCost || 0, reason || null, reference || null, batchNumber || null, method || 'fifo']
-    );
-
-    // Update product stock
-    await pgQuery(
-      `UPDATE "RetailProduct" SET quantity = $1, "updatedAt" = NOW() WHERE id = $2 AND "tenantId" = $3`,
-      [newStock, productId, tenantId]
+      [movementId, tenantId, productId, type, absQty, previousStock, newStock, unitCost || 0, reason || null, reference || null, batchNumber || null, method || 'fifo']
     );
 
     return NextResponse.json({
       id: movementId,
       productId,
       type,
-      quantity: Math.abs(quantity),
+      quantity: absQty,
       previousStock,
       newStock,
       productName: product[0].name,

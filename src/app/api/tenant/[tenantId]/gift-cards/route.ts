@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateRequest, verifyTenantAccess } from '@/lib/auth';
+import { authenticateRequest, verifyTenantAccess, whitelistFields, checkRateLimit } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { pgQuery, pgQueryOne } from '@/lib/pg-query';
 
@@ -88,8 +88,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const ownership = verifyTenantAccess(auth, tenantId);
   if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
+  let data: any;
+  try { data = await req.json(); } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }); }
+
   try {
-    const data = await req.json();
     const initialBalance = parseFloat(data.initialBalance) || 0;
     if (initialBalance <= 0) {
       return NextResponse.json({ error: 'Initial balance must be greater than 0' }, { status: 400 });
@@ -135,7 +137,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     return NextResponse.json({ error: 'Failed to generate unique card' }, { status: 500 });
   } catch (error: any) {
     try {
-      const data = await req.json();
+      // pg fallback — data already parsed
       const initialBalance = parseFloat(data.initialBalance) || 0;
       if (initialBalance <= 0) {
         return NextResponse.json({ error: 'Initial balance must be greater than 0' }, { status: 400 });
@@ -167,11 +169,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 }
 
 // ─── PUT: Reload, Redeem, Void ───
-export async function PUT(req: NextRequest) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
+
+  const rateLimitResult = checkRateLimit(`gift-cards-put:${req.headers.get('x-forwarded-for') || 'unknown'}`, 20, 60_000);
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
 
   try {
     const { id, action, amount, reference, saleId, ...fields } = await req.json();
@@ -268,9 +276,16 @@ export async function PUT(req: NextRequest) {
 
     // ── Generic field update ──
     if (fields && Object.keys(fields).length > 0) {
+      const existing = await db.giftCard.findFirst({ where: { id, tenantId, isDeleted: false } });
+      if (!existing) return NextResponse.json({ error: 'Gift card not found' }, { status: 404 });
+
+      const safeFields = whitelistFields('GiftCard', fields);
+      if (Object.keys(safeFields).length === 0) {
+        return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+      }
       const updated = await db.giftCard.update({
-        where: { id },
-        data: fields,
+        where: { id, tenantId },
+        data: safeFields,
       });
       return NextResponse.json(updated);
     }
@@ -316,13 +331,35 @@ export async function PUT(req: NextRequest) {
         newStatus = 'voided';
       }
 
-      await pgQuery(
-        `UPDATE "GiftCard" SET "currentBalance" = $1, "transactions" = $2, status = $3, "lastUsedAt" = CASE WHEN $4 = 'redeem' THEN NOW() ELSE "lastUsedAt" END, "updatedAt" = NOW() WHERE id = $5 AND "tenantId" = $6`,
-        [newBalance, stringifyTransactions(txns), newStatus, action || '', id, tenantId]
-      );
+      if (action === 'reload' || action === 'redeem' || action === 'void') {
+        await pgQuery(
+          `UPDATE "GiftCard" SET "currentBalance" = $1, "transactions" = $2, status = $3, "lastUsedAt" = CASE WHEN $4 = 'redeem' THEN NOW() ELSE "lastUsedAt" END, "updatedAt" = NOW() WHERE id = $5 AND "tenantId" = $6`,
+          [newBalance, stringifyTransactions(txns), newStatus, action || '', id, tenantId]
+        );
 
-      const updated = await pgQueryOne(`SELECT * FROM "GiftCard" WHERE id = $1`, [id]);
-      return NextResponse.json(updated);
+        const updated = await pgQueryOne(`SELECT * FROM "GiftCard" WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
+        return NextResponse.json(updated);
+      }
+
+      // Generic field update (pg fallback)
+      if (fields && Object.keys(fields).length > 0) {
+        const safeFields = whitelistFields('GiftCard', fields);
+        if (Object.keys(safeFields).length === 0) {
+          return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+        }
+        const setParts: string[] = [];
+        const paramValues: any[] = [];
+        let pIdx = 1;
+        for (const [k, v] of Object.entries(safeFields)) {
+          setParts.push(`"${k}" = $${pIdx++}`);
+          paramValues.push(v);
+        }
+        setParts.push(`"updatedAt" = NOW()`);
+        await pgQuery(`UPDATE "GiftCard" SET ${setParts.join(', ')} WHERE id = $${pIdx++} AND "tenantId" = $${pIdx}`, [...paramValues, id, tenantId]);
+
+        const updated = await pgQueryOne(`SELECT * FROM "GiftCard" WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
+        return NextResponse.json(updated);
+      }
     } catch (err: any) {
       return NextResponse.json({ error: err.message }, { status: 500 });
     }
@@ -330,11 +367,12 @@ export async function PUT(req: NextRequest) {
 }
 
 // ─── DELETE: Soft delete ───
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });

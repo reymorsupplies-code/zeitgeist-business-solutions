@@ -71,7 +71,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       if (staffName) { sql += ` AND "staffName" ILIKE $${idx++}`; params.push(`%${staffName}%`); }
       if (dateFrom) { sql += ` AND "openedAt" >= $${idx++}`; params.push(dateFrom); }
       if (dateTo) { sql += ` AND "openedAt" <= $${idx++}`; params.push(dateTo); }
-      sql += ` ORDER BY "createdAt" DESC LIMIT ${limit}`;
+      sql += ` ORDER BY "createdAt" DESC LIMIT $${idx}`;
+      params.push(limit);
       const shifts = await pgQuery<any>(sql, params);
 
       let summary: any = null;
@@ -174,11 +175,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 }
 
 // ─── PUT: Close shift or update notes ───
-export async function PUT(req: NextRequest) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
   const body = await req.json();
   const { id, action, closingCash, notes } = body;
@@ -244,17 +246,31 @@ export async function PUT(req: NextRequest) {
       const transactionCount = salesAgg._count || 0;
 
       // Aggregate refunds for this period
-      const refundsAgg = await db.return.aggregate({
+      const refundsAgg = await db.productReturn.aggregate({
         _sum: { totalRefund: true },
         _count: true,
         where: {
           tenantId,
           isDeleted: false,
+          status: { in: ['approved', 'completed'] },
           createdAt: { gte: openedAt, lte: now },
         },
       });
       const totalRefunds = refundsAgg._sum.totalRefund || 0;
       const refundCount = refundsAgg._count || 0;
+
+      // Aggregate cash refunds only (for expected cash calc)
+      const cashRefundsAgg = await db.productReturn.aggregate({
+        _sum: { totalRefund: true },
+        where: {
+          tenantId,
+          isDeleted: false,
+          status: { in: ['approved', 'completed'] },
+          refundMethod: 'cash',
+          createdAt: { gte: openedAt, lte: now },
+        },
+      });
+      const cashRefunds = cashRefundsAgg._sum.totalRefund || 0;
 
       // Aggregate gift card sales (redemptions)
       const giftCardAgg = await db.pOSSale.aggregate({
@@ -280,7 +296,7 @@ export async function PUT(req: NextRequest) {
       });
       const layawayDeposits = layawayAgg._sum.depositAmount || 0;
 
-      const expectedCash = shift.startingCash + cashSales - totalRefunds;
+      const expectedCash = shift.startingCash + cashSales - cashRefunds;
       const discrepancy = Math.round((closingCash - expectedCash) * 100) / 100;
 
       const updated = await db.registerShift.update({
@@ -355,11 +371,18 @@ export async function PUT(req: NextRequest) {
 
         // Aggregate refunds
         const refundRes = await pgQueryOne<any>(
-          `SELECT COALESCE(SUM("totalRefund"), 0)::float as total_refunds, COUNT(*)::int as refund_count FROM "Return" WHERE "tenantId" = $1 AND "isDeleted" = false AND "createdAt" >= $2 AND "createdAt" <= $3`,
+          `SELECT COALESCE(SUM("totalRefund"), 0)::float as total_refunds, COUNT(*)::int as refund_count FROM "ProductReturn" WHERE "tenantId" = $1 AND "isDeleted" = false AND status IN ('approved', 'completed') AND "createdAt" >= $2 AND "createdAt" <= $3`,
           [tenantId, openedAt, now]
         );
         const totalRefunds = refundRes?.total_refunds || 0;
         const refundCount = refundRes?.refund_count || 0;
+
+        // Aggregate cash refunds only
+        const cashRefundRes = await pgQueryOne<any>(
+          `SELECT COALESCE(SUM("totalRefund"), 0)::float as cash_refunds FROM "ProductReturn" WHERE "tenantId" = $1 AND "isDeleted" = false AND status IN ('approved', 'completed') AND "refundMethod" = 'cash' AND "createdAt" >= $2 AND "createdAt" <= $3`,
+          [tenantId, openedAt, now]
+        );
+        const cashRefunds = cashRefundRes?.cash_refunds || 0;
 
         // Gift card sales
         const gcRes = await pgQueryOne<any>(
@@ -375,7 +398,7 @@ export async function PUT(req: NextRequest) {
         );
         const layawayDeposits = layRes?.lay_total || 0;
 
-        const expectedCash = shift.startingCash + cashSales - totalRefunds;
+        const expectedCash = shift.startingCash + cashSales - cashRefunds;
         const discrepancy = Math.round((closingCash - expectedCash) * 100) / 100;
 
         await pgQuery(
@@ -412,11 +435,12 @@ export async function PUT(req: NextRequest) {
 }
 
 // ─── DELETE: Soft delete (only closed shifts) ───
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });

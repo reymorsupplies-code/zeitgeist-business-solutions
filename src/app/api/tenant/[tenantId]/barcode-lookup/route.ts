@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
   try {
     const result = await pool.query(
-      `SELECT id, name, price, "costPrice" AS cost, unit, barcode, category, stock
+      `SELECT id, name, price, "cost" AS cost, barcode, category, "quantity" AS stock
        FROM "RetailProduct"
        WHERE "tenantId" = $1 AND barcode = $2 AND "isDeleted" = false AND "isActive" = true
        LIMIT 1`,
@@ -42,7 +42,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
         name: row.name,
         price: Number(row.price) || 0,
         cost: Number(row.cost) || 0,
-        unit: row.unit || '',
         barcode: row.barcode || '',
         category: row.category || '',
         stock: Number(row.stock) || 0,

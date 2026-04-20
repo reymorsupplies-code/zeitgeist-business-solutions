@@ -45,9 +45,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const ownership = verifyTenantAccess(auth, tenantId);
   if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
-  try {
-    const data = await req.json();
+  let data: any;
+  try { data = await req.json(); } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }); }
 
+  try {
     const count = await db.purchaseOrder.count({ where: { tenantId } });
     const poNumber = `PO-${String(count + 1).padStart(5, '0')}`;
 
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     return NextResponse.json(po);
   } catch {
     try {
-      const data = await req.json();
+      // pg fallback — data already parsed
       const count = await pgQuery<any>(`SELECT COUNT(*)::int as c FROM "PurchaseOrder" WHERE "tenantId" = $1`, [tenantId]);
       const cn = (count[0]?.c || 0) + 1;
       const poNumber = `PO-${String(cn).padStart(5, '0')}`;
@@ -90,11 +91,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 }
 
 // ─── PUT: Update PO (status changes, edits) ───
-export async function PUT(req: NextRequest) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
   const { id, receiveItems, ...fields } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
@@ -115,20 +117,20 @@ export async function PUT(req: NextRequest) {
         for (const received of receiveItems) {
           const idx = currentItems.findIndex((it: any) => it.productId === received.productId);
           if (idx >= 0) {
+            const orderedQty = currentItems[idx].qty;
             const prevReceived = currentItems[idx].receivedQty || 0;
-            currentItems[idx].receivedQty = prevReceived + (received.qty || 0);
-            totalReceived += (received.qty || 0) * (currentItems[idx].unitCost || 0);
+            const qtyToReceive = received.qty || 0;
+            const remaining = orderedQty - prevReceived;
+            if (qtyToReceive > remaining) {
+              return NextResponse.json({ error: `Cannot receive more than ${remaining} units for product at index ${idx}` }, { status: 400 });
+            }
+            currentItems[idx].receivedQty = prevReceived + qtyToReceive;
+            totalReceived += qtyToReceive * (currentItems[idx].unitCost || 0);
 
-            // Add stock to retail product
+            // Add stock to retail product (atomic)
             if (received.productId) {
               try {
-                const product = await db.retailProduct.findFirst({ where: { id: received.productId, tenantId } });
-                if (product) {
-                  await db.retailProduct.update({
-                    where: { id: received.productId },
-                    data: { quantity: product.quantity + (received.qty || 0) },
-                  });
-                }
+                await db.$executeRaw`UPDATE "RetailProduct" SET quantity = quantity + ${qtyToReceive} WHERE id = ${received.productId} AND "tenantId" = ${tenantId}`;
               } catch { /* best-effort */ }
             }
           }
@@ -172,11 +174,17 @@ export async function PUT(req: NextRequest) {
           for (const received of receiveItems) {
             const idx = currentItems.findIndex((it: any) => it.productId === received.productId);
             if (idx >= 0) {
+              const orderedQty = currentItems[idx].qty;
               const prevReceived = currentItems[idx].receivedQty || 0;
-              currentItems[idx].receivedQty = prevReceived + (received.qty || 0);
-              totalReceived += (received.qty || 0) * (currentItems[idx].unitCost || 0);
+              const qtyToReceive = received.qty || 0;
+              const remaining = orderedQty - prevReceived;
+              if (qtyToReceive > remaining) {
+                return NextResponse.json({ error: `Cannot receive more than ${remaining} units for product at index ${idx}` }, { status: 400 });
+              }
+              currentItems[idx].receivedQty = prevReceived + qtyToReceive;
+              totalReceived += qtyToReceive * (currentItems[idx].unitCost || 0);
               if (received.productId) {
-                try { await pgQuery(`UPDATE "RetailProduct" SET quantity = quantity + $1, "updatedAt" = NOW() WHERE id = $2 AND "tenantId" = $3`, [received.qty || 0, received.productId, tenantId]); } catch { /* best-effort */ }
+                try { await pgQuery(`UPDATE "RetailProduct" SET quantity = quantity + $1, "updatedAt" = NOW() WHERE id = $2 AND "tenantId" = $3`, [qtyToReceive, received.productId, tenantId]); } catch { /* best-effort */ }
               }
             }
           }
@@ -198,11 +206,12 @@ export async function PUT(req: NextRequest) {
 }
 
 // ─── DELETE: Soft delete ───
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });

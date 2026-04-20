@@ -150,7 +150,7 @@ model Tenant {
   loyaltyMembers       LoyaltyMember[]
   loyaltyTransactions  LoyaltyTransaction[] @relation("LoyaltyTransactionTenant")
   giftCards            GiftCard[]
-  returns              Return[]
+  productReturns       ProductReturn[]
   registerShifts       RegisterShift[]
 }
 
@@ -600,7 +600,7 @@ model RetailProduct {
   isDeleted   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 // ============ LAYAWAY (APARTADOS) ============
@@ -626,7 +626,9 @@ model Layaway {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, layawayNumber])
 }
 
 // ============ STOCK MOVEMENT ============
@@ -671,7 +673,10 @@ model PurchaseOrder {
   isDeleted       Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+
+  @@unique([tenantId, poNumber])
 }
 
 // ============ POS SALE ============
@@ -696,8 +701,10 @@ model POSSale {
   isDeleted       Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  tenant          Tenant    @relation(fields: [tenantId], references: [id])
-  returns         Return[]
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productReturns  ProductReturn[]
+
+  @@unique([tenantId, saleNumber])
 }
 
 // ============ GIFT CARDS ============
@@ -705,8 +712,8 @@ model POSSale {
 model GiftCard {
   id              String    @id @default(cuid())
   tenantId        String
-  cardNumber      String    @unique
-  cardCode        String    @unique
+  cardNumber      String
+  cardCode        String
   initialBalance  Float     @default(0)
   currentBalance  Float     @default(0)
   customerName    String?
@@ -721,12 +728,15 @@ model GiftCard {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, cardNumber])
+  @@unique([tenantId, cardCode])
 }
 
 // ============ RETURNS & EXCHANGES ============
 
-model Return {
+model ProductReturn {
   id            String   @id @default(cuid())
   tenantId      String
   saleId        String
@@ -742,8 +752,11 @@ model Return {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tenant Tenant   @relation(fields: [tenantId], references: [id])
-  sale   POSSale  @relation(fields: [saleId], references: [id])
+  tenant Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sale   POSSale  @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, returnNumber])
+  @@map("ProductReturn")
 }
 
 // ============ REGISTER SHIFT (CIERRE DE CAJA) ============
@@ -775,7 +788,9 @@ model RegisterShift {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, shiftNumber])
 }
 
 // ============ EVENTS MODELS ============
@@ -802,20 +817,21 @@ model Event {
 // ============ RETAIL SUPPLIERS ============
 
 model Supplier {
-  id          String   @id @default(cuid())
-  tenantId    String
-  name        String
-  contact     String?
-  email       String?
-  phone       String?
-  address     String?
-  category    String?
-  rating      Int      @default(0)
-  notes       String?
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  contact         String?
+  email           String?
+  phone           String?
+  address         String?
+  category        String?
+  rating          Int      @default(0)
+  notes           String?
+  isDeleted       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purchaseOrders  PurchaseOrder[]
 }
 
 // ============ EVENTS VENUES & VENDORS ============

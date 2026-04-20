@@ -1,62 +1,87 @@
-# Worklog: Retail Fase 2 — Register Shift / Shift Management (Cierre de Caja)
+# ZBS Production Bug Fix Worklog
 
-## Date: $(date -u +%Y-%m-%d)
+## Date: 2025-01-28
 
 ## Summary
-Implemented the full Daily Register Close / Shift Management feature for the ZBS Retail module, including Prisma model, API route, i18n translations (EN/ES), and a comprehensive UI component.
+Fixed 12 critical production bugs across UI components, POS logic, register shift formulas, and i18n coverage.
 
-## Files Modified
+---
 
-### 1. Prisma Schema (`prisma/schema.prisma`)
-- Added `RegisterShift` model with all required fields:
-  - id, tenantId, shiftNumber, staffName, staffId
-  - openedAt, closedAt, status (open/closed)
-  - startingCash, closingCash, expectedCash, discrepancy
-  - cashSales, cardSales, transferSales, totalSales
-  - totalRefunds, giftCardSales, layawayDeposits
-  - transactionCount, refundCount
-  - notes, isDeleted, createdAt, updatedAt
-- Added `registerShifts` relation to `Tenant` model
-- Ran `npx prisma generate` successfully
+## Fix 1: Held Sales Dialog Cannot Be Dismissed
+**File:** `src/app/page.tsx`
+- Added `showHeldSales` state variable
+- Changed dialog `open` prop from `heldSales.length > 0` to `showHeldSales`
+- Changed dialog `onOpenChange` from `() => {}` to `setShowHeldSales`
+- Updated Held Sales button `onClick` to `setShowHeldSales(true)`
 
-### 2. API Route (`src/app/api/tenant/[tenantId]/register-shifts/route.ts`)
-- **GET**: List shifts with filters (status, date range, staffName). Returns summary stats when status=open.
-- **POST**: Open new shift — auto-generates shiftNumber (SHIFT-00001), requires startingCash and staffName. Prevents duplicate open shifts (409).
-- **PUT**: Close shift — aggregates POS sales by payment method (cash/card/transfer), calculates expectedCash, discrepancy. Also supports updating notes.
-- **DELETE**: Soft delete for closed shifts only.
-- Follows existing API pattern with Prisma + pgQuery fallback.
+## Fix 2: Cart Can Exceed Stock in POS
+**File:** `src/app/page.tsx`
+- Rewrote `addToCart` to check existing cart quantity against available stock before adding
+- Rewrote `updateQty` to validate against product stock before updating
+- Both functions now show `toast.error(pos.outOfStock)` when stock limit would be exceeded
 
-### 3. i18n Keys (`src/lib/i18n.ts`)
-- Added 53 translation keys under `shift.*` prefix in both English and Spanish sections.
-- Keys cover: title, subtitle, open/close shift, shift number, staff, dates, cash amounts, discrepancy, payment types, status labels, toast messages, search/filter, dialog labels.
+## Fix 3: Returns Max Qty Validation
+**File:** `src/app/page.tsx`
+- Changed return item quantity `max` prop from `item.qty || 99` to `item.qty || 0`
+- Changed `onChange` min calculation from `item.qty || 99` to `item.qty || 0`
 
-### 4. UI Component (`src/app/page.tsx`)
-- **TenantRegisterPage()** — Full-featured register shift management page with:
-  - **Active shift banner**: Shows live pulse indicator, elapsed time, starting cash, and close button
-  - **Summary stat cards**: Total sales, cash sales, card sales, transaction count
-  - **Filters**: Search by shift#/staff, status filter (all/open/closed)
-  - **History table**: shiftNumber, staff, status, opened/closed times, starting cash, total sales, discrepancy badge
-  - **Open shift dialog**: Staff name, staff ID, starting cash amount
-  - **Close shift dialog**: Summary card, counted cash input, auto-calculated expected cash, notes
-  - **Shift detail dialog**: Full breakdown with 6 payment type cards, totals, counts, closing cash comparison (calculated vs actual vs difference)
-  - **Discrepancy highlighting**: Green (perfect=0), amber (≤5), red (>5)
-  - **Multi-currency support**: Uses tenant currency via formatCurrency()
+## Fix 4: i18n Missing Locale Parameter
+**File:** `src/app/page.tsx`
+- Fixed `t('returns.originalSale')` → `t('returns.originalSale', locale)` in Returns page
 
-### 5. Store (`src/lib/store.ts`)
-- Added `'register'` to `TenantPage` union type
+## Fix 5: Added Missing i18n Keys
+**File:** `src/lib/i18n.ts` (both en and es)
+- `pos.saleHeld`: "Sale held successfully" / "Venta en espera guardada"
+- `pos.outOfStock`: "Out of stock" / "Sin stock"
+- `common.confirmDelete`: Delete confirmation string
+- `layaway.noPayments`: "No payments recorded." / "No hay pagos registrados."
+- `layaway.item` / `layaway.items_count`: singular/plural for item counts
+- `retailInv.moreAlerts`: "+{n} more" pattern
+- `shift.optionalNotes`: "Optional notes..." / "Notas opcionales..."
+- `returns.walkIn`: "Walk-in" / "Mostrador"
+- `returns.date`: "Date" / "Fecha"
 
-### 6. Navigation (`src/app/page.tsx`)
-- Added "Register / Shift Management" entry to `getRetailNav()` under Operations section
-- Added `case 'register': return <TenantRegisterPage />` in page switch
+## Fix 6: JSON.parse Safety in Render
+**File:** `src/app/page.tsx`
+- Wrapped `JSON.parse(l.items)` in Layaways list with try-catch fallback to `[]`
+- Wrapped `JSON.parse(l.items)` and `JSON.parse(l.payments)` in Layaways detail dialog with try-catch
+- Wrapped `JSON.parse(ret.items)` in Returns page with try-catch
+
+## Fix 7: Register Shift Expected Cash Formula
+**File:** `src/app/api/tenant/[tenantId]/register-shifts/route.ts`
+- Changed `expectedCash = startingCash + cashSales - totalRefunds` to use `cashRefunds` instead
+- Added separate aggregation query for cash-only refunds (`refundMethod: 'cash'`)
+- Fixed in both Prisma ORM path and raw SQL fallback path
+
+## Fix 8: Register Shift Refunds Status Filter
+**File:** `src/app/api/tenant/[tenantId]/register-shifts/route.ts`
+- Added `status: { in: ['approved', 'completed'] }` filter to refund aggregation queries
+- Applied to both Prisma ORM and raw SQL paths
+
+## Fix 9: Confirmation Dialogs for Delete Actions
+**File:** `src/app/page.tsx`
+- Added `if (!confirm(t('common.confirmDelete', locale))) return;` to `TenantSuppliersPage.handleDelete`
+- Added same confirmation to `TenantReturnsPage.handleDelete`
+
+## Fix 10: Hardcoded Cancel Buttons
+**File:** `src/app/page.tsx`
+- PO Create dialog: `Cancel` → `t('common.cancel', locale)`
+- PO Receive dialog: `Cancel` → `t('common.cancel', locale)`
+
+## Fix 11: Hardcoded Strings in Various Components
+**File:** `src/app/page.tsx`
+- Inventory: `+${lowStockItems.length - 10} more` → `t('retailInv.moreAlerts', locale)`
+- Returns: `'Walk-in'` → `t('returns.walkIn', locale)`
+- Layaways: `'item'/'items'` → `t('layaway.item', locale)` / `t('layaway.items_count', locale)`
+- Inventory movements: `<TableHead>Date</TableHead>` → `t('common.date', locale)`
+- Layaways: `"No payments recorded."` → `t('layaway.noPayments', locale)`
+- Register: `"Optional notes..."` → `t('shift.optionalNotes', locale)`
+- Returns table: `"Date"` column header → `t('returns.date', locale)`
+
+## Fix 12: POS Receipt ID from Server
+**File:** `src/app/page.tsx`
+- Changed from discarding API response to storing it
+- Receipt now uses `result.saleNumber` from server response, with fallback to client-generated ID
 
 ## Verification
-- TypeScript: `npx tsc --noEmit` — 0 errors ✅
-- Prisma generate: successful ✅
-- ESLint: Pre-existing warnings (not related to this change)
-
-## Architecture Decisions
-- Used `shift.*` i18n prefix instead of `register.*` to avoid collision with existing `register.title`/`register.subtitle` keys used for the registration page
-- API uses Prisma ORM as primary with pgQuery raw SQL fallback for resilience
-- Close shift aggregates from POSSale, Return, Layaway, and GiftCard tables
-- discrepancy = closingCash - expectedCash (where expectedCash = startingCash + cashSales - totalRefunds)
-- Auto-shift number format: SHIFT-00001, SHIFT-00002, etc.
+- TypeScript compilation: 0 errors (`npx tsc --noEmit`)

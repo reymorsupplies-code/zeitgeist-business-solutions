@@ -34,18 +34,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
         where: { id: lay.id },
         data: { status: 'expired' },
       });
-      // Restore stock for expired layaways
+      // Restore stock for expired layaways (atomic)
       const items = typeof lay.items === 'string' ? JSON.parse(lay.items) : (lay.items || []);
       for (const item of items) {
         if (item.productId) {
           try {
-            const product = await db.retailProduct.findFirst({ where: { id: item.productId, tenantId } });
-            if (product) {
-              await db.retailProduct.update({
-                where: { id: item.productId },
-                data: { quantity: product.quantity + (item.quantity || 0) },
-              });
-            }
+            await db.$executeRaw`UPDATE "RetailProduct" SET quantity = quantity + ${item.quantity || 0} WHERE id = ${item.productId} AND "tenantId" = ${tenantId}`;
           } catch { /* best-effort */ }
         }
       }
@@ -89,9 +83,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const ownership = verifyTenantAccess(auth, tenantId);
   if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
-  try {
-    const data = await req.json();
+  let data: any;
+  try { data = await req.json(); } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }); }
 
+  try {
     if (!data.customerName || !data.customerPhone || !data.items || data.items.length === 0) {
       return NextResponse.json({ error: 'Customer name, phone, and items are required' }, { status: 400 });
     }
@@ -100,8 +95,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     const totalAmount = (data.items || []).reduce((s: number, i: any) => s + (i.lineTotal || 0), 0);
     const depositAmount = data.depositAmount || 0;
 
-    if (depositAmount < totalAmount * (depositPct / 100)) {
-      return NextResponse.json({ error: `Minimum deposit of ${depositPct}% required (${(totalAmount * depositPct / 100).toFixed(2)})` }, { status: 400 });
+    const effectiveMinDeposit = data.depositPercentage || 20;
+    const requiredDeposit = (totalAmount * effectiveMinDeposit) / 100;
+    if (depositAmount < requiredDeposit) {
+      return NextResponse.json({ error: `Minimum deposit is ${effectiveMinDeposit}% (${requiredDeposit.toFixed(2)})` }, { status: 400 });
     }
 
     // Check stock availability
@@ -144,17 +141,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       },
     });
 
-    // Reserve stock (reduce quantity)
+    // Reserve stock (reduce quantity - atomic)
     for (const item of data.items) {
       if (item.productId) {
         try {
-          const product = await db.retailProduct.findFirst({ where: { id: item.productId, tenantId } });
-          if (product) {
-            await db.retailProduct.update({
-              where: { id: item.productId },
-              data: { quantity: product.quantity - item.quantity },
-            });
-          }
+          await db.$executeRaw`UPDATE "RetailProduct" SET quantity = GREATEST(0, quantity - ${item.quantity}) WHERE id = ${item.productId} AND "tenantId" = ${tenantId}`;
         } catch { /* best-effort */ }
       }
     }
@@ -163,7 +154,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   } catch (err: any) {
     // Fallback to pg
     try {
-      const data = await req.json();
+      // data already parsed
 
       if (!data.customerName || !data.customerPhone || !data.items || data.items.length === 0) {
         return NextResponse.json({ error: 'Customer name, phone, and items are required' }, { status: 400 });
@@ -173,8 +164,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       const totalAmount = (data.items || []).reduce((s: number, i: any) => s + (i.lineTotal || 0), 0);
       const depositAmount = data.depositAmount || 0;
 
-      if (depositAmount < totalAmount * (depositPct / 100)) {
-        return NextResponse.json({ error: `Minimum deposit of ${depositPct}% required` }, { status: 400 });
+      const effectiveMinDeposit = data.depositPercentage || 20;
+      const requiredDeposit = (totalAmount * effectiveMinDeposit) / 100;
+      if (depositAmount < requiredDeposit) {
+        return NextResponse.json({ error: `Minimum deposit is ${effectiveMinDeposit}% (${requiredDeposit.toFixed(2)})` }, { status: 400 });
       }
 
       // Check stock
@@ -200,10 +193,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         [tenantId, layawayNumber, data.customerName, data.customerPhone, data.customerEmail || null, JSON.stringify(data.items), totalAmount, depositAmount, totalAmount - depositAmount, JSON.stringify(payments), 'active', data.dueDate ? new Date(data.dueDate).toISOString() : null, new Date(data.expiryDate).toISOString(), depositPct, data.notes || null, now, now]
       );
 
-      // Reserve stock
+      // Reserve stock (atomic)
       for (const item of data.items) {
         if (item.productId) {
-          try { await pgQuery(`UPDATE "RetailProduct" SET quantity = quantity - $1, "updatedAt" = NOW() WHERE id = $2 AND "tenantId" = $3`, [item.quantity, item.productId, tenantId]); } catch { /* best-effort */ }
+          try { await pgQuery(`UPDATE "RetailProduct" SET quantity = GREATEST(0, quantity - $1), "updatedAt" = NOW() WHERE id = $2 AND "tenantId" = $3`, [item.quantity, item.productId, tenantId]); } catch { /* best-effort */ }
         }
       }
 
@@ -216,11 +209,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 }
 
 // ─── PUT: Update layaway (add payment, cancel, update details) ───
-export async function PUT(req: NextRequest) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
   const { id, action, ...fields } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
@@ -233,6 +227,10 @@ export async function PUT(req: NextRequest) {
     if (action === 'addPayment') {
       const { paymentAmount, paymentMethod, paymentReference } = fields;
       if (!paymentAmount || paymentAmount <= 0) return NextResponse.json({ error: 'Valid payment amount required' }, { status: 400 });
+
+      if (paymentAmount > layaway.balanceRemaining) {
+        return NextResponse.json({ error: `Payment exceeds remaining balance of ${layaway.balanceRemaining.toFixed(2)}` }, { status: 400 });
+      }
 
       const currentPayments = typeof layaway.payments === 'string' ? JSON.parse(layaway.payments) : (layaway.payments || []);
       currentPayments.push({
@@ -265,18 +263,12 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ error: 'Only active layaways can be cancelled' }, { status: 400 });
       }
 
-      // Restore reserved stock
+      // Restore reserved stock (atomic)
       const items = typeof layaway.items === 'string' ? JSON.parse(layaway.items) : (layaway.items || []);
       for (const item of items) {
         if (item.productId) {
           try {
-            const product = await db.retailProduct.findFirst({ where: { id: item.productId, tenantId } });
-            if (product) {
-              await db.retailProduct.update({
-                where: { id: item.productId },
-                data: { quantity: product.quantity + (item.quantity || 0) },
-              });
-            }
+            await db.$executeRaw`UPDATE "RetailProduct" SET quantity = quantity + ${item.quantity || 0} WHERE id = ${item.productId} AND "tenantId" = ${tenantId}`;
           } catch { /* best-effort */ }
         }
       }
@@ -314,6 +306,10 @@ export async function PUT(req: NextRequest) {
         const { paymentAmount, paymentMethod, paymentReference } = fields;
         if (!paymentAmount || paymentAmount <= 0) return NextResponse.json({ error: 'Valid payment amount required' }, { status: 400 });
 
+        if (paymentAmount > layaway.balanceRemaining) {
+          return NextResponse.json({ error: `Payment exceeds remaining balance of ${layaway.balanceRemaining.toFixed(2)}` }, { status: 400 });
+        }
+
         const currentPayments = typeof layaway.payments === 'string' ? JSON.parse(layaway.payments) : (layaway.payments || []);
         currentPayments.push({ date: new Date().toISOString(), amount: paymentAmount, method: paymentMethod || 'cash', reference: paymentReference || '' });
         const totalPaid = currentPayments.reduce((s: number, p: any) => s + (p.amount || 0), 0);
@@ -338,7 +334,6 @@ export async function PUT(req: NextRequest) {
             try { await pgQuery(`UPDATE "RetailProduct" SET quantity = quantity + $1, "updatedAt" = NOW() WHERE id = $2 AND "tenantId" = $3`, [item.quantity || 0, item.productId, tenantId]); } catch { /* best-effort */ }
           }
         }
-
         await pgQuery(`UPDATE "Layaway" SET status = 'cancelled', "updatedAt" = NOW() WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
         const final = await pgQueryOne(`SELECT * FROM "Layaway" WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
         return NextResponse.json(final);
@@ -369,11 +364,12 @@ export async function PUT(req: NextRequest) {
 }
 
 // ─── DELETE: Soft delete (restore stock if still active) ───
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
@@ -381,18 +377,12 @@ export async function DELETE(req: NextRequest) {
   try {
     const layaway = await db.layaway.findFirst({ where: { id, tenantId } });
     if (layaway && (layaway.status === 'active' || layaway.status === 'expired')) {
-      // Restore reserved stock
+      // Restore reserved stock (atomic)
       const items = typeof layaway.items === 'string' ? JSON.parse(layaway.items) : (layaway.items || []);
       for (const item of items) {
         if (item.productId) {
           try {
-            const product = await db.retailProduct.findFirst({ where: { id: item.productId, tenantId } });
-            if (product) {
-              await db.retailProduct.update({
-                where: { id: item.productId },
-                data: { quantity: product.quantity + (item.quantity || 0) },
-              });
-            }
+            await db.$executeRaw`UPDATE "RetailProduct" SET quantity = quantity + ${item.quantity || 0} WHERE id = ${item.productId} AND "tenantId" = ${tenantId}`;
           } catch { /* best-effort */ }
         }
       }

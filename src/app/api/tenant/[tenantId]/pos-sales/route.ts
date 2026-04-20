@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateRequest, verifyTenantAccess, whitelistFields } from '@/lib/auth';
+import { authenticateRequest, verifyTenantAccess, whitelistFields, checkRateLimit } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { pgQuery, pgQueryOne } from '@/lib/pg-query';
 
@@ -57,9 +57,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const ownership = verifyTenantAccess(auth, tenantId);
   if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
-  try {
-    const data = await req.json();
+  const rateLimitResult = checkRateLimit(`pos-sales-post:${req.headers.get('x-forwarded-for') || 'unknown'}`, 30, 60_000);
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
 
+  let data: any;
+  try { data = await req.json(); } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }); }
+
+  try {
     // Generate sale number
     const count = await db.pOSSale.count({ where: { tenantId } });
     const saleNumber = `SL-${String(count + 1).padStart(5, '0')}`;
@@ -84,19 +90,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       },
     });
 
-    // Deduct stock for each item
+    // Deduct stock for each item (atomic)
     if (sale.status === 'completed' && Array.isArray(data.items)) {
       for (const item of data.items) {
         if (item.productId && item.qty > 0) {
           try {
-            const product = await db.retailProduct.findFirst({ where: { id: item.productId, tenantId } });
-            if (product) {
-              const newQty = Math.max(0, product.quantity - item.qty);
-              await db.retailProduct.update({
-                where: { id: item.productId },
-                data: { quantity: newQty },
-              });
-            }
+            await db.$executeRaw`UPDATE "RetailProduct" SET quantity = GREATEST(0, quantity - ${item.qty}) WHERE id = ${item.productId} AND "tenantId" = ${tenantId}`;
           } catch { /* stock deduction best-effort */ }
         }
       }
@@ -105,7 +104,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     return NextResponse.json(sale);
   } catch (error: any) {
     try {
-      const data = await req.json();
+      // pg fallback — data already parsed
       const count = await pgQuery<any>(`SELECT COUNT(*)::int as c FROM "POSSale" WHERE "tenantId" = $1`, [tenantId]);
       const cn = (count[0]?.c || 0) + 1;
       const saleNumber = `SL-${String(cn).padStart(5, '0')}`;
@@ -138,11 +137,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 }
 
 // ─── PUT: Update sale status (void, hold) ───
-export async function PUT(req: NextRequest) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
+
+  const rateLimitResult = checkRateLimit(`pos-sales-put:${req.headers.get('x-forwarded-for') || 'unknown'}`, 30, 60_000);
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
 
   const { id, ...fields } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
@@ -153,7 +158,7 @@ export async function PUT(req: NextRequest) {
       data: whitelistFields('POSSale', fields),
     });
 
-    // If voiding a completed sale, restore stock
+    // If voiding a completed sale, restore stock (atomic)
     if (fields.status === 'voided') {
       const sale = await db.pOSSale.findFirst({ where: { id, tenantId } });
       if (sale) {
@@ -161,13 +166,7 @@ export async function PUT(req: NextRequest) {
         for (const item of items) {
           if (item.productId && item.qty > 0) {
             try {
-              const product = await db.retailProduct.findFirst({ where: { id: item.productId, tenantId } });
-              if (product) {
-                await db.retailProduct.update({
-                  where: { id: item.productId },
-                  data: { quantity: product.quantity + item.qty },
-                });
-              }
+              await db.$executeRaw`UPDATE "RetailProduct" SET quantity = quantity + ${item.qty} WHERE id = ${item.productId} AND "tenantId" = ${tenantId}`;
             } catch { /* best-effort */ }
           }
         }
@@ -209,11 +208,12 @@ export async function PUT(req: NextRequest) {
 }
 
 // ─── DELETE: Soft delete ───
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });

@@ -207,6 +207,24 @@ const COLUMN_WHITELISTS: Record<string, Set<string>> = {
     'name', 'description', 'price', 'costPrice', 'category',
     'sku', 'stock', 'barcode', 'isActive', 'isDeleted', 'updatedAt',
   ]),
+  POSSale: new Set([
+    'status', 'customerName', 'staffName', 'paymentMethod', 'notes',
+  ]),
+  PurchaseOrder: new Set([
+    'supplierId', 'supplierName', 'status', 'expectedDate', 'notes', 'items',
+  ]),
+  Return: new Set([
+    'status', 'refundMethod', 'reason', 'processedBy', 'notes', 'totalRefund',
+  ]),
+  Layaway: new Set([
+    'status', 'customerName', 'customerPhone', 'customerEmail', 'notes', 'dueDate', 'expiryDate',
+  ]),
+  GiftCard: new Set([
+    'customerName', 'purchaserName', 'status', 'notes', 'expiresAt',
+  ]),
+  RegisterShift: new Set([
+    'closingCash', 'notes', 'status',
+  ]),
 };
 
 /**
