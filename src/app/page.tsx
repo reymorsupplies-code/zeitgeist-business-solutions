@@ -27,8 +27,9 @@ import {
   Twitter, Linkedin, Instagram, Facebook, Tag,
   KeyRound, LogIn, Languages,
   Table as TableIcon, Save, Cake, Pencil,
-  CalendarHeart, ScanLine
+  CalendarHeart, ScanLine, MessageCircle
 } from 'lucide-react';
+import { AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -174,6 +175,7 @@ function getBakeryNav(locale: string) {
     { label: t('scanner.title', locale), icon: ScanLine, page: 'barcode_scanner' as const, available: true },
     { label: t('onlineOrders.title', locale), icon: ShoppingBag, page: 'online_orders' as const, available: true, tier: 'Growth+' },
     { label: t('markdown.title', locale), icon: Tag, page: 'markdown_rules' as const, available: true, tier: 'Growth+' },
+    { label: t('whatsapp.title', locale), icon: MessageCircle, page: 'whatsapp' as const, available: true, tier: 'Growth+' },
   ]},
   { section: t('tenant.section.catalog', locale), items: [
     { label: t('tenant.catalog', locale), icon: Package, page: 'catalog' as const, available: true },
@@ -189,6 +191,8 @@ function getBakeryNav(locale: string) {
   { section: t('tenant.section.clients', locale), items: [
     { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
     { label: t('loyalty.title', locale), icon: Award, page: 'loyalty' as const, available: true, tier: 'Growth+' },
+    { label: t('notifications.title', locale), icon: Bell, page: 'notifications' as const, available: true },
+    { label: t('analytics.title', locale), icon: BarChart3, page: 'pasteleria_analytics' as const, available: true, tier: 'Growth+' },
   ]},
   { section: t('tenant.section.finance', locale), items: [
     { label: t('tenant.quotes', locale), icon: FileText, page: 'quotes' as const, available: true },
@@ -17691,6 +17695,418 @@ function TenantLoyaltyPage() {
   );
 }
 
+// ============ TENANT WHATSAPP PAGE ============
+function TenantWhatsAppPage() {
+  const { currentTenant, locale, authFetch } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale, authFetch: s.authFetch }));
+  const tenantId = currentTenant?.id;
+  const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [tab, setTab] = useState('messages');
+  const [showSend, setShowSend] = useState(false);
+  const [showTemplate, setShowTemplate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [sendForm, setSendForm] = useState({ phone: '', templateId: '', variables: {} as Record<string, string> });
+  const [tmplForm, setTmplForm] = useState({ name: '', category: 'general', body: '', language: 'es' });
+
+  const fetchMessages = useCallback(async () => {
+    if (!tenantId) return;
+    try {
+      const res = await authFetch(`/api/tenant/${tenantId}/whatsapp`);
+      const data = await res.json();
+      if (data.messages) setMessages(data.messages);
+      if (data.templates) setTemplates(data.templates);
+      if (data.stats) setStats(data.stats);
+    } catch { /* empty */ }
+  }, [tenantId, authFetch]);
+
+  const [stats, setStats] = useState({ sent: 0, delivered: 0, read: 0, templateCount: 0 });
+
+  useEffect(() => { fetchMessages().then(() => setLoading(false)); }, [fetchMessages]);
+
+  const extractVariables = (body: string) => {
+    const matches = body.match(/\{\{(\w+)\}\}/g);
+    return matches ? [...new Set(matches.map(m => m.replace(/\{\{|\}\}/g, '')))] : [];
+  };
+
+  const previewMessage = (templateId: string, vars: Record<string, string>) => {
+    const tmpl = templates.find((t: any) => t.id === templateId);
+    if (!tmpl) return '';
+    let preview = tmpl.body;
+    Object.entries(vars).forEach(([k, v]) => { preview = preview.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v || `{{${k}}}`); });
+    return preview;
+  };
+
+  const handleSend = async () => {
+    if (!sendForm.phone || !sendForm.templateId) return;
+    setSaving(true);
+    try {
+      const res = await authFetch(`/api/tenant/${tenantId}/whatsapp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _action: 'send', phone: sendForm.phone, templateId: sendForm.templateId, variables: sendForm.variables }),
+      });
+      const data = await res.json();
+      if (data.error) { toast.error(data.error); } else { toast.success(t('whatsapp.sent', locale)); setShowSend(false); setSendForm({ phone: '', templateId: '', variables: {} }); fetchMessages(); }
+    } catch { toast.error(t('common.error', locale)); }
+    setSaving(false);
+  };
+
+  const handleCreateTemplate = async () => {
+    if (!tmplForm.name || !tmplForm.body) return;
+    setSaving(true);
+    try {
+      const res = await authFetch(`/api/tenant/${tenantId}/whatsapp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _action: 'create_template', ...tmplForm }),
+      });
+      const data = await res.json();
+      if (data.error) { toast.error(data.error); } else { toast.success(t('whatsapp.templateCreated', locale)); setShowTemplate(false); setTmplForm({ name: '', category: 'general', body: '', language: 'es' }); fetchMessages(); }
+    } catch { toast.error(t('common.error', locale)); }
+    setSaving(false);
+  };
+
+  const statusColor = (status: string) => {
+    const map: Record<string, string> = { queued: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400', sent: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', delivered: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', read: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400', failed: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' };
+    return map[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const selectedTemplateVars = templates.find((t: any) => t.id === sendForm.templateId) ? extractVariables(templates.find((t: any) => t.id === sendForm.templateId).body) : [];
+
+  if (loading) return <PageSkeleton type="dashboard" />;
+
+  const summaryCards = [
+    { label: t('whatsapp.stat.sent', locale), value: stats.sent, color: 'from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30', icon: Send },
+    { label: t('whatsapp.stat.delivered', locale), value: stats.delivered, color: 'from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30', icon: CheckCircle },
+    { label: t('whatsapp.stat.read', locale), value: stats.read, color: 'from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30', icon: Eye },
+    { label: t('whatsapp.stat.templates', locale), value: templates.length, color: 'from-purple-50 to-fuchsia-50 dark:from-purple-950/30 dark:to-fuchsia-950/30', icon: FileText },
+  ];
+
+  return (
+    <div className="space-y-6 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30 min-h-screen rounded-xl p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div><h1 className="text-2xl font-bold">{t('whatsapp.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('whatsapp.subtitle', locale)}</p></div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {summaryCards.map((c, i) => (
+          <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+            <Card className={`bg-gradient-to-br ${c.color} border-0 shadow-sm`}><CardContent className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">{c.label}</p><p className="text-2xl font-bold">{c.value}</p></div><c.icon className="w-8 h-8 text-muted-foreground/30" /></div></CardContent></Card>
+          </motion.div>
+        ))}
+      </div>
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList><TabsTrigger value="messages">{t('whatsapp.tab.messages', locale)}</TabsTrigger><TabsTrigger value="templates">{t('whatsapp.tab.templates', locale)}</TabsTrigger></TabsList>
+        <TabsContent value="messages" className="space-y-4">
+          <Button onClick={() => setShowSend(true)} className="bg-gradient-to-r from-green-600 to-emerald-600"><Send className="w-4 h-4 mr-2" />{t('whatsapp.btn.send', locale)}</Button>
+          {messages.length === 0 ? (
+            <Card className="p-8 text-center text-muted-foreground">{t('whatsapp.noMessages', locale)}</Card>
+          ) : (
+            <div className="space-y-3">
+              {messages.map((msg: any, i: number) => (
+                <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
+                  <Card className="p-4"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2"><div className="flex-1 min-w-0"><p className="font-medium">{t('whatsapp.to', locale)}: {msg.phone}</p><p className="text-sm text-muted-foreground truncate">{msg.body}</p></div><div className="flex items-center gap-2 shrink-0"><Badge className={statusColor(msg.status)}>{t(`whatsapp.status.${msg.status}`, locale)}</Badge><span className="text-xs text-muted-foreground">{new Date(msg.createdAt).toLocaleString(locale)}</span></div></div></Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        <TabsContent value="templates" className="space-y-4">
+          <Button onClick={() => setShowTemplate(true)} className="bg-gradient-to-r from-violet-600 to-purple-600"><Plus className="w-4 h-4 mr-2" />{t('whatsapp.btn.newTemplate', locale)}</Button>
+          {templates.length === 0 ? (
+            <Card className="p-8 text-center text-muted-foreground">{t('whatsapp.noTemplates', locale)}</Card>
+          ) : (
+            <div className="grid gap-3">
+              {templates.map((tmpl: any, i: number) => (
+                <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+                  <Card className="p-4"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2"><div className="flex-1 min-w-0"><div className="flex items-center gap-2 mb-1"><p className="font-medium">{tmpl.name}</p><Badge variant="outline">{t(`whatsapp.category.${tmpl.category}`, locale)}</Badge>{tmpl.active ? <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">{t('common.active', locale)}</Badge> : null}</div><p className="text-sm text-muted-foreground truncate">{tmpl.body}</p>{extractVariables(tmpl.body).length > 0 && <p className="text-xs text-muted-foreground mt-1">{t('whatsapp.variables', locale)}: {extractVariables(tmpl.body).join(', ')}</p>}</div><div className="flex gap-1"><Button size="sm" variant="ghost"><Edit className="w-3.5 h-3.5" /></Button><Button size="sm" variant="ghost" className="text-red-500"><Trash2 className="w-3.5 h-3.5" /></Button></div></div></Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Send Message Dialog */}
+      <Dialog open={showSend} onOpenChange={setShowSend}>
+        <DialogContent><DialogHeader><DialogTitle>{t('whatsapp.dialog.sendTitle', locale)}</DialogTitle><DialogDescription>{t('whatsapp.dialog.sendDesc', locale)}</DialogDescription></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>{t('whatsapp.form.phone', locale)}</Label><div className="flex"><span className="inline-flex items-center px-3 border rounded-l-md bg-muted text-sm">+1</span><Input value={sendForm.phone} onChange={e => setSendForm({ ...sendForm, phone: e.target.value })} placeholder={t('whatsapp.form.phonePlaceholder', locale)} className="rounded-l-none" /></div></div>
+            <div><Label>{t('whatsapp.form.template', locale)}</Label><Select value={sendForm.templateId} onValueChange={v => setSendForm({ ...sendForm, templateId: v, variables: {} })}><SelectTrigger><SelectValue placeholder={t('whatsapp.form.selectTemplate', locale)} /></SelectTrigger><SelectContent>{templates.map((tmpl: any) => <SelectItem key={tmpl.id} value={tmpl.id}>{tmpl.name}</SelectItem>)}</SelectContent></Select></div>
+            {selectedTemplateVars.map(v => (
+              <div key={v}><Label>{v}</Label><Input value={sendForm.variables[v] || ''} onChange={e => setSendForm({ ...sendForm, variables: { ...sendForm.variables, [v]: e.target.value } })} /></div>
+            ))}
+            {sendForm.templateId && <div className="bg-muted rounded-lg p-3"><p className="text-xs text-muted-foreground mb-1">{t('whatsapp.preview', locale)}</p><p className="text-sm whitespace-pre-wrap">{previewMessage(sendForm.templateId, sendForm.variables)}</p></div>}
+          </div>
+          <DialogFooter><Button onClick={() => setShowSend(false)} variant="outline">{t('common.cancel', locale)}</Button><Button onClick={handleSend} className="bg-green-600 hover:bg-green-700" disabled={saving || !sendForm.phone || !sendForm.templateId}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}{t('whatsapp.btn.send', locale)}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Template Dialog */}
+      <Dialog open={showTemplate} onOpenChange={setShowTemplate}>
+        <DialogContent><DialogHeader><DialogTitle>{t('whatsapp.dialog.templateTitle', locale)}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>{t('whatsapp.form.templateName', locale)}</Label><Input value={tmplForm.name} onChange={e => setTmplForm({ ...tmplForm, name: e.target.value })} /></div>
+            <div><Label>{t('whatsapp.form.category', locale)}</Label><Select value={tmplForm.category} onValueChange={v => setTmplForm({ ...tmplForm, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{['order', 'tasting', 'design', 'promo', 'general'].map(c => <SelectItem key={c} value={c}>{t(`whatsapp.category.${c}`, locale)}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>{t('whatsapp.form.body', locale)}</Label><Textarea value={tmplForm.body} onChange={e => setTmplForm({ ...tmplForm, body: e.target.value })} rows={4} /><p className="text-xs text-muted-foreground mt-1">{t('whatsapp.form.variableHint', locale)}</p></div>
+            <div><Label>{t('whatsapp.form.language', locale)}</Label><Select value={tmplForm.language} onValueChange={v => setTmplForm({ ...tmplForm, language: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="es">Español</SelectItem><SelectItem value="en">English</SelectItem></SelectContent></Select></div>
+          </div>
+          <DialogFooter><Button onClick={() => setShowTemplate(false)} variant="outline">{t('common.cancel', locale)}</Button><Button onClick={handleCreateTemplate} className="bg-gradient-to-r from-violet-600 to-purple-600" disabled={saving || !tmplForm.name || !tmplForm.body}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}{t('whatsapp.btn.create', locale)}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ TENANT NOTIFICATIONS PAGE ============
+function TenantNotificationsPage() {
+  const { currentTenant, locale, authFetch } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale, authFetch: s.authFetch }));
+  const tenantId = currentTenant?.id;
+  const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [filter, setFilter] = useState('all');
+
+  const fetchNotifications = useCallback(async () => {
+    if (!tenantId) return;
+    try {
+      const res = await authFetch(`/api/tenant/${tenantId}/notifications`);
+      const data = await res.json();
+      if (data.notifications) setNotifications(data.notifications);
+    } catch { /* empty */ }
+  }, [tenantId, authFetch]);
+
+  useEffect(() => { fetchNotifications().then(() => setLoading(false)); }, [fetchNotifications]);
+  useEffect(() => { const iv = setInterval(fetchNotifications, 30000); return () => clearInterval(iv); }, [fetchNotifications]);
+
+  const markAsRead = async (id: string) => {
+    try {
+      await authFetch(`/api/tenant/${tenantId}/notifications`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, read: true }) });
+      setNotifications(prev => prev.map((n: any) => n.id === id ? { ...n, read: true } : n));
+    } catch { /* empty */ }
+  };
+
+  const markAllRead = async () => {
+    try {
+      await authFetch(`/api/tenant/${tenantId}/notifications`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ readAll: true }) });
+      setNotifications(prev => prev.map((n: any) => ({ ...n, read: true })));
+      toast.success(t('notifications.allRead', locale));
+    } catch { /* empty */ }
+  };
+
+  const filtered = filter === 'all' ? notifications : filter === 'unread' ? notifications.filter((n: any) => !n.read) : notifications.filter((n: any) => n.type === filter);
+  const unreadCount = notifications.filter((n: any) => !n.read).length;
+  const filterTabs = [
+    { key: 'all', label: t('notifications.filter.all', locale) },
+    { key: 'unread', label: t('notifications.filter.unread', locale), badge: unreadCount },
+    { key: 'order', label: t('notifications.filter.orders', locale) },
+    { key: 'tasting', label: t('notifications.filter.tastings', locale) },
+    { key: 'design', label: t('notifications.filter.design', locale) },
+    { key: 'system', label: t('notifications.filter.system', locale) },
+    { key: 'loyalty', label: t('notifications.filter.loyalty', locale) },
+  ];
+
+  const typeIcon = (type: string) => {
+    const map: Record<string, any> = { order: ShoppingCart, tasting: Cake, design: Palette, system: Settings, loyalty: Award };
+    return map[type] || Bell;
+  };
+
+  const priorityBadge = (priority: string) => {
+    if (priority === 'urgent') return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 animate-pulse">{t('notifications.priority.urgent', locale)}</Badge>;
+    if (priority === 'high') return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">{t('notifications.priority.high', locale)}</Badge>;
+    return <Badge variant="secondary">{t('notifications.priority.normal', locale)}</Badge>;
+  };
+
+  const relativeTime = (date: string) => {
+    const diff = Date.now() - new Date(date).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return t('notifications.time.justNow', locale);
+    if (mins < 60) return t('notifications.time.minutesAgo', locale).replace('{n}', String(mins));
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return t('notifications.time.hoursAgo', locale).replace('{n}', String(hours));
+    return t('notifications.time.yesterday', locale);
+  };
+
+  if (loading) return <PageSkeleton type="list" />;
+
+  return (
+    <div className="space-y-6 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30 min-h-screen rounded-xl p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div><h1 className="text-2xl font-bold">{t('notifications.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('notifications.subtitle', locale)}</p></div>
+        {unreadCount > 0 && <Button variant="outline" onClick={markAllRead}><CheckCircle className="w-4 h-4 mr-2" />{t('notifications.markAllRead', locale)}</Button>}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {filterTabs.map(f => (
+          <Button key={f.key} size="sm" variant={filter === f.key ? 'default' : 'outline'} onClick={() => setFilter(f.key)}>{f.label}{f.badge ? <Badge className="ml-1.5 bg-primary-foreground/20 text-primary-foreground text-xs px-1.5">{f.badge}</Badge> : null}</Button>
+        ))}
+      </div>
+      {filtered.length === 0 ? (
+        <Card className="p-8 text-center text-muted-foreground"><Bell className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>{t('notifications.empty', locale)}</p></Card>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((n: any, i: number) => {
+            const Icon = typeIcon(n.type);
+            return (
+              <motion.div key={n.id || i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+                <Card className={`p-4 cursor-pointer hover:shadow-md transition-shadow ${!n.read ? 'border-l-4 border-l-blue-500' : ''}`} onClick={() => !n.read && markAsRead(n.id)}>
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${!n.read ? 'bg-blue-50 dark:bg-blue-950/30' : 'bg-muted'}`}><Icon className="w-5 h-5" /></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap"><p className={`font-medium ${!n.read ? '' : 'text-muted-foreground'}`}>{n.title}</p>{priorityBadge(n.priority)}</div>
+                      <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{relativeTime(n.createdAt)}</p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ TENANT PASTELERÍA ANALYTICS PAGE ============
+function TenantPasteleriaAnalyticsPage() {
+  const { currentTenant, locale, authFetch } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale, authFetch: s.authFetch }));
+  const tenantId = currentTenant?.id;
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(null);
+  const [period, setPeriod] = useState('30d');
+
+  useEffect(() => {
+    if (!tenantId) return;
+    setLoading(true);
+    authFetch(`/api/tenant/${tenantId}/pasteleria-analytics?period=${period}`)
+      .then(res => res.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [tenantId, period, authFetch]);
+
+  const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899'];
+  const TrendArrow = ({ value }: { value: number }) => value >= 0 ? <span className="text-green-600 flex items-center text-xs"><ArrowUpRight className="w-3 h-3" />{value}%</span> : <span className="text-red-600 flex items-center text-xs"><TrendingDown className="w-3 h-3" />{Math.abs(value)}%</span>;
+
+  if (loading || !data) return <PageSkeleton type="dashboard" />;
+
+  const periodBtns = [
+    { key: '7d', label: '7d' }, { key: '30d', label: '30d' }, { key: '90d', label: '90d' }, { key: '12m', label: '12m' },
+  ];
+
+  return (
+    <div className="space-y-6 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30 min-h-screen rounded-xl p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div><h1 className="text-2xl font-bold">{t('analytics.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('analytics.subtitle', locale)}</p></div>
+        <div className="flex gap-1 bg-muted p-1 rounded-lg">{periodBtns.map(p => <Button key={p.key} size="sm" variant={period === p.key ? 'default' : 'ghost'} onClick={() => setPeriod(p.key)}>{p.label}</Button>)}</div>
+      </div>
+
+      {/* REVENUE SECTION */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2"><DollarSign className="w-5 h-5 text-green-600" />{t('analytics.section.revenue', locale)}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { label: t('analytics.totalRevenue', locale), value: formatCurrency(data.revenue?.total || 0, currentTenant?.country || 'US'), extra: data.revenue?.trend != null ? <TrendArrow value={data.revenue.trend} /> : null, color: 'from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30' },
+            { label: t('analytics.depositRate', locale), value: `${data.revenue?.depositRate || 0}%`, color: 'from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30' },
+            { label: t('analytics.onlineOrdersPct', locale), value: `${data.revenue?.onlinePct || 0}%`, color: 'from-purple-50 to-fuchsia-50 dark:from-purple-950/30 dark:to-fuchsia-950/30' },
+          ].map((c, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+              <Card className={`bg-gradient-to-br ${c.color} border-0 shadow-sm`}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{c.label}</p><div className="flex items-end gap-2"><p className="text-2xl font-bold">{c.value}</p>{c.extra}</div></CardContent></Card>
+            </motion.div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+            <Card className="p-4"><CardHeader className="pb-2"><CardTitle className="text-sm">{t('analytics.revenueChart', locale)}</CardTitle></CardHeader><CardContent><ResponsiveContainer width="100%" height={250}><AreaChart data={data.revenue?.daily || []}><defs><linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} /><stop offset="95%" stopColor="#6366f1" stopOpacity={0} /></linearGradient></defs><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="date" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Area type="monotone" dataKey="revenue" stroke="#6366f1" fill="url(#revGrad)" /></AreaChart></ResponsiveContainer></CardContent></Card>
+          </motion.div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
+            <Card className="p-4"><CardHeader className="pb-2"><CardTitle className="text-sm">{t('analytics.revenueByCategory', locale)}</CardTitle></CardHeader><CardContent><ResponsiveContainer width="100%" height={250}><BarChart data={data.revenue?.byCategory || []} layout="vertical"><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" tick={{ fontSize: 11 }} /><YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="revenue" fill="#6366f1" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></CardContent></Card>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ORDERS SECTION */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2"><ShoppingCart className="w-5 h-5 text-blue-600" />{t('analytics.section.orders', locale)}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { label: t('analytics.totalOrders', locale), value: data.orders?.total || 0, color: 'from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30' },
+            { label: t('analytics.avgCompletion', locale), value: `${data.orders?.avgDays || 0}${t('analytics.days', locale)}`, color: 'from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30' },
+            { label: t('analytics.cancelRate', locale), value: `${data.orders?.cancelRate || 0}%`, color: 'from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/30' },
+          ].map((c, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 + 0.2 }}>
+              <Card className={`bg-gradient-to-br ${c.color} border-0 shadow-sm`}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{c.label}</p><p className="text-2xl font-bold">{c.value}</p></CardContent></Card>
+            </motion.div>
+          ))}
+        </div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
+          <Card className="p-4"><CardHeader className="pb-2"><CardTitle className="text-sm">{t('analytics.ordersByStatus', locale)}</CardTitle></CardHeader><CardContent>{data.orders?.byStatus && data.orders.byStatus.length > 0 ? <ResponsiveContainer width="100%" height={250}><RechartsPieChart><Pie data={data.orders.byStatus} dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={90} label={({ name, count }: any) => `${name}: ${count}`}><Cell fill="#eab308" /><Cell fill="#3b82f6" /><Cell fill="#f59e0b" /><Cell fill="#10b981" /><Cell fill="#ef4444" /></Pie><Legend /></RechartsPieChart></ResponsiveContainer> : <p className="text-center text-muted-foreground py-8">{t('analytics.noData', locale)}</p>}</CardContent></Card>
+        </motion.div>
+      </section>
+
+      {/* PRODUCTS SECTION */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2"><Package className="w-5 h-5 text-purple-600" />{t('analytics.section.products', locale)}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[
+            { label: t('analytics.totalProducts', locale), value: data.products?.total || 0, color: 'from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30' },
+            { label: t('analytics.avgMargin', locale), value: `${data.products?.avgMargin || 0}%`, color: 'from-teal-50 to-cyan-50 dark:from-teal-950/30 dark:to-cyan-950/30' },
+          ].map((c, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 + 0.35 }}>
+              <Card className={`bg-gradient-to-br ${c.color} border-0 shadow-sm`}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{c.label}</p><p className="text-2xl font-bold">{c.value}</p></CardContent></Card>
+            </motion.div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
+            <Card className="p-4"><CardHeader className="pb-2"><CardTitle className="text-sm">{t('analytics.topSellers', locale)}</CardTitle></CardHeader><CardContent>{data.products?.topSellers && data.products.topSellers.length > 0 ? <ResponsiveContainer width="100%" height={250}><BarChart data={data.products.topSellers}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={60} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="quantity" fill="#8b5cf6" radius={[4, 4, 0, 0]} /><Bar dataKey="revenue" fill="#06b6d4" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer> : <p className="text-center text-muted-foreground py-8">{t('analytics.noData', locale)}</p>}</CardContent></Card>
+          </motion.div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }}>
+            <Card className="p-4"><CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-red-500" />{t('analytics.lowMargin', locale)}</CardTitle></CardHeader><CardContent>{data.products?.lowMargin && data.products.lowMargin.length > 0 ? <div className="space-y-2">{data.products.lowMargin.map((p: any, i: number) => <div key={i} className="flex items-center justify-between p-2 bg-red-50 dark:bg-red-950/20 rounded-lg"><span className="text-sm font-medium">{p.name}</span><Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">{p.margin}%</Badge></div>)}</div> : <p className="text-center text-muted-foreground py-8">{t('analytics.allGood', locale)}</p>}</CardContent></Card>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* TASTINGS SECTION */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2"><CalendarHeart className="w-5 h-5 text-pink-600" />{t('analytics.section.tastings', locale)}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { label: t('analytics.totalTastings', locale), value: data.tastings?.total || 0, color: 'from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30' },
+            { label: t('analytics.conversionRate', locale), value: `${data.tastings?.conversionRate || 0}%`, color: 'from-fuchsia-50 to-pink-50 dark:from-fuchsia-950/30 dark:to-pink-950/30' },
+            { label: t('analytics.upcoming', locale), value: data.tastings?.upcoming || 0, color: 'from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30' },
+          ].map((c, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 + 0.5 }}>
+              <Card className={`bg-gradient-to-br ${c.color} border-0 shadow-sm`}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{c.label}</p><p className="text-2xl font-bold">{c.value}</p></CardContent></Card>
+            </motion.div>
+          ))}
+        </div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}>
+          <Card className="p-4"><CardHeader className="pb-2"><CardTitle className="text-sm">{t('analytics.popularFlavors', locale)}</CardTitle></CardHeader><CardContent>{data.tastings?.popularFlavors && data.tastings.popularFlavors.length > 0 ? <ResponsiveContainer width="100%" height={250}><BarChart data={data.tastings.popularFlavors} layout="vertical"><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" tick={{ fontSize: 11 }} /><YAxis dataKey="flavor" type="category" width={100} tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="count" fill="#ec4899" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer> : <p className="text-center text-muted-foreground py-8">{t('analytics.noData', locale)}</p>}</CardContent></Card>
+        </motion.div>
+      </section>
+
+      {/* LOYALTY SECTION */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2"><Award className="w-5 h-5 text-amber-600" />{t('analytics.section.loyalty', locale)}</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: t('analytics.loyaltyMembers', locale), value: data.loyalty?.totalMembers || 0, color: 'from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30' },
+            { label: t('analytics.newMembers', locale), value: data.loyalty?.newMembers || 0, color: 'from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30' },
+            { label: t('analytics.pointsIssued', locale), value: data.loyalty?.pointsIssued || 0, color: 'from-indigo-50 to-violet-50 dark:from-indigo-950/30 dark:to-violet-950/30' },
+            { label: t('analytics.pointsRedeemed', locale), value: data.loyalty?.pointsRedeemed || 0, color: 'from-rose-50 to-pink-50 dark:from-rose-950/30 dark:to-pink-950/30' },
+          ].map((c, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 + 0.6 }}>
+              <Card className={`bg-gradient-to-br ${c.color} border-0 shadow-sm`}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{c.label}</p><p className="text-2xl font-bold">{c.value}</p></CardContent></Card>
+            </motion.div>
+          ))}
+        </div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.65 }}>
+          <Card className="p-4"><CardHeader className="pb-2"><CardTitle className="text-sm">{t('analytics.tierDistribution', locale)}</CardTitle></CardHeader><CardContent>{data.loyalty?.tierDistribution && data.loyalty.tierDistribution.length > 0 ? <ResponsiveContainer width="100%" height={250}><RechartsPieChart><Pie data={data.loyalty.tierDistribution} dataKey="count" nameKey="tier" cx="50%" cy="50%" outerRadius={90} label={({ name, count }: any) => `${name}: ${count}`}><Cell fill="#f59e0b" /><Cell fill="#9ca3af" /><Cell fill="#eab308" /><Cell fill="#8b5cf6" /></Pie><Legend /></RechartsPieChart></ResponsiveContainer> : <p className="text-center text-muted-foreground py-8">{t('analytics.noData', locale)}</p>}</CardContent></Card>
+        </motion.div>
+      </section>
+    </div>
+  );
+}
+
 // ============ TENANT APP VIEW ============
 function TenantAppView() {
   const { tenantPage, sidebarCollapsed, currentTenant, viewAsTenant, clearViewAsTenant } = useAppStore();
@@ -17758,6 +18174,9 @@ function TenantAppView() {
       case 'online_orders': return <TenantOnlineOrdersPage />;
       case 'markdown_rules': return <TenantMarkdownRulesPage />;
       case 'loyalty': return <TenantLoyaltyPage />;
+      case 'whatsapp': return <TenantWhatsAppPage />;
+      case 'notifications': return <TenantNotificationsPage />;
+      case 'pasteleria_analytics': return <TenantPasteleriaAnalyticsPage />;
       default: return <TenantDashboardPage />;
     }
   };
