@@ -143,6 +143,7 @@ model Tenant {
   maintenanceRequests MaintenanceRequest[]
   rentPayments   RentPayment[]
   propertyDocuments PropertyDocument[]
+  loyaltyMembers     LoyaltyMember[]
 }
 
 model TenantMembership {
@@ -705,6 +706,42 @@ model Project {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// ============ LOYALTY PROGRAM ============
+
+model LoyaltyMember {
+  id          String   @id @default(cuid())
+  tenantId    String
+  clientId    String?
+  clientName  String
+  clientPhone String
+  clientEmail String   @default("")
+  points      Int      @default(0)
+  totalSpent  Float    @default(0)
+  totalOrders Int      @default(0)
+  tier        String   @default("bronze")
+  joinDate    DateTime @default(now())
+  lastVisit   DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  transactions LoyaltyTransaction[]
+
+  @@unique([tenantId, clientPhone])
+}
+
+model LoyaltyTransaction {
+  id          String   @id @default(cuid())
+  memberId    String
+  tenantId    String
+  type        String
+  points      Int
+  description String   @default("")
+  createdAt   DateTime @default(now())
+
+  member LoyaltyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tenant Tenant         @relation(fields: [tenantId], references: [id])
 }
 
 // ============ BOOKKEEPING ============

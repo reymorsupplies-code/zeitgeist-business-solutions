@@ -24,7 +24,7 @@ import {
   Wrench, Landmark, Banknote, CircleDollarSign, TrendingDown, PiggyBank,
   Building, Target, Trophy, BarChart2, FileSpreadsheet, Handshake, UserCheck, FileSearch, File as FileIcon,
   RotateCcw, ArrowRightLeft, BadgeDollarSign, Percent, EyeOff, CalendarDays,
-  Twitter, Linkedin, Instagram, Facebook,
+  Twitter, Linkedin, Instagram, Facebook, Tag,
   KeyRound, LogIn, Languages,
   Table as TableIcon, Save, Cake, Pencil,
   CalendarHeart, ScanLine
@@ -172,6 +172,8 @@ function getBakeryNav(locale: string) {
     { label: t('tenant.productionPlans', locale), icon: ClipboardList, page: 'production_plans' as const, available: true, tier: 'Growth+' },
     { label: t('production.title', locale), icon: ClipboardList, page: 'production_sheets' as const, available: true, tier: 'Growth+' },
     { label: t('scanner.title', locale), icon: ScanLine, page: 'barcode_scanner' as const, available: true },
+    { label: t('onlineOrders.title', locale), icon: ShoppingBag, page: 'online_orders' as const, available: true, tier: 'Growth+' },
+    { label: t('markdown.title', locale), icon: Tag, page: 'markdown_rules' as const, available: true, tier: 'Growth+' },
   ]},
   { section: t('tenant.section.catalog', locale), items: [
     { label: t('tenant.catalog', locale), icon: Package, page: 'catalog' as const, available: true },
@@ -186,7 +188,7 @@ function getBakeryNav(locale: string) {
   ]},
   { section: t('tenant.section.clients', locale), items: [
     { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
-    { label: 'Loyalty Program', icon: Heart, page: 'clients' as const, available: false, tier: 'Growth+' },
+    { label: t('loyalty.title', locale), icon: Award, page: 'loyalty' as const, available: true, tier: 'Growth+' },
   ]},
   { section: t('tenant.section.finance', locale), items: [
     { label: t('tenant.quotes', locale), icon: FileText, page: 'quotes' as const, available: true },
@@ -17054,6 +17056,641 @@ function TenantBarcodeScannerPage() {
   );
 }
 
+// ============ TENANT ONLINE ORDERS PAGE ============
+function TenantOnlineOrdersPage() {
+  const { currentTenant, locale } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale }));
+  const tenantId = currentTenant?.id;
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [internalNotes, setInternalNotes] = useState<Record<string, string>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  const loadOrders = useCallback(() => {
+    if (!tenantId) return;
+    setLoading(true);
+    authFetch(`/api/tenant/${tenantId}/online-orders`)
+      .then(r => r.json())
+      .then(data => { setOrders(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [tenantId]);
+
+  useEffect(() => { loadOrders(); }, [loadOrders]);
+
+  const newCount = orders.filter(o => o.status === 'new').length;
+  const confirmedCount = orders.filter(o => o.status === 'confirmed').length;
+  const preparingCount = orders.filter(o => o.status === 'preparing').length;
+  const readyCount = orders.filter(o => o.status === 'ready').length;
+  const totalRevenue = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
+
+  const statusColor = (st: string) => {
+    const m: Record<string, string> = {
+      new: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+      confirmed: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+      preparing: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+      ready: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+      delivered: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+      cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    };
+    return m[st] || '';
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    if (!tenantId) return;
+    setSavingId(id);
+    try {
+      await authFetch(`/api/tenant/${tenantId}/online-orders`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: newStatus, internalNotes: internalNotes[id] || '' }),
+      });
+      toast.success(t('onlineOrders.toast.statusUpdated', locale));
+      loadOrders();
+    } catch { toast.error(t('common.error', locale)); }
+    setSavingId(null);
+  };
+
+  const tabs = ['all', 'new', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'];
+  const filtered = statusFilter === 'all' ? orders : orders.filter(o => o.status === statusFilter);
+
+  const summaryCards = [
+    { label: t('onlineOrders.card.new', locale), value: newCount, color: 'from-blue-50 to-sky-50 dark:from-blue-950/30 dark:to-sky-950/30', icon: Clock },
+    { label: t('onlineOrders.card.confirmed', locale), value: confirmedCount, color: 'from-indigo-50 to-violet-50 dark:from-indigo-950/30 dark:to-violet-950/30', icon: Check },
+    { label: t('onlineOrders.card.preparing', locale), value: preparingCount, color: 'from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30', icon: Loader2 },
+    { label: t('onlineOrders.card.ready', locale), value: readyCount, color: 'from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30', icon: CheckCircle },
+    { label: t('onlineOrders.card.total', locale), value: formatCurrency(totalRevenue, currentTenant?.country || 'US'), color: 'from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30', icon: DollarSign },
+  ];
+
+  if (loading) return <PageSkeleton type="cards" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg"><ShoppingBag className="w-5 h-5 text-white" /></div>
+        <div><h1 className="text-2xl font-bold">{t('onlineOrders.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('onlineOrders.subtitle', locale)}</p></div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        {summaryCards.map((c, i) => (
+          <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+            <Card className={`bg-gradient-to-br ${c.color} border-0`}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <c.icon className="w-5 h-5 text-muted-foreground" />
+                <div><p className="text-xs text-muted-foreground">{c.label}</p><p className="text-xl font-bold">{c.value}</p></div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {tabs.map(tab => (
+          <Button key={tab} variant={statusFilter === tab ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(tab)}>
+            {tab === 'all' ? 'All' : t(`onlineOrders.status.${tab}`, locale)}
+          </Button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card className="p-8 text-center text-muted-foreground">{t('onlineOrders.empty', locale)}</Card>
+      ) : (
+        <div className="grid gap-4">
+          {filtered.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((order: any) => (
+            <motion.div key={order.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+              <Card className="p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge className={statusColor(order.status)}>{t(`onlineOrders.status.${order.status}`, locale)}</Badge>
+                      <Badge variant="outline">{order.deliveryType === 'pickup' ? t('onlineOrders.pickup', locale) : t('onlineOrders.delivery', locale)}</Badge>
+                    </div>
+                    <p className="font-semibold">{order.clientName}</p>
+                    <p className="text-xs text-muted-foreground">{order.clientPhone} · {order.clientEmail}</p>
+                    {order.pickupDate && <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1"><Clock className="w-3 h-3" />{order.pickupDate}{order.pickupTime ? ` ${order.pickupTime}` : ''}</p>}
+                  </div>
+                  <p className="text-lg font-bold">{formatCurrency(parseFloat(order.total) || 0, currentTenant?.country || 'US')}</p>
+                </div>
+                <div className="text-sm mb-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">{t('onlineOrders.items', locale)}</p>
+                  {Array.isArray(order.items) && order.items.map((it: any, idx: number) => (
+                    <p key={idx} className="text-sm">{it.name || it.productName} × {it.quantity} — {formatCurrency(parseFloat(it.price) || 0, currentTenant?.country || 'US')}</p>
+                  ))}
+                </div>
+                <Textarea placeholder={t('onlineOrders.internalNotes', locale)} value={internalNotes[order.id] || ''} onChange={e => setInternalNotes({ ...internalNotes, [order.id]: e.target.value })} rows={2} className="text-sm mb-3" />
+                <div className="flex flex-wrap gap-2">
+                  {order.status === 'new' && (<>
+                    <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => handleStatusChange(order.id, 'confirmed')} disabled={savingId === order.id}>{t('onlineOrders.action.confirm', locale)}</Button>
+                    <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50" onClick={() => handleStatusChange(order.id, 'cancelled')} disabled={savingId === order.id}><X className="w-3.5 h-3.5 mr-1" />{t('onlineOrders.action.cancel', locale)}</Button>
+                  </>)}
+                  {order.status === 'confirmed' && (
+                    <Button size="sm" className="bg-amber-600 hover:bg-amber-700" onClick={() => handleStatusChange(order.id, 'preparing')} disabled={savingId === order.id}><Loader2 className="w-3.5 h-3.5 mr-1" />{t('onlineOrders.action.startPrep', locale)}</Button>
+                  )}
+                  {order.status === 'preparing' && (
+                    <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleStatusChange(order.id, 'ready')} disabled={savingId === order.id}><Check className="w-3.5 h-3.5 mr-1" />{t('onlineOrders.action.markReady', locale)}</Button>
+                  )}
+                  {order.status === 'ready' && (
+                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => handleStatusChange(order.id, 'delivered')} disabled={savingId === order.id}><CheckCircle className="w-3.5 h-3.5 mr-1" />{t('onlineOrders.action.deliver', locale)}</Button>
+                  )}
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ TENANT MARKDOWN RULES PAGE ============
+function TenantMarkdownRulesPage() {
+  const { currentTenant, locale } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale }));
+  const tenantId = currentTenant?.id;
+  const [rules, setRules] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testResult, setTestResult] = useState<any>(null);
+  const emptyForm = { name: '', description: '', ruleType: 'time_based', discountType: 'percentage', discountValue: 0, startHour: 0, endHour: 23, daysOfWeek: [] as string[], minQuantity: 1, minAmount: 0, category: '', priority: 0, active: true, startDate: '', endDate: '' };
+  const [form, setForm] = useState(emptyForm);
+  const [testCart, setTestCart] = useState({ name: '', price: 0, qty: 1, category: '' });
+
+  const loadRules = useCallback(() => {
+    if (!tenantId) return;
+    setLoading(true);
+    authFetch(`/api/tenant/${tenantId}/markdown-rules`)
+      .then(r => r.json())
+      .then(data => { setRules(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [tenantId]);
+
+  useEffect(() => { loadRules(); }, [loadRules]);
+
+  const handleSave = async () => {
+    if (!tenantId || !form.name.trim()) return;
+    setSaving(true);
+    try {
+      await authFetch(`/api/tenant/${tenantId}/markdown-rules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      toast.success(t('markdown.toast.created', locale));
+      setShowCreate(false);
+      setForm(emptyForm);
+      loadRules();
+    } catch { toast.error(t('common.error', locale)); }
+    setSaving(false);
+  };
+
+  const handleToggle = async (id: string, active: boolean) => {
+    if (!tenantId) return;
+    try {
+      await authFetch(`/api/tenant/${tenantId}/markdown-rules`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, active }),
+      });
+      loadRules();
+    } catch { toast.error(t('common.error', locale)); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!tenantId) return;
+    try {
+      await authFetch(`/api/tenant/${tenantId}/markdown-rules`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, _delete: true }),
+      });
+      toast.success(t('markdown.toast.deleted', locale));
+      loadRules();
+    } catch { toast.error(t('common.error', locale)); }
+  };
+
+  const handleTestEvaluate = async () => {
+    if (!tenantId) return;
+    try {
+      const res = await authFetch(`/api/tenant/${tenantId}/markdown-rules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _action: 'evaluate', ...testCart }),
+      });
+      const data = await res.json();
+      setTestResult(data);
+    } catch { setTestResult(null); }
+  };
+
+  const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const ruleTypeLabels: Record<string, string> = { time_based: t('markdown.type.timeBased', locale), quantity_based: t('markdown.type.quantityBased', locale), amount_based: t('markdown.type.amountBased', locale), category_based: t('markdown.type.categoryBased', locale), day_based: t('markdown.type.dayBased', locale) };
+  const discountLabels: Record<string, string> = { percentage: t('markdown.discount.percentage', locale), fixed_amount: t('markdown.discount.fixed', locale), bogo: t('markdown.discount.bogo', locale) };
+
+  if (loading) return <PageSkeleton type="cards" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 shadow-lg"><Tag className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">{t('markdown.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('markdown.subtitle', locale)}</p></div>
+        </div>
+        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-rose-600 to-pink-600"><Plus className="w-4 h-4 mr-2" />{t('markdown.btn.newRule', locale)}</Button>
+      </div>
+
+      {rules.length === 0 ? (
+        <Card className="p-8 text-center text-muted-foreground">{t('markdown.empty', locale)}</Card>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {rules.sort((a, b) => (a.priority || 0) - (b.priority || 0)).map((rule) => (
+            <motion.div key={rule.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+              <Card className="p-5">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <p className="font-semibold">{rule.name}</p>
+                  <Switch checked={rule.active} onCheckedChange={(v) => handleToggle(rule.id, v)} />
+                </div>
+                <div className="flex gap-2 mb-2">
+                  <Badge variant="outline">{ruleTypeLabels[rule.ruleType] || rule.ruleType}</Badge>
+                  <Badge variant="secondary">{discountLabels[rule.discountType] || rule.discountType}: {rule.discountValue}%</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">Priority: {rule.priority}</p>
+                {rule.description && <p className="text-sm text-muted-foreground mb-3">{rule.description}</p>}
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => handleDelete(rule.id)} className="text-red-500"><Trash2 className="w-3.5 h-3.5 mr-1" />{t('markdown.action.delete', locale)}</Button>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Test Rule Section */}
+      <Card className="p-5">
+        <h3 className="font-semibold mb-4">{t('markdown.test.cart', locale)}</h3>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <div><Label>{t('tenant.catalog', locale)}</Label><Input value={testCart.name} onChange={e => setTestCart({ ...testCart, name: e.target.value })} /></div>
+          <div><Label>{t('tenant.payments', locale)}</Label><Input type="number" value={testCart.price || ''} onChange={e => setTestCart({ ...testCart, price: parseFloat(e.target.value) || 0 })} /></div>
+          <div><Label>{t('onlineOrders.items', locale)}</Label><Input type="number" value={testCart.qty} onChange={e => setTestCart({ ...testCart, qty: parseInt(e.target.value) || 1 })} /></div>
+          <div><Label>{t('markdown.cond.category', locale)}</Label><Input value={testCart.category} onChange={e => setTestCart({ ...testCart, category: e.target.value })} /></div>
+        </div>
+        <Button onClick={handleTestEvaluate} className="bg-gradient-to-r from-rose-600 to-pink-600"><Calculator className="w-4 h-4 mr-2" />{t('markdown.test.evaluate', locale)}</Button>
+        {testResult && (
+          <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-2">
+            {testResult.rules && testResult.rules.length > 0 ? (
+              <>
+                <p className="font-medium">Applicable rules:</p>
+                {testResult.rules.map((r: any, i: number) => <Badge key={i}>{r.name}</Badge>)}
+                <p className="text-sm">{t('markdown.test.savings', locale)}: {formatCurrency(testResult.savings || 0, currentTenant?.country || 'US')}</p>
+                <p className="text-sm">{t('markdown.test.discountedTotal', locale)}: {formatCurrency(testResult.discountedTotal || 0, currentTenant?.country || 'US')}</p>
+              </>
+            ) : <p className="text-sm text-muted-foreground">{t('markdown.test.noRulesApply', locale)}</p>}
+          </div>
+        )}
+      </Card>
+
+      {/* Create Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{t('markdown.btn.newRule', locale)}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>{t('markdown.form.name', locale)}</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+            <div><Label>{t('markdown.form.description', locale)}</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>{t('markdown.form.ruleType', locale)}</Label>
+                <Select value={form.ruleType} onValueChange={v => setForm({ ...form, ruleType: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ruleTypeLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>{t('markdown.form.discountType', locale)}</Label>
+                <Select value={form.discountType} onValueChange={v => setForm({ ...form, discountType: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(discountLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><Label>{t('markdown.form.discountValue', locale)}</Label><Input type="number" value={form.discountValue || ''} onChange={e => setForm({ ...form, discountValue: parseFloat(e.target.value) || 0 })} /></div>
+
+            {/* Dynamic conditions */}
+            {form.ruleType === 'time_based' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>{t('markdown.cond.startHour', locale)}</Label>
+                  <Select value={String(form.startHour)} onValueChange={v => setForm({ ...form, startHour: parseInt(v) })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{[...Array(24)].map((_, i) => <SelectItem key={i} value={String(i)}>{String(i).padStart(2, '0')}:00</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>{t('markdown.cond.endHour', locale)}</Label>
+                  <Select value={String(form.endHour)} onValueChange={v => setForm({ ...form, endHour: parseInt(v) })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{[...Array(24)].map((_, i) => <SelectItem key={i} value={String(i)}>{String(i).padStart(2, '0')}:00</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2"><Label>{t('markdown.cond.daysOfWeek', locale)}</Label>
+                  <div className="flex flex-wrap gap-2 mt-1">{dayKeys.map(d => (
+                    <label key={d} className="flex items-center gap-1 text-xs"><Checkbox checked={form.daysOfWeek.includes(d)} onCheckedChange={() => setForm({ ...form, daysOfWeek: form.daysOfWeek.includes(d) ? form.daysOfWeek.filter(x => x !== d) : [...form.daysOfWeek, d] })} />{t(`markdown.day.${d}`, locale)}</label>
+                  ))}</div>
+                </div>
+              </div>
+            )}
+            {form.ruleType === 'quantity_based' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>{t('markdown.cond.minQuantity', locale)}</Label><Input type="number" value={form.minQuantity || ''} onChange={e => setForm({ ...form, minQuantity: parseInt(e.target.value) || 1 })} /></div>
+                <div><Label>{t('markdown.cond.category', locale)}</Label><Input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder={t('markdown.form.description', locale)} /></div>
+              </div>
+            )}
+            {form.ruleType === 'amount_based' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>{t('markdown.cond.minAmount', locale)}</Label><Input type="number" value={form.minAmount || ''} onChange={e => setForm({ ...form, minAmount: parseFloat(e.target.value) || 0 })} /></div>
+                <div><Label>{t('markdown.cond.category', locale)}</Label><Input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder={t('markdown.form.description', locale)} /></div>
+              </div>
+            )}
+            {form.ruleType === 'category_based' && (
+              <div><Label>{t('markdown.cond.category', locale)}</Label><Input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} /></div>
+            )}
+            {form.ruleType === 'day_based' && (
+              <div><Label>{t('markdown.cond.daysOfWeek', locale)}</Label>
+                <div className="flex flex-wrap gap-2 mt-1">{dayKeys.map(d => (
+                  <label key={d} className="flex items-center gap-1 text-xs"><Checkbox checked={form.daysOfWeek.includes(d)} onCheckedChange={() => setForm({ ...form, daysOfWeek: form.daysOfWeek.includes(d) ? form.daysOfWeek.filter(x => x !== d) : [...form.daysOfWeek, d] })} />{t(`markdown.day.${d}`, locale)}</label>
+                ))}</div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>{t('markdown.form.priority', locale)}</Label><Input type="number" value={form.priority || ''} onChange={e => setForm({ ...form, priority: parseInt(e.target.value) || 0 })} /></div>
+              <div><Label>{t('markdown.form.active', locale)}</Label><Switch checked={form.active} onCheckedChange={v => setForm({ ...form, active: v })} className="mt-2" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>{t('markdown.form.startDate', locale)}</Label><Input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} /></div>
+              <div><Label>{t('markdown.form.endDate', locale)}</Label><Input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} /></div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>{t('common.cancel', locale)}</Button>
+            <Button onClick={handleSave} className="bg-gradient-to-r from-rose-600 to-pink-600" disabled={saving}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}{t('markdown.form.create', locale)}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ TENANT LOYALTY PAGE ============
+function TenantLoyaltyPage() {
+  const { currentTenant, locale } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale }));
+  const tenantId = currentTenant?.id;
+  const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchPhone, setSearchPhone] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [showAddPoints, setShowAddPoints] = useState(false);
+  const [showRedeem, setShowRedeem] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [createForm, setCreateForm] = useState({ clientName: '', phone: '', email: '' });
+  const [pointsForm, setPointsForm] = useState({ points: 0, description: '' });
+
+  const loadMembers = useCallback(() => {
+    if (!tenantId) return;
+    setLoading(true);
+    const q = searchPhone ? `?clientPhone=${encodeURIComponent(searchPhone)}` : '';
+    authFetch(`/api/tenant/${tenantId}/loyalty${q}`)
+      .then(r => r.json())
+      .then(data => { setMembers(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [tenantId, searchPhone]);
+
+  useEffect(() => { loadMembers(); }, [loadMembers]);
+
+  const totalPointsIssued = members.reduce((s, m) => s + (m.totalEarned || 0), 0);
+  const totalRedeemed = members.reduce((s, m) => s + (m.totalRedeemed || 0), 0);
+
+  const handleCreate = async () => {
+    if (!tenantId || !createForm.clientName.trim()) return;
+    setSaving(true);
+    try {
+      const res = await authFetch(`/api/tenant/${tenantId}/loyalty`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(createForm),
+      });
+      const data = await res.json();
+      if (data.error) { toast.error(t('loyalty.member.alreadyExists', locale)); } else {
+        toast.success(t('loyalty.member.registered', locale));
+        setShowCreate(false);
+        setCreateForm({ clientName: '', phone: '', email: '' });
+        loadMembers();
+      }
+    } catch { toast.error(t('common.error', locale)); }
+    setSaving(false);
+  };
+
+  const handlePointsAction = async (action: 'add_points' | 'redeem_points') => {
+    if (!tenantId || !selectedMember) return;
+    if (action === 'redeem_points' && pointsForm.points > (selectedMember.pointsBalance || 0)) {
+      toast.error(t('loyalty.insufficientPoints', locale));
+      return;
+    }
+    setSaving(true);
+    try {
+      await authFetch(`/api/tenant/${tenantId}/loyalty`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedMember.id, action, points: pointsForm.points, description: pointsForm.description }),
+      });
+      toast.success(action === 'add_points' ? t('loyalty.pointsAdded', locale).replace('{points}', String(pointsForm.points)) : t('loyalty.pointsRedeemed', locale).replace('{points}', String(pointsForm.points)));
+      setShowAddPoints(false);
+      setShowRedeem(false);
+      setPointsForm({ points: 0, description: '' });
+      loadMembers();
+    } catch { toast.error(t('common.error', locale)); }
+    setSaving(false);
+  };
+
+  const handleViewHistory = async (member: any) => {
+    if (!tenantId) return;
+    setSelectedMember(member);
+    const res = await authFetch(`/api/tenant/${tenantId}/loyalty?clientId=${member.id}`);
+    const data = await res.json();
+    setHistory(Array.isArray(data) ? data : []);
+    setShowHistory(true);
+  };
+
+  const tierColor = (tier: string) => {
+    const m: Record<string, string> = { bronze: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', silver: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400', gold: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', platinum: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' };
+    return m[tier] || '';
+  };
+
+  const tiers = [
+    { key: 'bronze', label: t('loyalty.tier.bronze', locale), desc: t('loyalty.tier.bronzeDesc', locale), benefit: t('loyalty.tier.bronzeBenefit', locale), color: 'from-amber-100 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30', border: 'border-amber-300 dark:border-amber-700' },
+    { key: 'silver', label: t('loyalty.tier.silver', locale), desc: t('loyalty.tier.silverDesc', locale), benefit: t('loyalty.tier.silverBenefit', locale), color: 'from-gray-100 to-slate-50 dark:from-gray-900/30 dark:to-slate-950/30', border: 'border-gray-300 dark:border-gray-700' },
+    { key: 'gold', label: t('loyalty.tier.gold', locale), desc: t('loyalty.tier.goldDesc', locale), benefit: t('loyalty.tier.goldBenefit', locale), color: 'from-yellow-100 to-amber-50 dark:from-yellow-950/30 dark:to-amber-950/30', border: 'border-yellow-300 dark:border-yellow-700' },
+    { key: 'platinum', label: t('loyalty.tier.platinum', locale), desc: t('loyalty.tier.platinumDesc', locale), benefit: t('loyalty.tier.platinumBenefit', locale), color: 'from-purple-100 to-fuchsia-50 dark:from-purple-950/30 dark:to-fuchsia-950/30', border: 'border-purple-300 dark:border-purple-700' },
+  ];
+
+  const summaryCards = [
+    { label: t('loyalty.card.members', locale), value: members.length, color: 'from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30', icon: Users },
+    { label: t('loyalty.card.totalPoints', locale), value: totalPointsIssued, color: 'from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30', icon: Star },
+    { label: t('loyalty.card.redeemed', locale), value: totalRedeemed, color: 'from-emerald-50 to-green-50 dark:from-emerald-950/30 dark:to-green-950/30', icon: Gift },
+  ];
+
+  if (loading) return <PageSkeleton type="cards" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg"><Award className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">{t('loyalty.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('loyalty.subtitle', locale)}</p></div>
+        </div>
+        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-violet-600 to-purple-600"><Plus className="w-4 h-4 mr-2" />{t('loyalty.btn.newMember', locale)}</Button>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        {summaryCards.map((c, i) => (
+          <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+            <Card className={`bg-gradient-to-br ${c.color} border-0`}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <c.icon className="w-5 h-5 text-muted-foreground" />
+                <div><p className="text-xs text-muted-foreground">{c.label}</p><p className="text-xl font-bold">{c.value.toLocaleString()}</p></div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Tier Overview */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {tiers.map((tier, i) => (
+          <motion.div key={tier.key} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.05 }}>
+            <Card className={`bg-gradient-to-br ${tier.color} ${tier.border}`}>
+              <CardContent className="p-4">
+                <p className="font-semibold text-sm">{tier.label}</p>
+                <p className="text-xs text-muted-foreground">{tier.desc}</p>
+                <p className="text-xs mt-2 text-muted-foreground italic">{tier.benefit}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input value={searchPhone} onChange={e => setSearchPhone(e.target.value)} placeholder={t('loyalty.form.search', locale)} className="pl-9" />
+      </div>
+
+      {/* Member List */}
+      {members.length === 0 ? (
+        <Card className="p-8 text-center text-muted-foreground">{t('loyalty.empty', locale)}</Card>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {members.map((member) => (
+            <motion.div key={member.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+              <Card className="p-5">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div>
+                    <p className="font-semibold">{member.clientName}</p>
+                    <p className="text-xs text-muted-foreground">{member.phone}{member.email ? ` · ${member.email}` : ''}</p>
+                  </div>
+                  <Badge className={tierColor(member.tier || 'bronze')}>{t(`loyalty.tier.${member.tier || 'bronze'}`, locale)}</Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                  <div className="bg-muted/50 rounded-lg p-2"><p className="text-lg font-bold">{member.pointsBalance || 0}</p><p className="text-xs text-muted-foreground">{t('loyalty.form.points', locale)}</p></div>
+                  <div className="bg-muted/50 rounded-lg p-2"><p className="text-lg font-bold">{formatCurrency(member.totalSpent || 0, currentTenant?.country || 'US')}</p><p className="text-xs text-muted-foreground">{t('loyalty.card.totalPoints', locale)}</p></div>
+                  <div className="bg-muted/50 rounded-lg p-2"><p className="text-lg font-bold">{member.totalOrders || 0}</p><p className="text-xs text-muted-foreground">{t('onlineOrders.items', locale)}</p></div>
+                </div>
+                {member.lastVisit && <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1"><Clock className="w-3 h-3" />{member.lastVisit}</p>}
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800" onClick={() => { setSelectedMember(member); setShowAddPoints(true); }}>{t('loyalty.action.addPoints', locale)}</Button>
+                  <Button size="sm" variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800" onClick={() => { setSelectedMember(member); setPointsForm({ points: 0, description: '' }); setShowRedeem(true); }}>{t('loyalty.action.redeemPoints', locale)}</Button>
+                  <Button size="sm" variant="outline" onClick={() => handleViewHistory(member)}>{t('loyalty.action.viewHistory', locale)}</Button>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Create Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t('loyalty.btn.newMember', locale)}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>{t('loyalty.form.clientName', locale)}</Label><Input value={createForm.clientName} onChange={e => setCreateForm({ ...createForm, clientName: e.target.value })} /></div>
+            <div><Label>{t('loyalty.form.phone', locale)}</Label><Input value={createForm.phone} onChange={e => setCreateForm({ ...createForm, phone: e.target.value })} /></div>
+            <div><Label>{t('loyalty.form.email', locale)}</Label><Input type="email" value={createForm.email} onChange={e => setCreateForm({ ...createForm, email: e.target.value })} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>{t('common.cancel', locale)}</Button>
+            <Button onClick={handleCreate} className="bg-gradient-to-r from-violet-600 to-purple-600" disabled={saving}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}{t('loyalty.form.create', locale)}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Points Dialog */}
+      <Dialog open={showAddPoints} onOpenChange={setShowAddPoints}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t('loyalty.action.addPoints', locale)} — {selectedMember?.clientName}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>{t('loyalty.form.points', locale)}</Label><Input type="number" value={pointsForm.points || ''} onChange={e => setPointsForm({ ...pointsForm, points: parseInt(e.target.value) || 0 })} /></div>
+            <div><Label>{t('loyalty.form.description', locale)}</Label><Input value={pointsForm.description} onChange={e => setPointsForm({ ...pointsForm, description: e.target.value })} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddPoints(false)}>{t('common.cancel', locale)}</Button>
+            <Button onClick={() => handlePointsAction('add_points')} className="bg-green-600 hover:bg-green-700" disabled={saving}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}{t('loyalty.action.addPoints', locale)}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Redeem Points Dialog */}
+      <Dialog open={showRedeem} onOpenChange={setShowRedeem}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t('loyalty.action.redeemPoints', locale)} — {selectedMember?.clientName}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('loyalty.form.points', locale)}: {selectedMember?.pointsBalance || 0}</p>
+          <div className="space-y-4">
+            <div><Label>{t('loyalty.form.points', locale)}</Label><Input type="number" max={selectedMember?.pointsBalance || 0} value={pointsForm.points || ''} onChange={e => setPointsForm({ ...pointsForm, points: parseInt(e.target.value) || 0 })} /></div>
+            <div><Label>{t('loyalty.form.description', locale)}</Label><Input value={pointsForm.description} onChange={e => setPointsForm({ ...pointsForm, description: e.target.value })} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRedeem(false)}>{t('common.cancel', locale)}</Button>
+            <Button onClick={() => handlePointsAction('redeem_points')} className="bg-red-600 hover:bg-red-700" disabled={saving}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}{t('loyalty.action.redeemPoints', locale)}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* History Dialog */}
+      <Dialog open={showHistory} onOpenChange={setShowHistory}>
+        <DialogContent className="max-w-lg max-h-[70vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{t('loyalty.history.title', locale)} — {selectedMember?.clientName}</DialogTitle></DialogHeader>
+          {history.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">{t('loyalty.history.noHistory', locale)}</p>
+          ) : (
+            <div className="space-y-2">
+              {history.map((tx: any) => (
+                <div key={tx.id} className={`flex items-center justify-between p-3 rounded-lg text-sm ${tx.type === 'earned' ? 'bg-green-50 dark:bg-green-950/20' : 'bg-red-50 dark:bg-red-950/20'}`}>
+                  <div>
+                    <Badge variant={tx.type === 'earned' ? 'default' : 'destructive'} className="text-xs">{tx.type === 'earned' ? t('loyalty.history.earned', locale) : t('loyalty.history.redeemed', locale)}</Badge>
+                    <p className="text-xs text-muted-foreground mt-1">{tx.description}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-semibold ${tx.type === 'earned' ? 'text-green-600' : 'text-red-600'}`}>{tx.type === 'earned' ? '+' : '-'}{tx.points}</p>
+                    <p className="text-xs text-muted-foreground">{tx.createdAt}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ============ TENANT APP VIEW ============
 function TenantAppView() {
   const { tenantPage, sidebarCollapsed, currentTenant, viewAsTenant, clearViewAsTenant } = useAppStore();
@@ -17118,6 +17755,9 @@ function TenantAppView() {
       case 'tastings': return <TenantTastingsPage />;
       case 'design_approvals': return <TenantDesignApprovalsPage />;
       case 'barcode_scanner': return <TenantBarcodeScannerPage />;
+      case 'online_orders': return <TenantOnlineOrdersPage />;
+      case 'markdown_rules': return <TenantMarkdownRulesPage />;
+      case 'loyalty': return <TenantLoyaltyPage />;
       default: return <TenantDashboardPage />;
     }
   };
