@@ -25,7 +25,8 @@ import {
   Building, Target, Trophy, BarChart2, FileSpreadsheet, Handshake, UserCheck, FileSearch, File as FileIcon,
   RotateCcw, ArrowRightLeft, BadgeDollarSign, Percent, EyeOff, CalendarDays,
   Twitter, Linkedin, Instagram, Facebook,
-  KeyRound, LogIn, Languages
+  KeyRound, LogIn, Languages,
+  Table as TableIcon, Save, Cake, Pencil
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -8905,7 +8907,7 @@ function getPanaderiaNav(locale: string) {
   ]},
   { section: t('tenant.section.catalogEs', locale), items: [
     { label: t('tenant.retailProducts', locale), icon: Package, page: 'catalog' as const, available: true },
-    { label: t('tenant.recipeCosting', locale), icon: BookOpen, page: 'recipe_costing' as const, available: true },
+    { label: t('tenant.recipeCosting', locale), icon: Calculator, page: 'recipe_costing' as const, available: true },
     { label: t('tenant.ingredients', locale), icon: Package, page: 'ingredients' as const, available: true },
   ]},
   { section: t('tenant.section.inventario', locale), items: [
@@ -8922,6 +8924,8 @@ function getPanaderiaNav(locale: string) {
     { label: t('tenant.payments', locale), icon: CreditCard, page: 'payments' as const, available: true },
     { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
     { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
+    { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
+    { label: t('tenant.costAnalysis', locale), icon: Percent, page: 'cost_analysis' as const, available: true, tier: 'Growth+' },
   ]},
   { section: t('tenant.section.herramientas', locale), items: [
     { label: t('tenant.team', locale), icon: Users, page: 'team' as const, available: true },
@@ -9342,14 +9346,23 @@ function TenantDashboardPage() {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════
+// NEW TenantOrdersPage — With Deposit & Installment Support
+// ═══════════════════════════════════════════════════════════════
+
 function TenantOrdersPage() {
-  const { currentTenant, currency } = useAppStore() as any;
+  const { currentTenant, currency, bakeryWorkspace } = useAppStore() as any;
+  const isPasteleria = bakeryWorkspace === 'pasteleria';
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ clientName: '', items: '', subtotal: 0, totalAmount: 0, status: 'pending', orderType: 'custom', deliveryDate: '', notes: '' });
-
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [form, setForm] = useState({ clientName: '', clientEmail: '', clientPhone: '', items: '', subtotal: 0, totalAmount: 0, status: 'pending', orderType: 'custom', deliveryDate: '', deliveryAddress: '', notes: '', depositAmount: 0, depositMethod: 'cash', hasInstallments: false, installments: 3 });
+  const [depositForm, setDepositForm] = useState({ paymentAmount: 0, paymentMethod: 'cash' });
   const tenantId = currentTenant?.id;
+
   const load = useCallback(() => {
     if (tenantId) {
       authFetch(`/api/tenant/${tenantId}/orders`).then(r => r.json()).then(d => { setOrders(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
@@ -9360,51 +9373,277 @@ function TenantOrdersPage() {
 
   const handleCreate = async () => {
     const tax = form.subtotal * (currentTenant?.taxRate || 0.125);
+    const total = form.subtotal + tax;
+    const deposit = isPasteleria && form.depositAmount > 0 ? form.depositAmount : 0;
+    
+    // Build payment schedule for installments
+    let paymentSchedule: any = null;
+    if (isPasteleria && form.hasInstallments && deposit > 0) {
+      const balance = total - deposit;
+      const installmentAmount = balance / form.installments;
+      paymentSchedule = [
+        { label: 'Deposito', amount: deposit, dueDate: new Date().toISOString().split('T')[0], status: 'paid', method: form.depositMethod },
+        ...Array.from({ length: form.installments }, (_, i) => ({
+          label: `Cuota ${i + 1} de ${form.installments}`,
+          amount: Math.round(installmentAmount * 100) / 100,
+          dueDate: '',
+          status: 'pending',
+          method: ''
+        }))
+      ];
+    }
+
     await authFetch(`/api/tenant/${currentTenant.id}/orders`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, taxAmount: tax, totalAmount: form.subtotal + tax, items: JSON.stringify([{ name: 'Custom Order', qty: 1, price: form.subtotal }]) })
+      body: JSON.stringify({
+        ...form,
+        taxAmount: tax,
+        totalAmount: total,
+        depositAmount: deposit,
+        depositPaid: deposit,
+        depositMethod: form.depositMethod,
+        items: JSON.stringify([{ name: 'Custom Order', qty: 1, price: form.subtotal }]),
+        paymentSchedule
+      })
     });
-    setShowCreate(false); setForm({ clientName: '', items: '', subtotal: 0, totalAmount: 0, status: 'pending', orderType: 'custom', deliveryDate: '', notes: '' }); load(); toast.success('Order created!');
+    setShowCreate(false);
+    setForm({ clientName: '', clientEmail: '', clientPhone: '', items: '', subtotal: 0, totalAmount: 0, status: 'pending', orderType: 'custom', deliveryDate: '', deliveryAddress: '', notes: '', depositAmount: 0, depositMethod: 'cash', hasInstallments: false, installments: 3 });
+    load();
+    toast.success('Order created!');
+  };
+
+  const handleRecordPayment = async () => {
+    if (!selectedOrder || depositForm.paymentAmount <= 0) return;
+    await authFetch(`/api/tenant/${tenantId}/orders`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+      body: JSON.stringify({
+        id: selectedOrder.id,
+        type: 'record_deposit_payment',
+        paymentAmount: depositForm.paymentAmount,
+        paymentMethod: depositForm.paymentMethod
+      })
+    });
+    setShowDeposit(false);
+    setDepositForm({ paymentAmount: 0, paymentMethod: 'cash' });
+    setSelectedOrder(null);
+    load();
+    toast.success('Payment recorded!');
+  };
+
+  const handleStatusChange = async (order: any, newStatus: string) => {
+    await authFetch(`/api/tenant/${tenantId}/orders`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+      body: JSON.stringify({ id: order.id, status: newStatus })
+    });
+    load();
+    toast.success(`Status updated to ${newStatus}`);
+  };
+
+  const filteredOrders = orders.filter(o => statusFilter === 'all' || o.status === statusFilter);
+  const totalDeposits = orders.reduce((sum: number, o: any) => sum + (o.depositPaid || 0), 0);
+  const totalBalance = orders.reduce((sum: number, o: any) => sum + (o.balanceDue || 0), 0);
+
+  const statusColors: Record<string, string> = {
+    pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+    confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    in_progress: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+    completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div><h1 className="text-2xl font-bold">Orders</h1><p className="text-sm text-muted-foreground">Manage your order pipeline</p></div>
         <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />New Order</Button>
       </div>
-      
-      {loading ? <PageSkeleton type="table" /> : orders.length === 0 ? <EmptyState icon={ShoppingCart} title="No orders yet" description="Create your first order" action="New Order" onAction={() => setShowCreate(true)} /> : (
-        <DataGrid data={orders} columns={[
-          { key: 'orderNumber', label: 'Order #', render: (v: string) => <span className="font-medium">{v}</span> },
-          { key: 'clientName', label: 'Client' },
-          { key: 'totalAmount', label: 'Total', render: (v: number) => formatCurrency(v, currency) },
-          { key: 'status', label: 'Status', render: (v: string) => <Badge variant={v === 'confirmed' ? 'default' : v === 'pending' ? 'secondary' : 'outline'}>{v}</Badge> },
-          { key: 'deliveryDate', label: 'Delivery', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
-        ]} onEdit={(row: any) => toast.info('Edit: ' + row.orderNumber)} onDelete={(row: any) => toast.info('Delete: ' + row.orderNumber)} />
+
+      {/* Deposit Summary Cards — Pasteleria only */}
+      {isPasteleria && orders.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+            <p className="text-xs text-muted-foreground">Total Pedidos</p>
+            <p className="text-2xl font-bold">{orders.length}</p>
+          </Card>
+          <Card className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30">
+            <p className="text-xs text-muted-foreground">Depositos Recibidos</p>
+            <p className="text-2xl font-bold text-green-600">{currency?.symbol || 'TT$'}{totalDeposits.toFixed(2)}</p>
+          </Card>
+          <Card className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30">
+            <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
+            <p className="text-2xl font-bold text-orange-600">{currency?.symbol || 'TT$'}{totalBalance.toFixed(2)}</p>
+          </Card>
+        </div>
       )}
-      
+
+      {/* Status Filter */}
+      <div className="flex gap-2 flex-wrap">
+        {['all', 'pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'paid'].map(s => (
+          <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(s)} className={statusFilter === s ? 'bg-blue-600' : ''}>
+            {s === 'all' ? 'Todos' : s.charAt(0).toUpperCase() + s.slice(1).replace('_', ' ')}
+          </Button>
+        ))}
+      </div>
+
+      {loading ? <PageSkeleton type="table" /> : filteredOrders.length === 0 ? (
+        <EmptyState icon={ShoppingCart} title="No orders yet" description="Create your first order" action="New Order" onAction={() => setShowCreate(true)} />
+      ) : (
+        <div className="space-y-3">
+          {filteredOrders.map((order: any) => {
+            const schedule = typeof order.paymentSchedule === 'string' ? JSON.parse(order.paymentSchedule || '[]') : (order.paymentSchedule || []);
+            const hasSchedule = Array.isArray(schedule) && schedule.length > 0;
+            return (
+              <Card key={order.id} className="p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-bold text-sm">{order.orderNumber}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status] || 'bg-gray-100 text-gray-700'}`}>
+                        {(order.status || 'pending').replace('_', ' ')}
+                      </span>
+                      <Badge variant="outline" className="text-xs">{order.orderType}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{order.clientName}{order.clientPhone ? ` — ${order.clientPhone}` : ''}</p>
+                    {order.deliveryDate && <p className="text-xs text-muted-foreground mt-1">Entrega: {new Date(order.deliveryDate).toLocaleDateString()}</p>}
+                    {order.notes && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{order.notes}</p>}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold">{currency?.symbol || 'TT$'}{(order.totalAmount || 0).toFixed(2)}</p>
+                    {isPasteleria && (order.depositPaid > 0 || order.balanceDue > 0) && (
+                      <div className="mt-1 space-y-0.5">
+                        <p className="text-xs text-green-600">Pagado: {currency?.symbol || 'TT$'}{(order.depositPaid || 0).toFixed(2)}</p>
+                        <p className="text-xs text-orange-600">Saldo: {currency?.symbol || 'TT$'}{(order.balanceDue || 0).toFixed(2)}</p>
+                        {order.balanceDue > 0 && (
+                          <Button size="sm" variant="outline" className="mt-1 text-xs h-6 px-2" onClick={() => { setSelectedOrder(order); setShowDeposit(true); }}>
+                            <CreditCard className="w-3 h-3 mr-1" />Registrar Pago
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Installment schedule */}
+                {isPasteleria && hasSchedule && (
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Plan de Pagos</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {schedule.map((p: any, i: number) => (
+                        <div key={i} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${p.status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
+                          {p.label}: {currency?.symbol || 'TT$'}{(p.amount || 0).toFixed(2)} {p.status === 'paid' ? '(Pagado)' : '(Pendiente)'}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Action buttons */}
+                <div className="mt-3 pt-3 border-t flex gap-2 flex-wrap">
+                  {order.status === 'pending' && <Button size="sm" variant="outline" className="text-xs" onClick={() => handleStatusChange(order, 'confirmed')}>Confirmar</Button>}
+                  {order.status === 'confirmed' && <Button size="sm" variant="outline" className="text-xs" onClick={() => handleStatusChange(order, 'in_progress')}>Iniciar</Button>}
+                  {order.status === 'in_progress' && <Button size="sm" variant="outline" className="text-xs" onClick={() => handleStatusChange(order, 'completed')}>Completar</Button>}
+                  {!['cancelled', 'completed', 'paid'].includes(order.status) && <Button size="sm" variant="ghost" className="text-xs text-red-600" onClick={() => handleStatusChange(order, 'cancelled')}>Cancelar</Button>}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create Order Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Create New Order</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-4">
-            <div><Label>Client Name</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
-            <div><Label>Subtotal ({currency})</Label><Input type="number" value={form.subtotal} onChange={e => setForm(f => ({ ...f, subtotal: parseFloat(e.target.value) || 0 }))} /></div>
-            <div><Label>Order Type</Label>
-              <Select value={form.orderType} onValueChange={v => setForm(f => ({ ...f, orderType: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="custom">Custom</SelectItem><SelectItem value="walk_in">Walk-in</SelectItem><SelectItem value="online">Online</SelectItem></SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Client Name *</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
+              <div><Label>Phone</Label><Input value={form.clientPhone} onChange={e => setForm(f => ({ ...f, clientPhone: e.target.value }))} /></div>
             </div>
-            <div><Label>Delivery Date</Label><Input type="date" value={form.deliveryDate} onChange={e => setForm(f => ({ ...f, deliveryDate: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Subtotal ({currency?.symbol || 'TT$'})</Label><Input type="number" value={form.subtotal || ''} onChange={e => setForm(f => ({ ...f, subtotal: parseFloat(e.target.value) || 0 }))} /></div>
+              <div><Label>Order Type</Label>
+                <Select value={form.orderType} onValueChange={v => setForm(f => ({ ...f, orderType: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="custom">Custom</SelectItem><SelectItem value="walk_in">Walk-in</SelectItem><SelectItem value="online">Online</SelectItem></SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Delivery Date</Label><Input type="date" value={form.deliveryDate} onChange={e => setForm(f => ({ ...f, deliveryDate: e.target.value }))} /></div>
+              <div><Label>Status</Label>
+                <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="pending">Pending</SelectItem><SelectItem value="confirmed">Confirmed</SelectItem></SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><Label>Delivery Address</Label><Input value={form.deliveryAddress} onChange={e => setForm(f => ({ ...f, deliveryAddress: e.target.value }))} /></div>
             <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
+
+            {/* Deposit Section — Pasteleria only */}
+            {isPasteleria && (
+              <div className="space-y-3 p-4 rounded-xl bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30 border border-pink-200 dark:border-pink-800">
+                <div className="flex items-center gap-2"><CreditCard className="w-4 h-4 text-pink-500" /><span className="text-sm font-semibold text-pink-700 dark:text-pink-300">Deposito / Anticipo</span></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label className="text-xs">Monto del Deposito</Label><Input type="number" value={form.depositAmount || ''} onChange={e => setForm(f => ({ ...f, depositAmount: parseFloat(e.target.value) || 0 }))} placeholder="0.00" /></div>
+                  <div><Label className="text-xs">Metodo de Pago</Label>
+                    <Select value={form.depositMethod} onValueChange={v => setForm(f => ({ ...f, depositMethod: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="cash">Efectivo</SelectItem><SelectItem value="card">Tarjeta</SelectItem><SelectItem value="transfer">Transferencia</SelectItem><SelectItem value="online">Pago Online</SelectItem></SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={form.hasInstallments} onCheckedChange={v => setForm(f => ({ ...f, hasInstallments: v === true }))} />
+                  <Label className="text-xs">Pago en cuotas (installments)</Label>
+                  {form.hasInstallments && (
+                    <Select value={String(form.installments)} onValueChange={v => setForm(f => ({ ...f, installments: parseInt(v) }))}>
+                      <SelectTrigger className="w-20 h-7 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="2">2</SelectItem><SelectItem value="3">3</SelectItem><SelectItem value="4">4</SelectItem><SelectItem value="6">6</SelectItem></SelectContent>
+                    </Select>
+                  )}
+                </div>
+                {form.depositAmount > 0 && form.subtotal > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    Total est. con IVA: {currency?.symbol || 'TT$'}{(form.subtotal * (1 + (currentTenant?.taxRate || 0.125))).toFixed(2)} | Saldo despues de deposito: {currency?.symbol || 'TT$'}{(form.subtotal * (1 + (currentTenant?.taxRate || 0.125)) - form.depositAmount).toFixed(2)}
+                    {form.hasInstallments && form.installments > 1 && ` | Cuota: ${currency?.symbol || 'TT$'}${((form.subtotal * (1 + (currentTenant?.taxRate || 0.125)) - form.depositAmount) / form.installments).toFixed(2)}/mes`}
+                  </div>
+                )}
+              </div>
+            )}
+
             <Button onClick={handleCreate} disabled={!form.clientName} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">Create Order</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record Payment Dialog */}
+      <Dialog open={showDeposit} onOpenChange={setShowDeposit}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Registrar Pago</DialogTitle></DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-4 mt-2">
+              <div className="p-3 bg-muted rounded-lg text-sm">
+                <p className="font-medium">{selectedOrder.orderNumber} — {selectedOrder.clientName}</p>
+                <p className="text-xs text-muted-foreground">Saldo pendiente: {currency?.symbol || 'TT$'}{(selectedOrder.balanceDue || 0).toFixed(2)}</p>
+              </div>
+              <div><Label>Monto</Label><Input type="number" value={depositForm.paymentAmount || ''} onChange={e => setDepositForm(f => ({ ...f, paymentAmount: parseFloat(e.target.value) || 0 }))} /></div>
+              <div><Label>Metodo</Label>
+                <Select value={depositForm.paymentMethod} onValueChange={v => setDepositForm(f => ({ ...f, paymentMethod: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="cash">Efectivo</SelectItem><SelectItem value="card">Tarjeta</SelectItem><SelectItem value="transfer">Transferencia</SelectItem><SelectItem value="online">Pago Online</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleRecordPayment} disabled={depositForm.paymentAmount <= 0} className="w-full bg-green-600 hover:bg-green-700">Registrar Pago</Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
   );
 }
+
 
 // ============ TENANT QUOTES PAGE ============
 function TenantQuotesPage() {
@@ -12113,6 +12352,10 @@ function TenantContractsPage() {
 }
 
 // ============ TENANT CATALOG PAGE (REAL) ============
+// ═══════════════════════════════════════════════════════════════
+// NEW TenantCatalogPage — With Profit Margins & Quick Edit
+// ═══════════════════════════════════════════════════════════════
+
 function TenantCatalogPage() {
   const { currentTenant, currency } = useAppStore() as any;
   const [items, setItems] = useState<any[]>([]);
@@ -12120,6 +12363,7 @@ function TenantCatalogPage() {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('all');
   const [showCreate, setShowCreate] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
   const tenantId = currentTenant?.id;
   const load = useCallback(() => { if (tenantId) { authFetch(`/api/tenant/${tenantId}/catalog`).then(r => r.json()).then(d => { setItems(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false)); } }, [tenantId]);
   useEffect(() => { load(); }, [load]);
@@ -12129,22 +12373,138 @@ function TenantCatalogPage() {
   const handleCreate = async () => {
     try { await authFetch(`/api/tenant/${currentTenant.id}/catalog`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }); setShowCreate(false); setForm({ name: '', description: '', category: 'Panaderia', price: 0, cost: 0, unit: 'unidad', isAvailable: true }); load(); toast.success('Producto creado!'); } catch { toast.error('Error'); }
   };
+  const handleUpdate = async () => {
+    if (!editItem) return;
+    try {
+      await authFetch(`/api/tenant/${tenantId}/catalog`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+        body: JSON.stringify({ id: editItem.id, name: editItem.name, description: editItem.description, category: editItem.category, price: editItem.price, cost: editItem.cost, unit: editItem.unit, imageUrl: editItem.imageUrl, isAvailable: editItem.isAvailable })
+      });
+      setEditItem(null); load(); toast.success('Producto actualizado!');
+    } catch { toast.error('Error'); }
+  };
+  const handleDelete = async (id: string) => {
+    try {
+      await authFetch(`/api/tenant/${tenantId}/catalog`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+        body: JSON.stringify({ id })
+      });
+      load(); toast.success('Producto eliminado!');
+    } catch { toast.error('Error'); }
+  };
+
+  // Calculate margin
+  const getMargin = (item: any) => {
+    const price = item.price || 0;
+    const cost = item.cost || 0;
+    if (price <= 0) return { percent: 0, profit: 0, label: '-', color: 'text-gray-400', bg: 'bg-gray-100 dark:bg-gray-800' };
+    const profit = price - cost;
+    const percent = (profit / price) * 100;
+    let color = 'text-green-600', bg = 'bg-green-100 dark:bg-green-900/30';
+    if (percent < 20) { color = 'text-red-600'; bg = 'bg-red-100 dark:bg-red-900/30'; }
+    else if (percent < 40) { color = 'text-yellow-600'; bg = 'bg-yellow-100 dark:bg-yellow-900/30'; }
+    else if (percent >= 60) { color = 'text-emerald-600'; bg = 'bg-emerald-100 dark:bg-emerald-900/30'; }
+    return { percent: Math.round(percent * 10) / 10, profit, label: `${Math.round(percent * 10) / 10}%`, color, bg };
+  };
+
+  // Summary stats
+  const totalProducts = items.length;
+  const avgMargin = totalProducts > 0 ? items.reduce((sum: number, i: any) => { const m = getMargin(i); return sum + m.percent; }, 0) / totalProducts : 0;
+  const highMargin = items.filter((i: any) => getMargin(i).percent >= 50).length;
+  const lowMargin = items.filter((i: any) => { const m = getMargin(i); return m.percent > 0 && m.percent < 20; }).length;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div><h1 className="text-2xl font-bold">Products &amp; Menu</h1><p className="text-sm text-muted-foreground">Gestiona tu catalogo de productos</p></div>
+        <div><h1 className="text-2xl font-bold">Products & Menu</h1><p className="text-sm text-muted-foreground">Gestiona tu catalogo de productos</p></div>
         <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />Nuevo Producto</Button>
       </div>
-      <div className="flex gap-3 flex-wrap"><Input placeholder="Buscar producto..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" /><Select value={catFilter} onValueChange={setCatFilter}>{categories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'Todas' : c}</SelectItem>)}</Select></div>
-      {loading ? <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div> : filtered.length === 0 ? <Card className="p-12 text-center"><Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">No hay productos. Crea tu primer producto.</p></Card> : (
+
+      {/* Margin Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="p-3"><p className="text-xs text-muted-foreground">Productos</p><p className="text-xl font-bold">{totalProducts}</p></Card>
+        <Card className="p-3"><p className="text-xs text-muted-foreground">Margen Promedio</p><p className={`text-xl font-bold ${avgMargin >= 40 ? 'text-green-600' : avgMargin >= 20 ? 'text-yellow-600' : 'text-red-600'}`}>{avgMargin.toFixed(1)}%</p></Card>
+        <Card className="p-3 bg-green-50 dark:bg-green-950/30"><p className="text-xs text-muted-foreground">Alto Margen (50%+)</p><p className="text-xl font-bold text-green-600">{highMargin}</p></Card>
+        <Card className="p-3 bg-red-50 dark:bg-red-950/30"><p className="text-xs text-muted-foreground">Bajo Margen ({'<20%'})</p><p className="text-xl font-bold text-red-600">{lowMargin}</p></Card>
+      </div>
+
+      <div className="flex gap-3 flex-wrap">
+        <Input placeholder="Buscar producto..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" />
+        <Select value={catFilter} onValueChange={setCatFilter}>{categories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'Todas' : c}</SelectItem>)}</Select>
+      </div>
+
+      {loading ? <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div> : filtered.length === 0 ? (
+        <Card className="p-12 text-center"><Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">No hay productos. Crea tu primer producto.</p></Card>
+      ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((item: any) => <Card key={item.id} className="p-4 hover:shadow-md transition-shadow"><div className="flex justify-between items-start"><div><h3 className="font-semibold">{item.name}</h3><p className="text-xs text-muted-foreground mt-1">{item.category}</p></div><Badge variant={item.isAvailable !== false ? 'outline' : 'secondary'} className={item.isAvailable !== false ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ''}>{item.isAvailable !== false ? 'Activo' : 'Inactivo'}</Badge></div>{item.description && <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{item.description}</p>}<div className="flex justify-between items-center mt-3 pt-3 border-t"><span className="text-lg font-bold text-blue-600">{currency || 'TTD'} {(item.price || 0).toFixed(2)}</span><span className="text-xs text-muted-foreground">Costo: {currency || 'TTD'} {(item.cost || 0).toFixed(2)}</span></div></Card>)}
+          {filtered.map((item: any) => {
+            const margin = getMargin(item);
+            return (
+              <Card key={item.id} className="p-4 hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1 min-w-0"><h3 className="font-semibold truncate">{item.name}</h3><p className="text-xs text-muted-foreground mt-1">{item.category}</p></div>
+                  <div className="flex items-center gap-1 ml-2 shrink-0">
+                    <Badge variant={item.isAvailable !== false ? 'outline' : 'secondary'} className={item.isAvailable !== false ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs' : 'text-xs'}>{item.isAvailable !== false ? 'Activo' : 'Inactivo'}</Badge>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${margin.bg} ${margin.color}`}>{margin.label}</span>
+                  </div>
+                </div>
+                {item.description && <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{item.description}</p>}
+                <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t text-center">
+                  <div><p className="text-xs text-muted-foreground">Precio</p><p className="text-sm font-bold text-blue-600">{currency?.symbol || 'TT$'}{(item.price || 0).toFixed(2)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Costo</p><p className="text-sm font-medium">{currency?.symbol || 'TT$'}{(item.cost || 0).toFixed(2)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Ganancia</p><p className={`text-sm font-bold ${margin.color}`}>{currency?.symbol || 'TT$'}{margin.profit.toFixed(2)}</p></div>
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <Button size="sm" variant="outline" className="flex-1 text-xs h-7" onClick={() => setEditItem({...item})}><Pencil className="w-3 h-3 mr-1" />Editar</Button>
+                  <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500" onClick={() => handleDelete(item.id)}><Trash2 className="w-3 h-3" /></Button>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Nuevo Producto</DialogTitle></DialogHeader><div className="space-y-4 mt-2"><div><Label>Nombre *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></div><div><Label>Categoria</Label><Input value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} /></div><div className="grid grid-cols-2 gap-4"><div><Label>Precio *</Label><Input type="number" value={form.price || ''} onChange={e => setForm(p => ({ ...p, price: Number(e.target.value) }))} /></div><div><Label>Costo</Label><Input type="number" value={form.cost || ''} onChange={e => setForm(p => ({ ...p, cost: Number(e.target.value) }))} /></div></div><div><Label>Descripcion</Label><Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div><div className="flex items-center gap-2"><Checkbox checked={form.isAvailable} onCheckedChange={v => setForm(p => ({ ...p, isAvailable: v }))} /><Label>Disponible</Label></div></div><DialogFooter><Button onClick={handleCreate} className="bg-blue-600 hover:bg-blue-700">Crear Producto</Button></DialogFooter></DialogContent></Dialog>
+
+      {/* Create Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Nuevo Producto</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div><Label>Nombre *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></div>
+            <div><Label>Categoria</Label><Input value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Precio *</Label><Input type="number" value={form.price || ''} onChange={e => setForm(p => ({ ...p, price: Number(e.target.value) }))} /></div>
+              <div><Label>Costo</Label><Input type="number" value={form.cost || ''} onChange={e => setForm(p => ({ ...p, cost: Number(e.target.value) }))} /></div>
+            </div>
+            <div><Label>Descripcion</Label><Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
+            <div className="flex items-center gap-2"><Checkbox checked={form.isAvailable} onCheckedChange={v => setForm(p => ({ ...p, isAvailable: v === true }))} /><Label>Disponible</Label></div>
+          </div>
+          <DialogFooter><Button onClick={handleCreate} className="bg-blue-600 hover:bg-blue-700">Crear Producto</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Editar Producto</DialogTitle></DialogHeader>
+          {editItem && (
+            <div className="space-y-4 mt-2">
+              <div><Label>Nombre *</Label><Input value={editItem.name} onChange={e => setEditItem(p => ({ ...p, name: e.target.value }))} /></div>
+              <div><Label>Categoria</Label><Input value={editItem.category} onChange={e => setEditItem(p => ({ ...p, category: e.target.value }))} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><Label>Precio *</Label><Input type="number" value={editItem.price || ''} onChange={e => setEditItem(p => ({ ...p, price: Number(e.target.value) }))} /></div>
+                <div><Label>Costo</Label><Input type="number" value={editItem.cost || ''} onChange={e => setEditItem(p => ({ ...p, cost: Number(e.target.value) }))} /></div>
+              </div>
+              <div><Label>Descripcion</Label><Textarea value={editItem.description} onChange={e => setEditItem(p => ({ ...p, description: e.target.value }))} /></div>
+              <div className="flex items-center gap-2"><Checkbox checked={editItem.isAvailable} onCheckedChange={v => setEditItem(p => ({ ...p, isAvailable: v === true }))} /><Label>Disponible</Label></div>
+            </div>
+          )}
+          <DialogFooter><Button onClick={handleUpdate} className="bg-blue-600 hover:bg-blue-700">Guardar</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 // ============ TENANT INGREDIENTS PAGE (REAL) ============
 function TenantIngredientsPage() {
@@ -15122,85 +15482,309 @@ function TenantKDSPage() {
   );
 }
 
-// ============ CAKE MATRIX ============
+// ═══════════════════════════════════════════════════════════════
+// NEW TenantCakeMatrixPage — Replaces old broken version
+// Features: Persistent save, Portion Calculator, Configurable sizes/flavors
+// ═══════════════════════════════════════════════════════════════
+
 function TenantCakeMatrixPage() {
   const { currentTenant, currency } = useAppStore() as any;
-  const [items, setItems] = useState<any[]>([]);
+  const [matrix, setMatrix] = useState<any[]>([]);
+  const [sizes, setSizes] = useState<string[]>([]);
+  const [flavors, setFlavors] = useState<string[]>([]);
+  const [priceGrid, setPriceGrid] = useState<Record<string, number>>({});
+  const [servingGrid, setServingGrid] = useState<Record<string, number>>({});
+  const [portionMap, setPortionMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [sizes] = useState(['6"', '8"', '10"', '12"', '14"']);
-  const [flavors] = useState(['Vanilla', 'Chocolate', 'Red Velvet', 'Strawberry', 'Carrot']);
-  const [prices, setPrices] = useState<Record<string, number>>({});
+  const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<'matrix' | 'calculator'>('matrix');
+  const [showAddSize, setShowAddSize] = useState(false);
+  const [showAddFlavor, setShowAddFlavor] = useState(false);
+  const [newSize, setNewSize] = useState('');
+  const [newFlavor, setNewFlavor] = useState('');
   const tenantId = currentTenant?.id;
+
+  // Portion calculator state
+  const [calcGuests, setCalcGuests] = useState(50);
+  const [calcTierCount, setCalcTierCount] = useState(2);
+  const [calcFlavor, setCalcFlavor] = useState('');
 
   const load = useCallback(() => {
     if (!tenantId) return;
-    Promise.all([
-      authFetch(`/api/tenant/${tenantId}/catalog`).then(r => r.json()),
-    ]).then(([catalog]) => {
-      const catalogItems = Array.isArray(catalog) ? catalog : [];
-      setItems(catalogItems.filter((i: any) => i.category?.toLowerCase().includes('cake') || i.name?.toLowerCase().includes('cake')));
-      const p: Record<string, number> = {};
-      sizes.forEach(s => flavors.forEach(f => { p[`${s}-${f}`] = 0; }));
-      catalogItems.forEach((item: any) => {
-        sizes.forEach(s => flavors.forEach(f => {
-          if (item.name?.includes(s) && item.name?.includes(f)) p[`${s}-${f}`] = item.price;
-        }));
-      });
-      setPrices(p);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    setLoading(true);
+    authFetch(`/api/tenant/${tenantId}/cake-matrix`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.sizes) setSizes(data.sizes);
+        if (data.flavors) setFlavors(data.flavors);
+        if (data.priceGrid) setPriceGrid(data.priceGrid);
+        if (data.servingGrid) setServingGrid(data.servingGrid);
+        if (data.portionMap) setPortionMap(data.portionMap);
+        if (data.matrix) setMatrix(data.matrix);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, [tenantId]);
 
   useEffect(() => { load(); }, [load]);
 
+  const handleCellChange = (size: string, flavor: string, value: number) => {
+    const key = `${size}-${flavor}`;
+    setPriceGrid(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const entries = [];
+      for (const size of sizes) {
+        for (const flavor of flavors) {
+          entries.push({ size, flavor, price: priceGrid[`${size}-${flavor}`] || 0 });
+        }
+      }
+      await authFetch(`/api/tenant/${tenantId}/cake-matrix`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'full_grid', entries })
+      });
+      toast.success('Cake matrix saved successfully!');
+      load();
+    } catch {
+      toast.error('Error saving matrix');
+    }
+    setSaving(false);
+  };
+
+  const handleAddSize = async () => {
+    if (!newSize.trim()) return;
+    try {
+      await authFetch(`/api/tenant/${tenantId}/cake-matrix`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'add_size', size: newSize.trim(), existingFlavors: flavors })
+      });
+      setShowAddSize(false);
+      setNewSize('');
+      toast.success(`Size "${newSize}" added`);
+      load();
+    } catch { toast.error('Error adding size'); }
+  };
+
+  const handleAddFlavor = async () => {
+    if (!newFlavor.trim()) return;
+    try {
+      await authFetch(`/api/tenant/${tenantId}/cake-matrix`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'add_flavor', flavor: newFlavor.trim(), existingSizes: sizes })
+      });
+      setShowAddFlavor(false);
+      setNewFlavor('');
+      toast.success(`Flavor "${newFlavor}" added`);
+      load();
+    } catch { toast.error('Error adding flavor'); }
+  };
+
+  // Portion calculator logic
+  const recommendTiers = (guests: number, tiers: number) => {
+    const sortedSizes = sizes.filter(s => portionMap[s]).sort((a, b) => (portionMap[a] || 0) - (portionMap[b] || 0));
+    if (sortedSizes.length === 0) return [];
+    const result: { size: string; servings: number; guests: number }[] = [];
+    let remaining = guests;
+    for (let i = tiers - 1; i >= 0 && remaining > 0; i--) {
+      const size = sortedSizes[Math.min(i, sortedSizes.length - 1)];
+      const serv = portionMap[size] || 0;
+      result.unshift({ size, servings: serv, guests: remaining });
+      remaining = 0;
+    }
+    return result;
+  };
+
+  const tiers = recommendTiers(calcGuests, calcTierCount);
+  const totalServing = tiers.reduce((sum, t) => sum + t.servings, 0);
+  const totalCost = tiers.reduce((sum, t) => sum + (priceGrid[`${t.size}-${calcFlavor}`] || 0), 0);
+  const costPerGuest = totalServing > 0 ? totalCost / totalServing : 0;
+
+  if (loading) return <PageSkeleton type="table" />;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg"><Layers className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Cake Matrix</h1><p className="text-sm text-muted-foreground">Pricing matrix by size and flavor — click to edit</p></div>
+          <div><h1 className="text-2xl font-bold">Cake Matrix</h1><p className="text-sm text-muted-foreground">Matriz de precios por tamano y sabor</p></div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setActiveTab('matrix')} className={activeTab === 'matrix' ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-300' : ''}>
+            <TableIcon className="w-4 h-4 mr-2" />Matriz
+          </Button>
+          <Button variant="outline" onClick={() => setActiveTab('calculator')} className={activeTab === 'calculator' ? 'bg-pink-50 border-pink-200 text-pink-700 dark:bg-pink-950 dark:border-pink-800 dark:text-pink-300' : ''}>
+            <Calculator className="w-4 h-4 mr-2" />Calculadora de Porciones
+          </Button>
         </div>
       </div>
-      {loading ? <PageSkeleton type="table" /> : (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                <th className="border p-3 bg-muted text-left text-sm font-medium">Size / Flavor</th>
-                {flavors.map(f => <th key={f} className="border p-3 bg-muted text-center text-sm font-medium">{f}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {sizes.map(s => (
-                <tr key={s}>
-                  <td className="border p-3 font-medium text-sm bg-muted/50">{s}</td>
-                  {flavors.map(f => {
-                    const key = `${s}-${f}`;
-                    return (
-                      <td key={f} className="border p-2 text-center">
-                        <input
-                          type="number"
-                          className="w-full text-center bg-transparent border-0 focus:ring-2 focus:ring-blue-500 rounded px-1 py-0.5 text-sm"
-                          value={prices[key] || ''}
-                          placeholder="0.00"
-                          onChange={e => setPrices(p => ({ ...p, [key]: parseFloat(e.target.value) || 0 }))}
-                        />
-                      </td>
-                    );
-                  })}
+
+      {activeTab === 'matrix' && (
+        <>
+          <div className="overflow-x-auto rounded-xl border shadow-sm">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <th className="border p-3 bg-muted text-left text-sm font-medium sticky left-0 z-10 min-w-[100px]">Tamano / Sabor</th>
+                  {flavors.map(f => <th key={f} className="border p-3 bg-muted text-center text-sm font-medium min-w-[100px]">{f}</th>)}
+                  <th className="border p-3 bg-muted text-center text-sm font-medium text-blue-600 min-w-[80px]">Porciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-4 flex gap-3">
-            <Button onClick={load} variant="outline"><RefreshCw className="w-4 h-4 mr-2" />Reset</Button>
-            <Button className="bg-gradient-to-r from-blue-700 to-blue-500" onClick={() => toast.success('Cake matrix saved!')}>Save Matrix</Button>
+              </thead>
+              <tbody>
+                {sizes.map(s => (
+                  <tr key={s} className="hover:bg-muted/30">
+                    <td className="border p-3 font-medium text-sm bg-muted/50 sticky left-0 z-10">{s}</td>
+                    {flavors.map(f => {
+                      const key = `${s}-${f}`;
+                      return (
+                        <td key={f} className="border p-1 text-center">
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{currency?.symbol || 'TT$'}</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-full text-right bg-transparent border-0 focus:ring-2 focus:ring-blue-500 rounded px-1 pl-6 py-1 text-sm font-medium"
+                              value={priceGrid[key] || ''}
+                              placeholder="0"
+                              onChange={e => handleCellChange(s, f, parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td className="border p-2 text-center bg-blue-50/50 dark:bg-blue-950/30">
+                      <span className="text-sm font-semibold text-blue-600">{servingGrid[s] || portionMap[s] || '-'}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex gap-2">
+              <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />Reset</Button>
+              <Button onClick={() => setShowAddSize(true)} variant="outline" size="sm"><Plus className="w-4 h-4 mr-2" />Tamano</Button>
+              <Button onClick={() => setShowAddFlavor(true)} variant="outline" size="sm"><Plus className="w-4 h-4 mr-2" />Sabor</Button>
+            </div>
+            <Button className="bg-gradient-to-r from-blue-700 to-blue-500" onClick={handleSave} disabled={saving}>
+              {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Matrix</>}
+            </Button>
+          </div>
+
+          {/* Portion Reference */}
+          <Card className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200 dark:border-amber-800">
+            <div className="flex items-center gap-2 mb-3">
+              <Info className="w-4 h-4 text-amber-600" />
+              <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">Referencia de Porciones</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              {Object.entries(portionMap).sort((a, b) => parseInt(a[0]) - parseInt(b[0])).map(([size, servings]) => (
+                <div key={size} className="flex items-center justify-between bg-white/60 dark:bg-white/5 rounded-lg px-3 py-2">
+                  <span className="text-sm font-medium">{size}</span>
+                  <span className="text-xs text-muted-foreground">{servings} porc.</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Add Size Dialog */}
+          <Dialog open={showAddSize} onOpenChange={setShowAddSize}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader><DialogTitle>Agregar Tamano</DialogTitle></DialogHeader>
+              <div className="space-y-4 mt-2">
+                <div><Label>Ejemplo: 6&quot;, 8&quot;, 18&quot;</Label><Input value={newSize} onChange={e => setNewSize(e.target.value)} placeholder='6&quot;' className="mt-1" /></div>
+                <Button onClick={handleAddSize} disabled={!newSize.trim()} className="w-full bg-blue-600 hover:bg-blue-700">Agregar</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Add Flavor Dialog */}
+          <Dialog open={showAddFlavor} onOpenChange={setShowAddFlavor}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader><DialogTitle>Agregar Sabor</DialogTitle></DialogHeader>
+              <div className="space-y-4 mt-2">
+                <div><Label>Ejemplo: Vainilla, Moka, Coco</Label><Input value={newFlavor} onChange={e => setNewFlavor(e.target.value)} placeholder="Vainilla" className="mt-1" /></div>
+                <Button onClick={handleAddFlavor} disabled={!newFlavor.trim()} className="w-full bg-blue-600 hover:bg-blue-700">Agregar</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
+
+      {activeTab === 'calculator' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Calculator Input */}
+          <Card className="p-6">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Calculator className="w-5 h-5 text-pink-500" />Calculadora de Porciones</h3>
+            <div className="space-y-5">
+              <div>
+                <Label className="text-sm font-medium">Numero de invitados</Label>
+                <Input type="number" value={calcGuests} onChange={e => setCalcGuests(parseInt(e.target.value) || 0)} min="1" className="mt-1 text-lg" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Numero de niveles (tiers)</Label>
+                <div className="flex gap-2 mt-1">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <Button key={n} variant={calcTierCount === n ? 'default' : 'outline'} size="sm" onClick={() => setCalcTierCount(n)} className={calcTierCount === n ? 'bg-pink-600 hover:bg-pink-700' : ''}>{n}</Button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Sabor</Label>
+                <Select value={calcFlavor} onValueChange={setCalcFlavor}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar sabor..." /></SelectTrigger>
+                  <SelectContent>{flavors.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+          </Card>
+
+          {/* Recommendation */}
+          <Card className="p-6 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Cake className="w-5 h-5 text-pink-500" />Recomendacion</h3>
+            {tiers.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Configura tamanos en la matriz primero</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-white/80 dark:bg-white/5 rounded-xl">
+                  <div><span className="text-2xl font-bold text-pink-600">{totalServing}</span><span className="text-sm text-muted-foreground ml-2">porciones totales</span></div>
+                  <div className="text-right"><span className="text-2xl font-bold">{currency?.symbol || 'TT$'}{totalCost.toFixed(2)}</span><span className="text-sm text-muted-foreground block">precio est.</span></div>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/80 dark:bg-white/5 rounded-xl">
+                  <span className="text-sm text-muted-foreground">Costo por invitado</span>
+                  <span className="text-lg font-semibold">{currency?.symbol || 'TT$'}{costPerGuest.toFixed(2)}</span>
+                </div>
+                <div className="space-y-2">
+                  {tiers.map((t, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-white/80 dark:bg-white/5 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-pink-100 dark:bg-pink-900/40 flex items-center justify-center text-pink-600 text-xs font-bold">{i + 1}</div>
+                        <div><span className="font-medium">{t.size}</span><span className="text-xs text-muted-foreground block">{t.servings} porciones</span></div>
+                      </div>
+                      <span className="font-semibold">{currency?.symbol || 'TT$'}{(priceGrid[`${t.size}-${calcFlavor}`] || 0).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+                {totalServing < calcGuests && (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2"><AlertTriangle className="w-4 h-4" />Las porciones ({totalServing}) son menores a los invitados ({calcGuests}). Considera agregar un nivel mas.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
         </div>
       )}
     </div>
   );
 }
+
 
 // ============ SALON CLIENT PROFILES ============
 function TenantSalonClientsPage() {

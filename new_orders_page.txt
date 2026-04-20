@@ -1,0 +1,297 @@
+// ═══════════════════════════════════════════════════════════════
+// NEW TenantOrdersPage — With Deposit & Installment Support
+// ═══════════════════════════════════════════════════════════════
+
+function TenantOrdersPage() {
+  const { currentTenant, currency, bakeryWorkspace } = useAppStore() as any;
+  const isPasteleria = bakeryWorkspace === 'pasteleria';
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [form, setForm] = useState({ clientName: '', clientEmail: '', clientPhone: '', items: '', subtotal: 0, totalAmount: 0, status: 'pending', orderType: 'custom', deliveryDate: '', deliveryAddress: '', notes: '', depositAmount: 0, depositMethod: 'cash', hasInstallments: false, installments: 3 });
+  const [depositForm, setDepositForm] = useState({ paymentAmount: 0, paymentMethod: 'cash' });
+  const tenantId = currentTenant?.id;
+
+  const load = useCallback(() => {
+    if (tenantId) {
+      authFetch(`/api/tenant/${tenantId}/orders`).then(r => r.json()).then(d => { setOrders(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+    }
+  }, [tenantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    const tax = form.subtotal * (currentTenant?.taxRate || 0.125);
+    const total = form.subtotal + tax;
+    const deposit = isPasteleria && form.depositAmount > 0 ? form.depositAmount : 0;
+    
+    // Build payment schedule for installments
+    let paymentSchedule = null;
+    if (isPasteleria && form.hasInstallments && deposit > 0) {
+      const balance = total - deposit;
+      const installmentAmount = balance / form.installments;
+      paymentSchedule = [
+        { label: 'Deposito', amount: deposit, dueDate: new Date().toISOString().split('T')[0], status: 'paid', method: form.depositMethod },
+        ...Array.from({ length: form.installments }, (_, i) => ({
+          label: `Cuota ${i + 1} de ${form.installments}`,
+          amount: Math.round(installmentAmount * 100) / 100,
+          dueDate: '',
+          status: 'pending',
+          method: ''
+        }))
+      ];
+    }
+
+    await authFetch(`/api/tenant/${currentTenant.id}/orders`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...form,
+        taxAmount: tax,
+        totalAmount: total,
+        depositAmount: deposit,
+        depositPaid: deposit,
+        depositMethod: form.depositMethod,
+        items: JSON.stringify([{ name: 'Custom Order', qty: 1, price: form.subtotal }]),
+        paymentSchedule
+      })
+    });
+    setShowCreate(false);
+    setForm({ clientName: '', clientEmail: '', clientPhone: '', items: '', subtotal: 0, totalAmount: 0, status: 'pending', orderType: 'custom', deliveryDate: '', deliveryAddress: '', notes: '', depositAmount: 0, depositMethod: 'cash', hasInstallments: false, installments: 3 });
+    load();
+    toast.success('Order created!');
+  };
+
+  const handleRecordPayment = async () => {
+    if (!selectedOrder || depositForm.paymentAmount <= 0) return;
+    await authFetch(`/api/tenant/${tenantId}/orders`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+      body: JSON.stringify({
+        id: selectedOrder.id,
+        type: 'record_deposit_payment',
+        paymentAmount: depositForm.paymentAmount,
+        paymentMethod: depositForm.paymentMethod
+      })
+    });
+    setShowDeposit(false);
+    setDepositForm({ paymentAmount: 0, paymentMethod: 'cash' });
+    setSelectedOrder(null);
+    load();
+    toast.success('Payment recorded!');
+  };
+
+  const handleStatusChange = async (order: any, newStatus: string) => {
+    await authFetch(`/api/tenant/${tenantId}/orders`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+      body: JSON.stringify({ id: order.id, status: newStatus })
+    });
+    load();
+    toast.success(`Status updated to ${newStatus}`);
+  };
+
+  const filteredOrders = orders.filter(o => statusFilter === 'all' || o.status === statusFilter);
+  const totalDeposits = orders.reduce((sum: number, o: any) => sum + (o.depositPaid || 0), 0);
+  const totalBalance = orders.reduce((sum: number, o: any) => sum + (o.balanceDue || 0), 0);
+
+  const statusColors: Record<string, string> = {
+    pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+    confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    in_progress: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+    completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div><h1 className="text-2xl font-bold">Orders</h1><p className="text-sm text-muted-foreground">Manage your order pipeline</p></div>
+        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />New Order</Button>
+      </div>
+
+      {/* Deposit Summary Cards — Pasteleria only */}
+      {isPasteleria && orders.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+            <p className="text-xs text-muted-foreground">Total Pedidos</p>
+            <p className="text-2xl font-bold">{orders.length}</p>
+          </Card>
+          <Card className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30">
+            <p className="text-xs text-muted-foreground">Depositos Recibidos</p>
+            <p className="text-2xl font-bold text-green-600">{currency?.symbol || 'TT$'}{totalDeposits.toFixed(2)}</p>
+          </Card>
+          <Card className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30">
+            <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
+            <p className="text-2xl font-bold text-orange-600">{currency?.symbol || 'TT$'}{totalBalance.toFixed(2)}</p>
+          </Card>
+        </div>
+      )}
+
+      {/* Status Filter */}
+      <div className="flex gap-2 flex-wrap">
+        {['all', 'pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'paid'].map(s => (
+          <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(s)} className={statusFilter === s ? 'bg-blue-600' : ''}>
+            {s === 'all' ? 'Todos' : s.charAt(0).toUpperCase() + s.slice(1).replace('_', ' ')}
+          </Button>
+        ))}
+      </div>
+
+      {loading ? <PageSkeleton type="table" /> : filteredOrders.length === 0 ? (
+        <EmptyState icon={ShoppingCart} title="No orders yet" description="Create your first order" action="New Order" onAction={() => setShowCreate(true)} />
+      ) : (
+        <div className="space-y-3">
+          {filteredOrders.map((order: any) => {
+            const schedule = typeof order.paymentSchedule === 'string' ? JSON.parse(order.paymentSchedule || '[]') : (order.paymentSchedule || []);
+            const hasSchedule = Array.isArray(schedule) && schedule.length > 0;
+            return (
+              <Card key={order.id} className="p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-bold text-sm">{order.orderNumber}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status] || 'bg-gray-100 text-gray-700'}`}>
+                        {(order.status || 'pending').replace('_', ' ')}
+                      </span>
+                      <Badge variant="outline" className="text-xs">{order.orderType}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{order.clientName}{order.clientPhone ? ` — ${order.clientPhone}` : ''}</p>
+                    {order.deliveryDate && <p className="text-xs text-muted-foreground mt-1">Entrega: {new Date(order.deliveryDate).toLocaleDateString()}</p>}
+                    {order.notes && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{order.notes}</p>}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold">{currency?.symbol || 'TT$'}{(order.totalAmount || 0).toFixed(2)}</p>
+                    {isPasteleria && (order.depositPaid > 0 || order.balanceDue > 0) && (
+                      <div className="mt-1 space-y-0.5">
+                        <p className="text-xs text-green-600">Pagado: {currency?.symbol || 'TT$'}{(order.depositPaid || 0).toFixed(2)}</p>
+                        <p className="text-xs text-orange-600">Saldo: {currency?.symbol || 'TT$'}{(order.balanceDue || 0).toFixed(2)}</p>
+                        {order.balanceDue > 0 && (
+                          <Button size="sm" variant="outline" className="mt-1 text-xs h-6 px-2" onClick={() => { setSelectedOrder(order); setShowDeposit(true); }}>
+                            <CreditCard className="w-3 h-3 mr-1" />Registrar Pago
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Installment schedule */}
+                {isPasteleria && hasSchedule && (
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Plan de Pagos</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {schedule.map((p: any, i: number) => (
+                        <div key={i} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${p.status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
+                          {p.label}: {currency?.symbol || 'TT$'}{(p.amount || 0).toFixed(2)} {p.status === 'paid' ? '(Pagado)' : '(Pendiente)'}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Action buttons */}
+                <div className="mt-3 pt-3 border-t flex gap-2 flex-wrap">
+                  {order.status === 'pending' && <Button size="sm" variant="outline" className="text-xs" onClick={() => handleStatusChange(order, 'confirmed')}>Confirmar</Button>}
+                  {order.status === 'confirmed' && <Button size="sm" variant="outline" className="text-xs" onClick={() => handleStatusChange(order, 'in_progress')}>Iniciar</Button>}
+                  {order.status === 'in_progress' && <Button size="sm" variant="outline" className="text-xs" onClick={() => handleStatusChange(order, 'completed')}>Completar</Button>}
+                  {!['cancelled', 'completed', 'paid'].includes(order.status) && <Button size="sm" variant="ghost" className="text-xs text-red-600" onClick={() => handleStatusChange(order, 'cancelled')}>Cancelar</Button>}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create Order Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Create New Order</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Client Name *</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
+              <div><Label>Phone</Label><Input value={form.clientPhone} onChange={e => setForm(f => ({ ...f, clientPhone: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Subtotal ({currency?.symbol || 'TT$'})</Label><Input type="number" value={form.subtotal || ''} onChange={e => setForm(f => ({ ...f, subtotal: parseFloat(e.target.value) || 0 }))} /></div>
+              <div><Label>Order Type</Label>
+                <Select value={form.orderType} onValueChange={v => setForm(f => ({ ...f, orderType: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="custom">Custom</SelectItem><SelectItem value="walk_in">Walk-in</SelectItem><SelectItem value="online">Online</SelectItem></SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Delivery Date</Label><Input type="date" value={form.deliveryDate} onChange={e => setForm(f => ({ ...f, deliveryDate: e.target.value }))} /></div>
+              <div><Label>Status</Label>
+                <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="pending">Pending</SelectItem><SelectItem value="confirmed">Confirmed</SelectItem></SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><Label>Delivery Address</Label><Input value={form.deliveryAddress} onChange={e => setForm(f => ({ ...f, deliveryAddress: e.target.value }))} /></div>
+            <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
+
+            {/* Deposit Section — Pasteleria only */}
+            {isPasteleria && (
+              <div className="space-y-3 p-4 rounded-xl bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30 border border-pink-200 dark:border-pink-800">
+                <div className="flex items-center gap-2"><CreditCard className="w-4 h-4 text-pink-500" /><span className="text-sm font-semibold text-pink-700 dark:text-pink-300">Deposito / Anticipo</span></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label className="text-xs">Monto del Deposito</Label><Input type="number" value={form.depositAmount || ''} onChange={e => setForm(f => ({ ...f, depositAmount: parseFloat(e.target.value) || 0 }))} placeholder="0.00" /></div>
+                  <div><Label className="text-xs">Metodo de Pago</Label>
+                    <Select value={form.depositMethod} onValueChange={v => setForm(f => ({ ...f, depositMethod: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="cash">Efectivo</SelectItem><SelectItem value="card">Tarjeta</SelectItem><SelectItem value="transfer">Transferencia</SelectItem><SelectItem value="online">Pago Online</SelectItem></SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={form.hasInstallments} onCheckedChange={v => setForm(f => ({ ...f, hasInstallments: !!v }))} />
+                  <Label className="text-xs">Pago en cuotas (installments)</Label>
+                  {form.hasInstallments && (
+                    <Select value={String(form.installments)} onValueChange={v => setForm(f => ({ ...f, installments: parseInt(v) }))}>
+                      <SelectTrigger className="w-20 h-7 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="2">2</SelectItem><SelectItem value="3">3</SelectItem><SelectItem value="4">4</SelectItem><SelectItem value="6">6</SelectItem></SelectContent>
+                    </Select>
+                  )}
+                </div>
+                {form.depositAmount > 0 && form.subtotal > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    Total est. con IVA: {currency?.symbol || 'TT$'}{(form.subtotal * (1 + (currentTenant?.taxRate || 0.125))).toFixed(2)} | Saldo despues de deposito: {currency?.symbol || 'TT$'}{(form.subtotal * (1 + (currentTenant?.taxRate || 0.125)) - form.depositAmount).toFixed(2)}
+                    {form.hasInstallments && form.installments > 1 && ` | Cuota: ${currency?.symbol || 'TT$'}${((form.subtotal * (1 + (currentTenant?.taxRate || 0.125)) - form.depositAmount) / form.installments).toFixed(2)}/mes`}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <Button onClick={handleCreate} disabled={!form.clientName} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">Create Order</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record Payment Dialog */}
+      <Dialog open={showDeposit} onOpenChange={setShowDeposit}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Registrar Pago</DialogTitle></DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-4 mt-2">
+              <div className="p-3 bg-muted rounded-lg text-sm">
+                <p className="font-medium">{selectedOrder.orderNumber} — {selectedOrder.clientName}</p>
+                <p className="text-xs text-muted-foreground">Saldo pendiente: {currency?.symbol || 'TT$'}{(selectedOrder.balanceDue || 0).toFixed(2)}</p>
+              </div>
+              <div><Label>Monto</Label><Input type="number" value={depositForm.paymentAmount || ''} onChange={e => setDepositForm(f => ({ ...f, paymentAmount: parseFloat(e.target.value) || 0 }))} /></div>
+              <div><Label>Metodo</Label>
+                <Select value={depositForm.paymentMethod} onValueChange={v => setDepositForm(f => ({ ...f, paymentMethod: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="cash">Efectivo</SelectItem><SelectItem value="card">Tarjeta</SelectItem><SelectItem value="transfer">Transferencia</SelectItem><SelectItem value="online">Pago Online</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleRecordPayment} disabled={depositForm.paymentAmount <= 0} className="w-full bg-green-600 hover:bg-green-700">Registrar Pago</Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

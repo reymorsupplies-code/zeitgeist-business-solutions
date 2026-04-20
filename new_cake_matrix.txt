@@ -1,0 +1,302 @@
+// ═══════════════════════════════════════════════════════════════
+// NEW TenantCakeMatrixPage — Replaces old broken version
+// Features: Persistent save, Portion Calculator, Configurable sizes/flavors
+// ═══════════════════════════════════════════════════════════════
+
+function TenantCakeMatrixPage() {
+  const { currentTenant, currency } = useAppStore() as any;
+  const [matrix, setMatrix] = useState<any[]>([]);
+  const [sizes, setSizes] = useState<string[]>([]);
+  const [flavors, setFlavors] = useState<string[]>([]);
+  const [priceGrid, setPriceGrid] = useState<Record<string, number>>({});
+  const [servingGrid, setServingGrid] = useState<Record<string, number>>({});
+  const [portionMap, setPortionMap] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<'matrix' | 'calculator'>('matrix');
+  const [showAddSize, setShowAddSize] = useState(false);
+  const [showAddFlavor, setShowAddFlavor] = useState(false);
+  const [newSize, setNewSize] = useState('');
+  const [newFlavor, setNewFlavor] = useState('');
+  const tenantId = currentTenant?.id;
+
+  // Portion calculator state
+  const [calcGuests, setCalcGuests] = useState(50);
+  const [calcTierCount, setCalcTierCount] = useState(2);
+  const [calcFlavor, setCalcFlavor] = useState('');
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    setLoading(true);
+    authFetch(`/api/tenant/${tenantId}/cake-matrix`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.sizes) setSizes(data.sizes);
+        if (data.flavors) setFlavors(data.flavors);
+        if (data.priceGrid) setPriceGrid(data.priceGrid);
+        if (data.servingGrid) setServingGrid(data.servingGrid);
+        if (data.portionMap) setPortionMap(data.portionMap);
+        if (data.matrix) setMatrix(data.matrix);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [tenantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCellChange = (size: string, flavor: string, value: number) => {
+    const key = `${size}-${flavor}`;
+    setPriceGrid(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const entries = [];
+      for (const size of sizes) {
+        for (const flavor of flavors) {
+          entries.push({ size, flavor, price: priceGrid[`${size}-${flavor}`] || 0 });
+        }
+      }
+      await authFetch(`/api/tenant/${tenantId}/cake-matrix`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'full_grid', entries })
+      });
+      toast.success('Cake matrix saved successfully!');
+      load();
+    } catch {
+      toast.error('Error saving matrix');
+    }
+    setSaving(false);
+  };
+
+  const handleAddSize = async () => {
+    if (!newSize.trim()) return;
+    try {
+      await authFetch(`/api/tenant/${tenantId}/cake-matrix`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'add_size', size: newSize.trim(), existingFlavors: flavors })
+      });
+      setShowAddSize(false);
+      setNewSize('');
+      toast.success(`Size "${newSize}" added`);
+      load();
+    } catch { toast.error('Error adding size'); }
+  };
+
+  const handleAddFlavor = async () => {
+    if (!newFlavor.trim()) return;
+    try {
+      await authFetch(`/api/tenant/${tenantId}/cake-matrix`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'add_flavor', flavor: newFlavor.trim(), existingSizes: sizes })
+      });
+      setShowAddFlavor(false);
+      setNewFlavor('');
+      toast.success(`Flavor "${newFlavor}" added`);
+      load();
+    } catch { toast.error('Error adding flavor'); }
+  };
+
+  // Portion calculator logic
+  const recommendTiers = (guests: number, tiers: number) => {
+    const sortedSizes = sizes.filter(s => portionMap[s]).sort((a, b) => (portionMap[a] || 0) - (portionMap[b] || 0));
+    if (sortedSizes.length === 0) return [];
+    const result: { size: string; servings: number; guests: number }[] = [];
+    let remaining = guests;
+    for (let i = tiers - 1; i >= 0 && remaining > 0; i--) {
+      const size = sortedSizes[Math.min(i, sortedSizes.length - 1)];
+      const serv = portionMap[size] || 0;
+      result.unshift({ size, servings: serv, guests: remaining });
+      remaining = 0;
+    }
+    return result;
+  };
+
+  const tiers = recommendTiers(calcGuests, calcTierCount);
+  const totalServing = tiers.reduce((sum, t) => sum + t.servings, 0);
+  const totalCost = tiers.reduce((sum, t) => sum + (priceGrid[`${t.size}-${calcFlavor}`] || 0), 0);
+  const costPerGuest = totalServing > 0 ? totalCost / totalServing : 0;
+
+  if (loading) return <PageSkeleton type="table" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg"><Layers className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Cake Matrix</h1><p className="text-sm text-muted-foreground">Matriz de precios por tamano y sabor</p></div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setActiveTab('matrix')} className={activeTab === 'matrix' ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-300' : ''}>
+            <Table className="w-4 h-4 mr-2" />Matriz
+          </Button>
+          <Button variant="outline" onClick={() => setActiveTab('calculator')} className={activeTab === 'calculator' ? 'bg-pink-50 border-pink-200 text-pink-700 dark:bg-pink-950 dark:border-pink-800 dark:text-pink-300' : ''}>
+            <Calculator className="w-4 h-4 mr-2" />Calculadora de Porciones
+          </Button>
+        </div>
+      </div>
+
+      {activeTab === 'matrix' && (
+        <>
+          <div className="overflow-x-auto rounded-xl border shadow-sm">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <th className="border p-3 bg-muted text-left text-sm font-medium sticky left-0 z-10 min-w-[100px]">Tamano / Sabor</th>
+                  {flavors.map(f => <th key={f} className="border p-3 bg-muted text-center text-sm font-medium min-w-[100px]">{f}</th>)}
+                  <th className="border p-3 bg-muted text-center text-sm font-medium text-blue-600 min-w-[80px]">Porciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sizes.map(s => (
+                  <tr key={s} className="hover:bg-muted/30">
+                    <td className="border p-3 font-medium text-sm bg-muted/50 sticky left-0 z-10">{s}</td>
+                    {flavors.map(f => {
+                      const key = `${s}-${f}`;
+                      return (
+                        <td key={f} className="border p-1 text-center">
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{currency?.symbol || 'TT$'}</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-full text-right bg-transparent border-0 focus:ring-2 focus:ring-blue-500 rounded px-1 pl-6 py-1 text-sm font-medium"
+                              value={priceGrid[key] || ''}
+                              placeholder="0"
+                              onChange={e => handleCellChange(s, f, parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td className="border p-2 text-center bg-blue-50/50 dark:bg-blue-950/30">
+                      <span className="text-sm font-semibold text-blue-600">{servingGrid[s] || portionMap[s] || '-'}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex gap-2">
+              <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />Reset</Button>
+              <Button onClick={() => setShowAddSize(true)} variant="outline" size="sm"><Plus className="w-4 h-4 mr-2" />Tamano</Button>
+              <Button onClick={() => setShowAddFlavor(true)} variant="outline" size="sm"><Plus className="w-4 h-4 mr-2" />Sabor</Button>
+            </div>
+            <Button className="bg-gradient-to-r from-blue-700 to-blue-500" onClick={handleSave} disabled={saving}>
+              {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Matrix</>}
+            </Button>
+          </div>
+
+          {/* Portion Reference */}
+          <Card className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200 dark:border-amber-800">
+            <div className="flex items-center gap-2 mb-3">
+              <Info className="w-4 h-4 text-amber-600" />
+              <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">Referencia de Porciones</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              {Object.entries(portionMap).sort((a, b) => parseInt(a[0]) - parseInt(b[0])).map(([size, servings]) => (
+                <div key={size} className="flex items-center justify-between bg-white/60 dark:bg-white/5 rounded-lg px-3 py-2">
+                  <span className="text-sm font-medium">{size}</span>
+                  <span className="text-xs text-muted-foreground">{servings} porc.</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Add Size Dialog */}
+          <Dialog open={showAddSize} onOpenChange={setShowAddSize}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader><DialogTitle>Agregar Tamano</DialogTitle></DialogHeader>
+              <div className="space-y-4 mt-2">
+                <div><Label>Ejemplo: 6&quot;, 8&quot;, 18&quot;</Label><Input value={newSize} onChange={e => setNewSize(e.target.value)} placeholder='6&quot;' className="mt-1" /></div>
+                <Button onClick={handleAddSize} disabled={!newSize.trim()} className="w-full bg-blue-600 hover:bg-blue-700">Agregar</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Add Flavor Dialog */}
+          <Dialog open={showAddFlavor} onOpenChange={setShowAddFlavor}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader><DialogTitle>Agregar Sabor</DialogTitle></DialogHeader>
+              <div className="space-y-4 mt-2">
+                <div><Label>Ejemplo: Vainilla, Moka, Coco</Label><Input value={newFlavor} onChange={e => setNewFlavor(e.target.value)} placeholder="Vainilla" className="mt-1" /></div>
+                <Button onClick={handleAddFlavor} disabled={!newFlavor.trim()} className="w-full bg-blue-600 hover:bg-blue-700">Agregar</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
+
+      {activeTab === 'calculator' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Calculator Input */}
+          <Card className="p-6">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Calculator className="w-5 h-5 text-pink-500" />Calculadora de Porciones</h3>
+            <div className="space-y-5">
+              <div>
+                <Label className="text-sm font-medium">Numero de invitados</Label>
+                <Input type="number" value={calcGuests} onChange={e => setCalcGuests(parseInt(e.target.value) || 0)} min="1" className="mt-1 text-lg" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Numero de niveles (tiers)</Label>
+                <div className="flex gap-2 mt-1">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <Button key={n} variant={calcTierCount === n ? 'default' : 'outline'} size="sm" onClick={() => setCalcTierCount(n)} className={calcTierCount === n ? 'bg-pink-600 hover:bg-pink-700' : ''}>{n}</Button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Sabor</Label>
+                <Select value={calcFlavor} onValueChange={setCalcFlavor}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar sabor..." /></SelectTrigger>
+                  <SelectContent>{flavors.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+          </Card>
+
+          {/* Recommendation */}
+          <Card className="p-6 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Cake className="w-5 h-5 text-pink-500" />Recomendacion</h3>
+            {tiers.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Configura tamanos en la matriz primero</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-white/80 dark:bg-white/5 rounded-xl">
+                  <div><span className="text-2xl font-bold text-pink-600">{totalServing}</span><span className="text-sm text-muted-foreground ml-2">porciones totales</span></div>
+                  <div className="text-right"><span className="text-2xl font-bold">{currency?.symbol || 'TT$'}{totalCost.toFixed(2)}</span><span className="text-sm text-muted-foreground block">precio est.</span></div>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/80 dark:bg-white/5 rounded-xl">
+                  <span className="text-sm text-muted-foreground">Costo por invitado</span>
+                  <span className="text-lg font-semibold">{currency?.symbol || 'TT$'}{costPerGuest.toFixed(2)}</span>
+                </div>
+                <div className="space-y-2">
+                  {tiers.map((t, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-white/80 dark:bg-white/5 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-pink-100 dark:bg-pink-900/40 flex items-center justify-center text-pink-600 text-xs font-bold">{i + 1}</div>
+                        <div><span className="font-medium">{t.size}</span><span className="text-xs text-muted-foreground block">{t.servings} porciones</span></div>
+                      </div>
+                      <span className="font-semibold">{currency?.symbol || 'TT$'}{(priceGrid[`${t.size}-${calcFlavor}`] || 0).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+                {totalServing < calcGuests && (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2"><AlertTriangle className="w-4 h-4" />Las porciones ({totalServing}) son menores a los invitados ({calcGuests}). Considera agregar un nivel mas.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
