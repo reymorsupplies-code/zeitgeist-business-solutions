@@ -35,3 +35,23 @@ All `prisma.` references replaced with `db.` in each file.
 
 ## Verification
 - `npx tsc --noEmit` — **0 errors**
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Enable db-init endpoint and provide SQL for Supabase database initialization
+
+Work Log:
+- Found that /api/db-init was blocked by middleware (not in PUBLIC_ROUTES)
+- Temporarily added /api/db-init to PUBLIC_ROUTES, committed and pushed
+- User requested SQL directly instead of using the endpoint
+- Generated complete SQL file (52 tables + 21 indexes) from route.ts createStatements
+- Saved to /home/z/my-project/download/zbs-schema.sql
+- Removed /api/db-init from PUBLIC_ROUTES again for security, committed (1f5dae7)
+- User executed SQL in Supabase SQL Editor — SUCCESS, all tables created
+
+Stage Summary:
+- Database initialization complete via Supabase SQL Editor
+- All 52 ZBS tables + 21 indexes created successfully
+- db-init endpoint re-secured in middleware
+- Ready for production verification of Pastelería Control Tower
