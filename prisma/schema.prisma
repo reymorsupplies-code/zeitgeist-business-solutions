@@ -131,8 +131,10 @@ model Tenant {
   timeEntries    TimeEntry[]
   policies       Policy[]
   claims         Claim[]
-  retailProducts RetailProduct[]
-  suppliers      Supplier[]
+  retailProducts      RetailProduct[]
+  purchaseOrders      PurchaseOrder[]
+  posSales            POSSale[]
+  suppliers           Supplier[]
   events         Event[]
   venues         Venue[]
   vendors        Vendor[]
@@ -594,6 +596,52 @@ model RetailProduct {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// ============ PURCHASE ORDER ============
+
+model PurchaseOrder {
+  id              String    @id @default(cuid())
+  tenantId        String
+  poNumber        String
+  supplierId      String?
+  supplierName    String
+  status          String    @default("draft") // draft, sent, partial, received, cancelled
+  items           String    @default("[]")     // JSON: [{productId, name, sku, qty, unitCost, receivedQty}]
+  totalAmount     Float     @default(0)
+  receivedAmount  Float     @default(0)
+  notes           String?
+  expectedDate    DateTime?
+  receivedAt      DateTime?
+  isDeleted       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+}
+
+// ============ POS SALE ============
+
+model POSSale {
+  id              String    @id @default(cuid())
+  tenantId        String
+  saleNumber      String
+  items           String    @default("[]")     // JSON: [{productId, name, sku, qty, price, cost}]
+  subtotal        Float     @default(0)
+  discountPct     Float     @default(0)
+  discountAmount  Float     @default(0)
+  taxAmount       Float     @default(0)
+  totalAmount     Float     @default(0)
+  paymentMethod   String    @default("cash")    // cash, card, transfer, split
+  cashReceived    Float     @default(0)
+  changeAmount    Float     @default(0)
+  currency        String    @default("TTD")
+  customerName    String    @default("")
+  staffName       String?
+  status          String    @default("completed") // completed, held, voided
+  isDeleted       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
 }
 
 // ============ EVENTS MODELS ============
