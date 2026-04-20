@@ -28,3 +28,54 @@ Stage Summary:
 - Margins: Color-coded per product in catalog
 - All Phase 1 items completed
 - Phase 2 pending: Daily production sheets, booking tastings, design approval workflow
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix 6 i18n hardcoded strings from Fase 1
+
+Work Log:
+- Diagnosed 6 hardcoded strings not using t() in Fase 1 components
+- Added 9 new i18n keys (common.confirmed, common.error, common.newOrder, orders.empty.title, orders.empty.description, orders.customOrder) to both EN and ES
+- Fixed: 'Deposito' → t('orders.schedule.deposit', locale)
+- Fixed: 'Cuota N de N' → t('orders.schedule.installment', locale) with param replacement
+- Fixed: 'Custom Order' → t('orders.customOrder', locale)
+- Fixed: EmptyState English → t('orders.empty.title/description', locale)
+- Fixed: 'Confirmed' → t('common.confirmed', locale)
+- Fixed: 3x toast.error('Error') → toast.error(t('common.error', locale))
+- Commit: 424456c
+
+Stage Summary:
+- All Fase 1 components now fully i18n-compliant
+- 0 new TypeScript errors
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fase 2 — Production Sheets, Tasting Bookings, Design Approvals, Barcode Scanner, PWA + Offline
+
+Work Log:
+- Created PWA manifest.json with app icons (192x192, 512x512, maskable)
+- Created service worker (sw.js) with 3 caching strategies
+- Wired manifest + SW registration in layout.tsx
+- Unlocked camera in middleware (camera=(self)) + added media-src to CSP
+- Installed @zxing/library for barcode scanning
+- Built barcode-scanner.tsx component with camera viewfinder + ZXing
+- Built barcode-lookup API (GET by barcode, product lookup)
+- Built production-sheets API (full CRUD with soft delete, item checklist)
+- Built tastings API (full CRUD with flavors array, guest limits)
+- Built design-approvals API (full CRUD with status workflow)
+- Integrated 4 components into page.tsx (production_sheets, tastings, design_approvals, barcode_scanner)
+- Added 4 new case statements in renderPage()
+- Added 4 sidebar nav items
+- Added 4 new pages to TenantPage type in store.ts
+- Added 160+ i18n keys (EN + ES) for all Fase 2 components
+- Commit: 0bf626f
+
+Stage Summary:
+- 2,863 lines added across 21 files
+- 4 new API routes with auth + tenant isolation
+- 4 new UI components fully integrated
+- PWA infrastructure ready (manifest, service worker, icons)
+- Camera unlocked for barcode scanning
+- 0 new TypeScript errors
