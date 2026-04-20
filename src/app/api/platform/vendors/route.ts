@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { db } from '@/lib/db';
 
 // GET - List vendors
 export async function GET(req: NextRequest) {
@@ -14,7 +12,7 @@ export async function GET(req: NextRequest) {
     if (propertyId) where.propertyId = propertyId;
     if (category && category !== 'all') where.category = category;
 
-    const vendors = await prisma.propertyVendor.findMany({
+    const vendors = await db.propertyVendor.findMany({
       where,
       include: { property: true },
       orderBy: { name: 'asc' },
@@ -29,7 +27,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const vendor = await prisma.propertyVendor.create({
+    const vendor = await db.propertyVendor.create({
       data: {
         propertyId: body.propertyId || null,
         name: body.name,
@@ -70,7 +68,7 @@ export async function PATCH(req: NextRequest) {
     if (body.notes !== undefined) data.notes = body.notes;
     if (body.propertyId !== undefined) data.propertyId = body.propertyId;
 
-    const vendor = await prisma.propertyVendor.update({
+    const vendor = await db.propertyVendor.update({
       where: { id },
       data,
       include: { property: true },
@@ -88,7 +86,7 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-    await prisma.propertyVendor.delete({ where: { id } });
+    await db.propertyVendor.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { db } from '@/lib/db';
 
 // POST - Generate rent payments for all active leases for a given month
 export async function POST(req: NextRequest) {
@@ -18,7 +16,7 @@ export async function POST(req: NextRequest) {
     const periodEnd = new Date(targetYear, targetMonth + 1, 0);
     const dueDate = new Date(targetYear, targetMonth, 5);
 
-    const activeLeases = await prisma.lease.findMany({
+    const activeLeases = await db.lease.findMany({
       where: { status: 'active' },
       include: { unit: { include: { property: true } }, tenant: true },
     });
@@ -26,7 +24,7 @@ export async function POST(req: NextRequest) {
     const results: any[] = [];
 
     for (const lease of activeLeases) {
-      const existing = await prisma.rentPayment.findFirst({
+      const existing = await db.rentPayment.findFirst({
         where: { leaseId: lease.id, periodStart: { gte: periodStart }, periodEnd: { lte: periodEnd } },
       });
 
@@ -38,7 +36,7 @@ export async function POST(req: NextRequest) {
       const rentAmount = Number(lease.rentAmount) || 0;
       const calculatedLateFee = (rentAmount * latePercent) / 100;
 
-      const payment = await prisma.rentPayment.create({
+      const payment = await db.rentPayment.create({
         data: {
           leaseId: lease.id,
           propertyId: lease.unit?.propertyId || '',

@@ -2683,8 +2683,19 @@ function CTTenants() {
   }, [tenants]);
 
   const handleCreate = async () => {
-    await authFetch('/api/platform/tenants', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-    setShowCreate(false); setForm({ name: '', industryId: '', email: '', phone: '', adminEmail: '', adminFullName: '', adminPassword: '', country: 'TT', address: '' }); load(); toast.success('Tenant created!');
+    try {
+      const res = await authFetch('/api/platform/tenants', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || 'Failed to create tenant');
+      }
+      setShowCreate(false);
+      setForm({ name: '', industryId: '', email: '', phone: '', adminEmail: '', adminFullName: '', adminPassword: '', country: 'TT', address: '' });
+      load();
+      toast.success('Tenant created successfully');
+    } catch (e: any) {
+      toast.error(e.message || 'Error creating tenant');
+    }
   };
 
   const handleAction = async (tenantId: string, action: string) => {

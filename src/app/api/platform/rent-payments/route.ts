@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { db } from '@/lib/db';
 
 // GET - List all rent payments
 export async function GET(req: NextRequest) {
@@ -16,7 +14,7 @@ export async function GET(req: NextRequest) {
     if (propertyId) where.propertyId = propertyId;
     if (status && status !== 'all') where.status = status;
 
-    const payments = await prisma.rentPayment.findMany({
+    const payments = await db.rentPayment.findMany({
       where,
       include: { lease: { include: { unit: { include: { property: true } }, tenant: true } }, property: true, unit: true, tenant: true },
       orderBy: { dueDate: 'desc' },
@@ -31,7 +29,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const payment = await prisma.rentPayment.create({
+    const payment = await db.rentPayment.create({
       data: {
         leaseId: body.leaseId,
         propertyId: body.propertyId,
@@ -75,7 +73,7 @@ export async function PATCH(req: NextRequest) {
     if (body.notes !== undefined) data.notes = body.notes;
     if (body.paidAt !== undefined) data.paidAt = body.paidAt ? new Date(body.paidAt) : null;
 
-    const payment = await prisma.rentPayment.update({
+    const payment = await db.rentPayment.update({
       where: { id },
       data,
       include: { lease: true, property: true, unit: true, tenant: true },
@@ -93,7 +91,7 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-    await prisma.rentPayment.delete({ where: { id } });
+    await db.rentPayment.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

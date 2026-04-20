@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { db } from '@/lib/db';
 
 // GET - List property documents
 export async function GET(req: NextRequest) {
@@ -18,7 +16,7 @@ export async function GET(req: NextRequest) {
     if (leaseId) where.leaseId = leaseId;
     if (type && type !== 'all') where.type = type;
 
-    const docs = await prisma.propertyDocument.findMany({
+    const docs = await db.propertyDocument.findMany({
       where,
       include: { property: true, unit: true, lease: true, tenant: true },
       orderBy: { createdAt: 'desc' },
@@ -33,7 +31,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const doc = await prisma.propertyDocument.create({
+    const doc = await db.propertyDocument.create({
       data: {
         propertyId: body.propertyId || null,
         unitId: body.unitId || null,
@@ -72,7 +70,7 @@ export async function PATCH(req: NextRequest) {
     if (body.expiresAt !== undefined) data.expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
     if (body.status !== undefined) data.status = body.status;
 
-    const doc = await prisma.propertyDocument.update({
+    const doc = await db.propertyDocument.update({
       where: { id },
       data,
       include: { property: true, unit: true, lease: true, tenant: true },
@@ -90,7 +88,7 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-    await prisma.propertyDocument.delete({ where: { id } });
+    await db.propertyDocument.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

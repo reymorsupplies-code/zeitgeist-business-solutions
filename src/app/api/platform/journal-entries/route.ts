@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { db } from '@/lib/db';
 
 // GET - List journal entries with lines
 export async function GET(req: NextRequest) {
   try {
-    const entries = await prisma.journalEntry.findMany({
+    const entries = await db.journalEntry.findMany({
       include: { lines: true },
       orderBy: { date: 'desc' },
     });
@@ -32,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'At least one line required' }, { status: 400 });
     }
 
-    const entry = await prisma.journalEntry.create({
+    const entry = await db.journalEntry.create({
       data: {
         date: new Date(date),
         description: description || '',
@@ -63,7 +61,7 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-    await prisma.journalEntry.delete({ where: { id } });
+    await db.journalEntry.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
