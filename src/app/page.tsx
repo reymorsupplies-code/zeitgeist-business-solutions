@@ -11610,100 +11610,169 @@ function TenantRecipeCostingPage() {
 }
 
 function TenantPOSPage() {
-  const { currentTenant, currency } = useAppStore() as any;
+  const { currentTenant, currency, locale } = useAppStore() as any;
   const [products, setProducts] = useState<any[]>([]);
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('Todos');
-  const [customerName, setCustomerName] = useState('Cliente Mostrador');
-  const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'tarjeta' | 'transferencia'>('efectivo');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [customerName, setCustomerName] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer'>('cash');
   const [discountPct, setDiscountPct] = useState(0);
   const [cashReceived, setCashReceived] = useState(0);
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
+  const [todaySales, setTodaySales] = useState<any[]>([]);
+  const [heldSales, setHeldSales] = useState<any[]>([]);
+  const [showScanner, setShowScanner] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
   const tid = currentTenant?.id;
-  const categories = ['Todos', 'Panaderia', 'Pasteles', 'Bebidas', 'Otros'];
+
+  const categories = ['all', ...Array.from(new Set((products || []).map((p: any) => p.category).filter(Boolean)))];
 
   useEffect(() => {
-    if (tid) authFetch(`/api/tenant/${tid}/retail-products`).then(r => r.json()).then(d => { setProducts(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+    if (tid) {
+      authFetch(`/api/tenant/${tid}/retail-products`).then(r => r.json()).then(d => { setProducts(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+      const today = new Date().toISOString().split('T')[0];
+      authFetch(`/api/tenant/${tid}/pos-sales?from=${today}`).then(r => r.json()).then(d => { setTodaySales(Array.isArray(d) ? d : []); }).catch(() => {});
+      try { const held = JSON.parse(localStorage.getItem(`zbs-held-sales-${tid}`) || '[]'); setHeldSales(held); } catch {}
+    }
   }, [tid]);
 
+  const saveHeldSales = (sales: any[]) => { setHeldSales(sales); try { localStorage.setItem(`zbs-held-sales-${tid}`, JSON.stringify(sales)); } catch {} };
+
   const filtered = (products || []).filter((p: any) => {
-    const matchSearch = p.name?.toLowerCase().includes(search.toLowerCase()) || p.sku?.toLowerCase().includes(search.toLowerCase());
-    const matchCat = categoryFilter === 'Todos' || !p.category || p.category.toLowerCase() === categoryFilter.toLowerCase();
+    const s = search.toLowerCase();
+    const matchSearch = !s || p.name?.toLowerCase().includes(s) || p.sku?.toLowerCase().includes(s) || p.barcode?.toLowerCase().includes(s);
+    const matchCat = categoryFilter === 'all' || !p.category || p.category.toLowerCase() === categoryFilter.toLowerCase();
     return matchSearch && matchCat;
   });
 
-  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const subtotal = cart.reduce((s: number, i: any) => s + i.price * i.qty, 0);
   const discountAmt = subtotal * (discountPct / 100);
   const afterDiscount = subtotal - discountAmt;
-  const tax = afterDiscount * (currentTenant?.taxRate || 0.125);
-  const grandTotal = afterDiscount + tax;
-  const change = paymentMethod === 'efectivo' ? Math.max(0, cashReceived - grandTotal) : 0;
+  const taxAmt = afterDiscount * (currentTenant?.taxRate || 0.125);
+  const grandTotal = afterDiscount + taxAmt;
+  const change = paymentMethod === 'cash' ? Math.max(0, cashReceived - grandTotal) : 0;
+
+  const todaySalesCount = todaySales.length;
+  const todaySalesTotal = todaySales.reduce((s: number, sale: any) => s + (sale.totalAmount || 0), 0);
 
   const addToCart = (p: any) => {
+    if (!p || (p.quantity || 0) <= 0) return;
     setCart(prev => { const existing = prev.find(i => i.id === p.id); return existing ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }]; });
   };
   const updateQty = (id: string, qty: number) => { if (qty <= 0) setCart(prev => prev.filter(i => i.id !== id)); else setCart(prev => prev.map(i => i.id === id ? { ...i, qty } : i)); };
 
+  const handleBarcodeScanned = (product: any) => {
+    if (product && product.id) {
+      addToCart({ ...product, quantity: product.stock });
+      toast.success(`${product.name} added to cart`);
+    }
+    setShowScanner(false);
+  };
+
+  const handleHoldSale = () => {
+    if (cart.length === 0) return;
+    const held = { id: Date.now().toString(), cart: [...cart], customerName, discountPct, paymentMethod, heldAt: new Date().toISOString() };
+    const updated = [...heldSales, held];
+    saveHeldSales(updated);
+    setCart([]); setDiscountPct(0); setCashReceived(0); setCustomerName('');
+    toast.success(t('pos.heldSales', locale));
+  };
+
+  const handleResumeSale = (held: any) => {
+    setCart(held.cart || []);
+    setCustomerName(held.customerName || '');
+    setDiscountPct(held.discountPct || 0);
+    setPaymentMethod(held.paymentMethod || 'cash');
+    saveHeldSales(heldSales.filter(h => h.id !== held.id));
+  };
+
+  const handleDeleteHeld = (heldId: string) => {
+    saveHeldSales(heldSales.filter(h => h.id !== heldId));
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) return;
-    if (paymentMethod === 'efectivo' && cashReceived < grandTotal) { toast.error('El monto recibido es insuficiente'); return; }
-    const orderBody = {
-      clientName: customerName || 'Cliente Mostrador',
-      orderType: 'walk_in',
-      subtotal, discountPct, discountAmount: discountAmt, taxAmount: tax,
-      totalAmount: grandTotal,
-      paymentMethod,
-      status: 'confirmed',
-      items: JSON.stringify(cart.map(i => ({ name: i.name, qty: i.qty, price: i.price }))),
-    };
-    await authFetch(`/api/tenant/${tid}/orders`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(orderBody),
-    });
-    setReceiptOrder({ ...orderBody, id: `REC-${Date.now().toString(36).toUpperCase()}`, date: new Date().toISOString(), cart: [...cart] });
-    setCart([]); setDiscountPct(0); setCashReceived(0); setCustomerName('Cliente Mostrador');
-    toast.success('¡Venta completada!');
+    if (paymentMethod === 'cash' && cashReceived < grandTotal) { toast.error(t('pos.insufficientCash', locale)); return; }
+    setCheckingOut(true);
+    try {
+      const orderBody = {
+        items: cart.map(i => ({ productId: i.id, name: i.name, sku: i.sku, qty: i.qty, price: i.price, cost: i.cost || 0 })),
+        subtotal, discountPct, discountAmount: discountAmt, taxAmount: taxAmt, totalAmount: grandTotal,
+        paymentMethod, cashReceived: paymentMethod === 'cash' ? cashReceived : 0, changeAmount: change,
+        currency, customerName: customerName || t('pos.walkIn', locale), status: 'completed',
+      };
+      await authFetchJSON(`/api/tenant/${tid}/pos-sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderBody) });
+      setReceiptOrder({ ...orderBody, id: `POS-${Date.now().toString(36).toUpperCase()}`, date: new Date().toISOString() });
+      setCart([]); setDiscountPct(0); setCashReceived(0); setCustomerName('');
+      const today = new Date().toISOString().split('T')[0];
+      authFetch(`/api/tenant/${tid}/pos-sales?from=${today}`).then(r => r.json()).then(d => { setTodaySales(Array.isArray(d) ? d : []); }).catch(() => {});
+      toast.success(t('pos.saleComplete', locale));
+    } catch (e: any) { toast.error(e.message); }
+    setCheckingOut(false);
   };
 
   const handlePrint = () => { window.print(); };
 
+  const paymentMethodLabel = (m: string) => m === 'cash' ? t('pos.cash', locale) : m === 'card' ? t('pos.card', locale) : t('pos.transfer', locale);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold">Terminal POS</h1><p className="text-sm text-muted-foreground">Procesar transacciones de venta</p></div>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div><h1 className="text-2xl font-bold">{t('pos.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('pos.subtitle', locale)}</p></div>
+        <div className="flex items-center gap-2">
+          {heldSales.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => {}}>
+              {t('pos.heldSales', locale)} <Badge className="ml-1 bg-amber-500 text-white">{heldSales.length}</Badge>
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => setShowScanner(true)}><ScanLine className="w-4 h-4 mr-2" />{t('pos.search', locale)}</Button>
+        </div>
       </div>
+
+      {/* Today's Sales Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">{t('pos.today', locale)}</p><p className="text-2xl font-bold">{todaySalesCount}</p></div><ShoppingCart className="w-5 h-5 text-blue-500 opacity-60" /></div></Card>
+        <Card className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">{t('pos.total', locale)}</p><p className="text-2xl font-bold">{formatCurrency(todaySalesTotal, currency)}</p></div><DollarSign className="w-5 h-5 text-green-500 opacity-60" /></div></Card>
+      </div>
+
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
-          <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar productos por nombre o SKU..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" /></div>
+          <div className="flex gap-2">
+            <div className="relative flex-1"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t('pos.search', locale)} value={search} onChange={e => setSearch(e.target.value)} className="pl-10" /></div>
+            <Button variant="outline" size="icon" onClick={() => setShowScanner(true)}><ScanLine className="w-4 h-4" /></Button>
+          </div>
           <div className="flex gap-2 flex-wrap">
             {categories.map(cat => (
-              <Button key={cat} variant={categoryFilter === cat ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter(cat)} className="text-xs">{cat}</Button>
+              <Button key={cat} variant={categoryFilter === cat ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter(cat)} className="text-xs">{cat === 'all' ? t('pos.all', locale) : cat}</Button>
             ))}
           </div>
-          {loading ? <PageSkeleton type="table" /> : filtered.length === 0 ? <p className="text-center text-muted-foreground py-8">No se encontraron productos</p> : (
+          {loading ? <PageSkeleton type="table" /> : filtered.length === 0 ? <p className="text-center text-muted-foreground py-8">{t('pos.noProducts', locale)}</p> : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[55vh] overflow-y-auto">
               {filtered.map((p: any) => (
-                <motion.button key={p.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => addToCart(p)} className="p-3 rounded-xl border text-left hover:border-primary/50 hover:bg-primary/5 transition-all">
+                <motion.button key={p.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => addToCart(p)} disabled={(p.quantity || 0) <= 0} className={`p-3 rounded-xl border text-left hover:border-primary/50 hover:bg-primary/5 transition-all relative ${(p.quantity || 0) <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  {(p.quantity || 0) <= 0 && <Badge className="absolute top-1 right-1 text-[10px] bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">{t('pos.voided', locale)}</Badge>}
                   <p className="font-medium text-sm truncate">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{p.sku}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{p.sku}</p>
                   <p className="font-bold text-primary mt-1">{formatCurrency(p.price, currency)}</p>
-                  <p className="text-xs text-muted-foreground">Stock: {p.quantity}</p>
+                  <p className="text-xs text-muted-foreground">{t('pos.stock', locale)}: {p.quantity || 0}</p>
                 </motion.button>
               ))}
             </div>
           )}
         </div>
+
+        {/* Cart */}
         <Card className="h-fit sticky top-4">
-          <CardHeader className="pb-3"><CardTitle className="text-sm">Carrito ({cart.length})</CardTitle></CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="text-sm">{t('pos.cart', locale)} ({cart.length})</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <div><Label className="text-xs">Cliente</Label><Input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Nombre del cliente" className="mt-1" /></div>
-            {cart.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">El carrito está vacío</p> : (
+            <div><Label className="text-xs">{t('pos.customer', locale)}</Label><Input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder={t('pos.customerPlaceholder', locale)} className="mt-1" /></div>
+            {cart.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">{t('pos.cartEmpty', locale)}</p> : (
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {cart.map((item: any) => (
                   <div key={item.id} className="flex items-center justify-between gap-2">
-                    <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{item.name}</p><p className="text-xs text-muted-foreground">{formatCurrency(item.price, currency)}</p></div>
+                    <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{item.name}</p><p className="text-xs text-muted-foreground">{formatCurrency(item.price, currency)} × {item.qty}</p></div>
                     <div className="flex items-center gap-1">
                       <Button variant="outline" size="icon" className="w-6 h-6" onClick={() => updateQty(item.id, item.qty - 1)}><Minus className="w-3 h-3" /></Button>
                       <span className="text-sm w-6 text-center">{item.qty}</span>
@@ -11715,79 +11784,108 @@ function TenantPOSPage() {
             )}
             <Separator />
             <div className="space-y-1 text-sm">
-              <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(subtotal, currency)}</span></div>
+              <div className="flex justify-between"><span>{t('pos.subtotal', locale)}</span><span>{formatCurrency(subtotal, currency)}</span></div>
               <div className="flex items-center justify-between gap-2">
-                <span>Descuento (%)</span>
-                <Input type="number" min={0} max={100} value={discountPct} onChange={e => setDiscountPct(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))} className="w-16 h-7 text-xs text-right" />
+                <span>{t('pos.discount', locale)} (%)</span>
+                <Input type="number" min={0} max={100} value={discountPct || ''} onChange={e => setDiscountPct(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))} className="w-16 h-7 text-xs text-right" />
               </div>
-              {discountPct > 0 && <div className="flex justify-between text-amber-600"><span>Desc: -{discountPct}%</span><span>-{formatCurrency(discountAmt, currency)}</span></div>}
-              <div className="flex justify-between"><span>Impuesto</span><span>{formatCurrency(tax, currency)}</span></div>
+              {discountPct > 0 && <div className="flex justify-between text-amber-600"><span>{t('pos.discountLabel', locale)} -{discountPct}%</span><span>-{formatCurrency(discountAmt, currency)}</span></div>}
+              <div className="flex justify-between"><span>{t('pos.tax', locale)}</span><span>{formatCurrency(taxAmt, currency)}</span></div>
               <Separator />
-              <div className="flex justify-between font-bold text-lg"><span>Total</span><span>{formatCurrency(grandTotal, currency)}</span></div>
+              <div className="flex justify-between font-bold text-lg"><span>{t('pos.total', locale)}</span><span>{formatCurrency(grandTotal, currency)}</span></div>
             </div>
             <Separator />
             <div>
-              <Label className="text-xs font-medium">Método de Pago</Label>
+              <Label className="text-xs font-medium">{t('pos.payment', locale)}</Label>
               <div className="flex gap-2 mt-1">
-                {([['efectivo', 'Efectivo'], ['tarjeta', 'Tarjeta'], ['transferencia', 'Transferencia']] as const).map(([val, label]) => (
-                  <Button key={val} variant={paymentMethod === val ? 'default' : 'outline'} size="sm" className="flex-1 text-xs" onClick={() => setPaymentMethod(val)}>{label}</Button>
+                {([['cash', t('pos.cash', locale)], ['card', t('pos.card', locale)], ['transfer', t('pos.transfer', locale)]] as const).map(([val, label]) => (
+                  <Button key={val} variant={paymentMethod === val ? 'default' : 'outline'} size="sm" className="flex-1 text-xs" onClick={() => setPaymentMethod(val as any)}>{label}</Button>
                 ))}
               </div>
             </div>
-            {paymentMethod === 'efectivo' && (
+            {paymentMethod === 'cash' && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-2">
-                <div><Label className="text-xs">Monto Recibido</Label><Input type="number" min={0} step={0.01} value={cashReceived || ''} onChange={e => setCashReceived(parseFloat(e.target.value) || 0)} placeholder="0.00" className="mt-1" /></div>
+                <div><Label className="text-xs">{t('pos.amountReceived', locale)}</Label><Input type="number" min={0} step={0.01} value={cashReceived || ''} onChange={e => setCashReceived(parseFloat(e.target.value) || 0)} placeholder="0.00" className="mt-1" /></div>
                 {cashReceived >= grandTotal && grandTotal > 0 && (
-                  <div className="flex justify-between font-medium text-sm text-green-600"><span>Cambio</span><span>{formatCurrency(change, currency)}</span></div>
+                  <div className="flex justify-between font-medium text-sm text-green-600"><span>{t('pos.change', locale)}</span><span>{formatCurrency(change, currency)}</span></div>
                 )}
               </motion.div>
             )}
-            <Button onClick={handleCheckout} disabled={cart.length === 0} className="w-full bg-gradient-to-r from-blue-700 to-blue-500"><CreditCard className="w-4 h-4 mr-2" />Cobrar</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleHoldSale} disabled={cart.length === 0} className="flex-1"><Clock className="w-4 h-4 mr-1" />{t('pos.hold', locale)}</Button>
+              <Button onClick={handleCheckout} disabled={cart.length === 0 || checkingOut} className="flex-1 bg-gradient-to-r from-blue-700 to-blue-500">{checkingOut ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CreditCard className="w-4 h-4 mr-1" />{t('pos.charge', locale)}</>}</Button>
+            </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* Held Sales Dialog */}
+      <Dialog open={heldSales.length > 0 && false} onOpenChange={() => {}}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t('pos.heldSales', locale)}</DialogTitle></DialogHeader>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {heldSales.map(h => (
+              <div key={h.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div><p className="text-sm font-medium">{h.customerName || t('pos.walkIn', locale)} — {h.cart.length} {t('pos.items', locale)}</p><p className="text-xs text-muted-foreground">{new Date(h.heldAt).toLocaleString()}</p></div>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="outline" onClick={() => handleResumeSale(h)}><RefreshCw className="w-3 h-3 mr-1" />{t('pos.resume', locale)}</Button>
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDeleteHeld(h.id)}><Trash2 className="w-3 h-3" /></Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Barcode Scanner Dialog */}
+      <Dialog open={showScanner} onOpenChange={setShowScanner}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{t('pos.search', locale)}</DialogTitle></DialogHeader>
+          <BarcodeScanner onAddToOrder={handleBarcodeScanned} />
+        </DialogContent>
+      </Dialog>
+
       {/* Receipt Dialog */}
       <Dialog open={!!receiptOrder} onOpenChange={() => setReceiptOrder(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle className="text-center">Recibo de Venta</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-center">{t('pos.receiptTitle', locale)}</DialogTitle></DialogHeader>
           <div className="border rounded-lg p-4 space-y-3 text-sm font-mono" id="receipt-print">
             <div className="text-center space-y-1">
-              <p className="font-bold text-base">{currentTenant?.name || 'Mi Negocio'}</p>
-              <p className="text-xs text-muted-foreground">{receiptOrder?.date ? new Date(receiptOrder.date).toLocaleString('es') : ''}</p>
+              <p className="font-bold text-base">{currentTenant?.name || 'Business'}</p>
+              <p className="text-xs text-muted-foreground">{receiptOrder?.date ? new Date(receiptOrder.date).toLocaleString() : ''}</p>
               <p className="text-xs text-muted-foreground">{receiptOrder?.id || ''}</p>
             </div>
             <Separator />
-            {receiptOrder?.cart?.map((item: any, idx: number) => (
+            {(receiptOrder?.items || []).map((item: any, idx: number) => (
               <div key={idx} className="flex justify-between">
-                <div><p className="text-xs">{item.name}</p><p className="text-xs text-muted-foreground">{item.qty} x {formatCurrency(item.price, currency)}</p></div>
+                <div><p className="text-xs">{item.name}</p><p className="text-xs text-muted-foreground">{item.qty} × {formatCurrency(item.price, currency)}</p></div>
                 <span>{formatCurrency(item.price * item.qty, currency)}</span>
               </div>
             ))}
             <Separator />
             <div className="space-y-1">
-              <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(receiptOrder?.subtotal || 0, currency)}</span></div>
-              {receiptOrder?.discountPct > 0 && <div className="flex justify-between text-amber-600"><span>Descuento ({receiptOrder.discountPct}%)</span><span>-{formatCurrency(receiptOrder?.discountAmount || 0, currency)}</span></div>}
-              <div className="flex justify-between"><span>Impuesto</span><span>{formatCurrency(receiptOrder?.taxAmount || 0, currency)}</span></div>
+              <div className="flex justify-between"><span>{t('pos.subtotal', locale)}</span><span>{formatCurrency(receiptOrder?.subtotal || 0, currency)}</span></div>
+              {receiptOrder?.discountPct > 0 && <div className="flex justify-between text-amber-600"><span>{t('pos.discountLabel', locale)} ({receiptOrder.discountPct}%)</span><span>-{formatCurrency(receiptOrder?.discountAmount || 0, currency)}</span></div>}
+              <div className="flex justify-between"><span>{t('pos.tax', locale)}</span><span>{formatCurrency(receiptOrder?.taxAmount || 0, currency)}</span></div>
               <Separator />
-              <div className="flex justify-between font-bold text-base"><span>Total</span><span>{formatCurrency(receiptOrder?.totalAmount || 0, currency)}</span></div>
+              <div className="flex justify-between font-bold text-base"><span>{t('pos.total', locale)}</span><span>{formatCurrency(receiptOrder?.totalAmount || 0, currency)}</span></div>
             </div>
             <Separator />
             <div className="text-xs space-y-1">
-              <div className="flex justify-between"><span>Pago:</span><span className="capitalize">{receiptOrder?.paymentMethod === 'efectivo' ? 'Efectivo' : receiptOrder?.paymentMethod === 'tarjeta' ? 'Tarjeta' : 'Transferencia'}</span></div>
-              <div className="flex justify-between"><span>Cliente:</span><span>{receiptOrder?.clientName || 'Cliente Mostrador'}</span></div>
-              {receiptOrder?.paymentMethod === 'efectivo' && cashReceived > 0 && (
+              <div className="flex justify-between"><span>{t('pos.payment', locale)}:</span><span>{paymentMethodLabel(receiptOrder?.paymentMethod)}</span></div>
+              <div className="flex justify-between"><span>{t('pos.customer', locale)}:</span><span>{receiptOrder?.customerName || t('pos.walkIn', locale)}</span></div>
+              {receiptOrder?.paymentMethod === 'cash' && receiptOrder.cashReceived > 0 && (
                 <>
-                  <div className="flex justify-between"><span>Recibido:</span><span>{formatCurrency(cashReceived, currency)}</span></div>
-                  <div className="flex justify-between"><span>Cambio:</span><span>{formatCurrency(change, currency)}</span></div>
+                  <div className="flex justify-between"><span>{t('pos.amountReceived', locale)}:</span><span>{formatCurrency(receiptOrder.cashReceived, currency)}</span></div>
+                  <div className="flex justify-between"><span>{t('pos.change', locale)}:</span><span>{formatCurrency(receiptOrder.changeAmount, currency)}</span></div>
                 </>
               )}
             </div>
-            <p className="text-center text-xs text-muted-foreground mt-2">¡Gracias por su compra!</p>
+            <p className="text-center text-xs text-muted-foreground mt-2">{t('pos.receipt', locale)}</p>
           </div>
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={() => setReceiptOrder(null)}>Cerrar</Button>
-            <Button className="flex-1 bg-gradient-to-r from-blue-700 to-blue-500" onClick={handlePrint}><Copy className="w-4 h-4 mr-2" />Imprimir</Button>
+            <Button variant="outline" className="flex-1" onClick={() => setReceiptOrder(null)}>OK</Button>
+            <Button className="flex-1 bg-gradient-to-r from-blue-700 to-blue-500" onClick={handlePrint}><Copy className="w-4 h-4 mr-2" />{t('pos.receipt', locale)}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -11796,22 +11894,172 @@ function TenantPOSPage() {
 }
 
 function TenantSuppliersPage() {
-  const cols = [
-    { key: 'name', label: 'Supplier', render: (v: string) => <span className="font-medium">{v}</span> },
-    { key: 'contact', label: 'Contact' },
-    { key: 'email', label: 'Email' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'category', label: 'Category', render: (v: string) => v ? <Badge variant="secondary">{v}</Badge> : '—' },
-  ];
-  const fields = [
-    { key: 'name', label: 'Supplier Name *' },
-    { key: 'contact', label: 'Contact Person' },
-    { key: 'email', label: 'Email', type: 'email' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'address', label: 'Address' },
-    { key: 'category', label: 'Category', type: 'select', options: ['Food & Beverage', 'Packaging', 'Equipment', 'Raw Materials', 'Services', 'Other'] },
-  ];
-  return <CrudPage title="Suppliers" description="Manage your supplier directory" icon={Truck} endpoint="suppliers" columns={cols} fields={fields} defaultForm={{ name: '', contact: '', email: '', phone: '', address: '', category: '' }} successMsg="Supplier saved!" />;
+  const { currentTenant, locale } = useAppStore() as any;
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [search, setSearch] = useState('');
+  const [catFilter, setCatFilter] = useState('all');
+  const [form, setForm] = useState({ name: '', contact: '', email: '', phone: '', address: '', category: '', rating: 0, notes: '' });
+  const [poCounts, setPoCounts] = useState<Record<string, number>>({});
+  const tid = currentTenant?.id;
+
+  const catKeys = ['suppliers.catFood', 'suppliers.catPackaging', 'suppliers.catEquipment', 'suppliers.catRaw', 'suppliers.catServices', 'suppliers.catElectronics', 'suppliers.catClothing', 'suppliers.catHealth', 'suppliers.catOther'];
+  const categoryOptions = catKeys.map(k => ({ value: k.replace('suppliers.cat', '').toLowerCase(), label: t(k, locale) }));
+
+  const load = useCallback(() => {
+    if (!tid) return;
+    authFetch(`/api/tenant/${tid}/suppliers`).then(r => r.json()).then(d => { setSuppliers(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+    authFetch(`/api/tenant/${tid}/purchase-orders`).then(r => r.json()).then(d => {
+      const counts: Record<string, number> = {};
+      (Array.isArray(d) ? d : []).forEach((po: any) => { if (po.supplierId) { counts[po.supplierId] = (counts[po.supplierId] || 0) + 1; } });
+      setPoCounts(counts);
+    }).catch(() => {});
+  }, [tid]);
+  useEffect(() => { load(); }, [load]);
+
+  const defaultForm = { name: '', contact: '', email: '', phone: '', address: '', category: '', rating: 0, notes: '' };
+  const openCreate = () => { setEditing(null); setForm({ ...defaultForm }); setShowForm(true); };
+  const openEdit = (row: any) => { setEditing(row); setForm({ name: row.name || '', contact: row.contact || '', email: row.email || '', phone: row.phone || '', address: row.address || '', category: row.category || '', rating: row.rating || 0, notes: row.notes || '' }); setShowForm(true); };
+
+  const handleSave = async () => {
+    if (!form.name) return;
+    const isEdit = !!editing?.id;
+    try {
+      await authFetchJSON(`/api/tenant/${tid}/suppliers`, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(isEdit ? { id: editing.id, ...form } : form) });
+      setShowForm(false); setEditing(null); load();
+      toast.success(t('suppliers.saved', locale));
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleDelete = async (row: any) => {
+    try {
+      await authFetchJSON(`/api/tenant/${tid}/suppliers`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: row.id }) });
+      load(); toast.success('Deleted');
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const allCats = Array.from(new Set(suppliers.map(s => s.category).filter(Boolean)));
+  const filtered = suppliers.filter((s: any) => {
+    const matchSearch = !search || s.name?.toLowerCase().includes(search.toLowerCase()) || s.contact?.toLowerCase().includes(search.toLowerCase());
+    const matchCat = catFilter === 'all' || s.category === catFilter;
+    return matchSearch && matchCat;
+  });
+
+  const renderStars = (rating: number) => (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map(i => <Star key={i} className={`w-3.5 h-3.5 ${i <= rating ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground'}`} />)}
+    </div>
+  );
+
+  const catLabel = (cat: string) => {
+    const found = categoryOptions.find(o => o.value === cat?.toLowerCase());
+    return found ? found.label : cat || '—';
+  };
+
+  if (loading) return <PageSkeleton type="table" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg"><Truck className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">{t('suppliers.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('suppliers.subtitle', locale)}</p></div>
+        </div>
+        <Button onClick={openCreate} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />{t('suppliers.name', locale)}</Button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyState icon={Truck} title={t('suppliers.empty', locale)} description={t('suppliers.emptyDesc', locale)} action={t('suppliers.name', locale)} onAction={openCreate} />
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="relative max-w-xs flex-1"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t('suppliers.name', locale)} value={search} onChange={e => setSearch(e.target.value)} className="pl-10" /></div>
+            <Select value={catFilter} onValueChange={setCatFilter}>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder={t('suppliers.category', locale)} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('pos.all', locale)}</SelectItem>
+                {allCats.map(c => <SelectItem key={c} value={c}>{catLabel(c)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b bg-muted/50">
+                  <th className="text-left px-4 py-3 font-medium">{t('suppliers.name', locale)}</th>
+                  <th className="text-left px-4 py-3 font-medium">{t('suppliers.contact', locale)}</th>
+                  <th className="text-left px-4 py-3 font-medium">{t('suppliers.email', locale)}</th>
+                  <th className="text-left px-4 py-3 font-medium">{t('suppliers.phone', locale)}</th>
+                  <th className="text-left px-4 py-3 font-medium">{t('suppliers.category', locale)}</th>
+                  <th className="text-left px-4 py-3 font-medium">{t('suppliers.rating', locale)}</th>
+                  <th className="text-center px-4 py-3 font-medium">PO</th>
+                  <th className="text-center px-4 py-3 font-medium">{t('po.actions', locale)}</th>
+                </tr></thead>
+                <tbody>
+                  {filtered.map((s: any) => (
+                    <tr key={s.id} className="border-b hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 font-medium">{s.name}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{s.contact || '—'}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{s.email || '—'}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{s.phone || '—'}</td>
+                      <td className="px-4 py-3">{s.category ? <Badge variant="secondary">{catLabel(s.category)}</Badge> : '—'}</td>
+                      <td className="px-4 py-3">{renderStars(s.rating || 0)}</td>
+                      <td className="px-4 py-3 text-center">{poCounts[s.id] || '—'}</td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(s)}><Edit className="w-3.5 h-3.5" /></Button>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(s)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
+      )}
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editing ? t('suppliers.name', locale) : t('suppliers.name', locale)}</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div><Label>{t('suppliers.name', locale)} *</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="mt-1" /></div>
+            <div><Label>{t('suppliers.contact', locale)}</Label><Input value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} className="mt-1" /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>{t('suppliers.email', locale)}</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="mt-1" /></div>
+              <div><Label>{t('suppliers.phone', locale)}</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="mt-1" /></div>
+            </div>
+            <div><Label>{t('suppliers.address', locale)}</Label><Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} className="mt-1" /></div>
+            <div><Label>{t('suppliers.category', locale)}</Label>
+              <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder={t('suppliers.category', locale)} /></SelectTrigger>
+                <SelectContent>{categoryOptions.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t('suppliers.rating', locale)}</Label>
+              <div className="flex gap-1 mt-2">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <button key={i} type="button" onClick={() => setForm(f => ({ ...f, rating: f.rating === i ? 0 : i }))}>
+                    <Star className={`w-6 h-6 cursor-pointer transition-colors ${i <= form.rating ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground hover:text-amber-300'}`} />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div><Label>{t('suppliers.notes', locale)}</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} className="mt-1" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={!form.name} className="bg-gradient-to-r from-blue-700 to-blue-500">{t('suppliers.saved', locale)}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
 
 // --- Salon Pages ---
@@ -12810,7 +13058,7 @@ const INVENTORY_CATEGORIES = ['Harinas', 'Azucares', 'Grasas', 'Lacteos', 'Huevo
 const MOVEMENT_REASONS = ['Compra', 'Venta', 'Merma', 'Ajuste', 'Produccion', 'Otro'];
 
 function TenantInventoryPage() {
-  const { currentTenant, currency } = useAppStore() as any;
+  const { currentTenant, currency, locale } = useAppStore() as any;
   const [items, setItems] = useState<any[]>([]);
   const [movements, setMovements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -12820,25 +13068,22 @@ function TenantInventoryPage() {
   const [activeTab, setActiveTab] = useState('stock');
   const [movTypeFilter, setMovTypeFilter] = useState('all');
   const tenantId = currentTenant?.id;
-
-  // Dialogs
   const [showAdjust, setShowAdjust] = useState(false);
-  const [showNewItem, setShowNewItem] = useState(false);
   const [adjustItem, setAdjustItem] = useState<any>(null);
+  const [adjustForm, setAdjustForm] = useState({ type: 'entry', quantity: 0, reason: 'purchase', reference: '', batchNumber: '', unitCost: 0, method: 'fifo' });
 
-  const [adjustForm, setAdjustForm] = useState({ type: 'entry', quantity: 0, reason: 'Compra', reference: '', batchNumber: '', unitCost: 0, method: 'fifo' });
-  const [newItemForm, setNewItemForm] = useState({ name: '', category: 'Harinas', unit: 'kg', quantity: 0, minStock: 0, costPerUnit: 0, supplier: '' });
+  const categories = Array.from(new Set(items.map((i: any) => i.category).filter(Boolean)));
 
   const loadItems = useCallback(() => {
     if (tenantId) {
-      authFetch(`/api/tenant/${tenantId}/ingredients`).then(r => r.json()).then(d => { setItems(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+      authFetch(`/api/tenant/${tenantId}/retail-products`).then(r => r.json()).then(d => { setItems(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
     }
   }, [tenantId]);
 
   const loadMovements = useCallback(() => {
     if (tenantId) {
       const params = movTypeFilter !== 'all' ? `?type=${movTypeFilter}` : '';
-      authFetch(`/api/tenant/${tenantId}/stock-movements${params}`).then(r => r.json()).then(d => { setMovements(Array.isArray(d) ? d : []); setLoadingMov(false); }).catch(() => setLoadingMov(false));
+      authFetch(`/api/tenant/${tenantId}/retail-stock${params}`).then(r => r.json()).then(d => { setMovements(Array.isArray(d) ? d : []); setLoadingMov(false); }).catch(() => setLoadingMov(false));
     }
   }, [tenantId, movTypeFilter]);
 
@@ -12846,96 +13091,81 @@ function TenantInventoryPage() {
   useEffect(() => { if (activeTab === 'movements' || activeTab === 'alerts') { setLoadingMov(true); loadMovements(); } }, [activeTab, loadMovements]);
 
   const filteredItems = items.filter((i: any) => {
-    const matchSearch = !search || i.name?.toLowerCase().includes(search.toLowerCase()) || i.category?.toLowerCase().includes(search.toLowerCase());
+    const s = search.toLowerCase();
+    const matchSearch = !s || i.name?.toLowerCase().includes(s) || i.sku?.toLowerCase().includes(s);
     const matchCat = categoryFilter === 'all' || i.category === categoryFilter;
     return matchSearch && matchCat;
   });
 
-  const lowStockItems = filteredItems.filter((i: any) => i.minStock > 0 && i.quantity <= i.minStock);
-  const totalValue = filteredItems.reduce((sum: number, i: any) => sum + (i.quantity || 0) * (i.costPerUnit || 0), 0);
+  const lowStockItems = filteredItems.filter((i: any) => i.minStock > 0 && (i.quantity || 0) <= i.minStock);
+  const totalValue = filteredItems.reduce((sum: number, i: any) => sum + (i.quantity || 0) * (i.cost || 0), 0);
   const categoriesCount = new Set(filteredItems.map((i: any) => i.category).filter(Boolean)).size;
 
   const openAdjust = (item: any) => {
     setAdjustItem(item);
-    setAdjustForm({ type: 'entry', quantity: 0, reason: 'Compra', reference: '', batchNumber: '', unitCost: item.costPerUnit || 0, method: 'fifo' });
+    setAdjustForm({ type: 'entry', quantity: 0, reason: 'purchase', reference: '', batchNumber: '', unitCost: item.cost || 0, method: 'fifo' });
     setShowAdjust(true);
   };
 
   const handleAdjust = async () => {
     if (!adjustItem || adjustForm.quantity <= 0) return;
     try {
-      await authFetch(`/api/tenant/${tenantId}/stock-movements`, {
+      await authFetchJSON(`/api/tenant/${tenantId}/retail-stock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ingredientId: adjustItem.id, ...adjustForm }),
+        body: JSON.stringify({ productId: adjustItem.id, ...adjustForm }),
       });
       setShowAdjust(false);
       loadItems();
-      if (activeTab === 'movements') loadMovements();
-      toast.success('Movimiento de stock registrado!');
-    } catch { toast.error('Error al registrar movimiento'); }
-  };
-
-  const handleCreateItem = async () => {
-    if (!newItemForm.name) return;
-    try {
-      await authFetch(`/api/tenant/${tenantId}/ingredients`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newItemForm),
-      });
-      setShowNewItem(false);
-      setNewItemForm({ name: '', category: 'Harinas', unit: 'kg', quantity: 0, minStock: 0, costPerUnit: 0, supplier: '' });
-      loadItems();
-      toast.success('Item agregado al inventario!');
-    } catch { toast.error('Error al agregar item'); }
+      loadMovements();
+      toast.success(t('retailInv.movementRegistered', locale));
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const getMovTypeBadge = (type: string) => {
     switch (type) {
-      case 'entry': return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Entrada</Badge>;
-      case 'exit': return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Salida</Badge>;
-      case 'adjustment': return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Ajuste</Badge>;
+      case 'entry': return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">{t('retailInv.entry', locale)}</Badge>;
+      case 'exit': return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">{t('retailInv.exit', locale)}</Badge>;
+      case 'adjustment': return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{t('retailInv.adjustment', locale)}</Badge>;
       default: return <Badge variant="outline">{type}</Badge>;
     }
+  };
+
+  const reasonLabel = (r: string) => {
+    const map: Record<string, string> = { purchase: t('retailInv.reasonPurchase', locale), return: t('retailInv.reasonReturn', locale), damage: t('retailInv.reasonDamage', locale), audit: t('retailInv.reasonAudit', locale), correction: t('retailInv.reasonCorrection', locale) };
+    return map[r] || r;
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div><h1 className="text-2xl font-bold">Inventario</h1><p className="text-sm text-muted-foreground">Gestion de stock y movimientos</p></div>
-        <Button onClick={() => setShowNewItem(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />Nuevo Item</Button>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg"><Package className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">{t('retailInv.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('retailInv.subtitle', locale)}</p></div>
+        </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Items', value: filteredItems.length, icon: Package, color: 'text-blue-600' },
-          { label: 'Stock Bajo', value: lowStockItems.length, icon: AlertTriangle, color: lowStockItems.length > 0 ? 'text-red-600' : 'text-green-600' },
-          { label: 'Valor Total', value: `${currency || 'TTD'} ${totalValue.toFixed(2)}`, icon: DollarSign, color: 'text-green-600' },
-          { label: 'Categorias', value: categoriesCount, icon: Layers, color: 'text-purple-600' },
-        ].map((s) => (
-          <Card key={s.label} className="p-4">
-            <div className="flex items-center justify-between">
-              <div><p className="text-xs text-muted-foreground">{s.label}</p><p className="text-2xl font-bold">{s.value}</p></div>
-              <s.icon className={`w-5 h-5 ${s.color} opacity-60`} />
-            </div>
-          </Card>
-        ))}
+        <Card className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">{t('retailInv.items', locale)}</p><p className="text-2xl font-bold">{filteredItems.length}</p></div><Package className="w-5 h-5 text-blue-500 opacity-60" /></div></Card>
+        <Card className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">{t('retailInv.totalValue', locale)}</p><p className="text-2xl font-bold">{formatCurrency(totalValue, currency)}</p></div><DollarSign className="w-5 h-5 text-green-500 opacity-60" /></div></Card>
+        <Card className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">{t('retailInv.categories', locale)}</p><p className="text-2xl font-bold">{categoriesCount}</p></div><Layers className="w-5 h-5 text-purple-500 opacity-60" /></div></Card>
+        <Card className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">{t('retailInv.alerts', locale)}</p><p className={`text-2xl font-bold ${lowStockItems.length > 0 ? 'text-red-600' : 'text-green-600'}`}>{lowStockItems.length}</p></div><AlertTriangle className={`w-5 h-5 opacity-60 ${lowStockItems.length > 0 ? 'text-red-500' : 'text-green-500'}`} /></div></Card>
       </div>
 
-      {/* Low Stock Alert */}
+      {/* Low Stock Alert Banner */}
       {lowStockItems.length > 0 && (
         <Card className="p-4 border-red-300 bg-red-50 dark:bg-red-900/20">
           <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-medium mb-2">
-            <AlertTriangle className="w-4 h-4" />Alerta de Stock Bajo ({lowStockItems.length} items)
+            <AlertTriangle className="w-4 h-4" />{t('retailInv.lowStock', locale)} ({lowStockItems.length})
           </div>
           <div className="flex gap-2 flex-wrap">
-            {lowStockItems.map((i: any) => (
+            {lowStockItems.slice(0, 10).map((i: any) => (
               <Badge key={i.id} variant="outline" className="bg-red-100 border-red-300 dark:bg-red-900/30 dark:border-red-800 cursor-pointer" onClick={() => openAdjust(i)}>
-                {i.name}: {i.quantity || 0} {i.unit} (min: {i.minStock})
+                {i.name}: {i.quantity || 0} (min: {i.minStock})
               </Badge>
             ))}
+            {lowStockItems.length > 10 && <Badge variant="outline">+{lowStockItems.length - 10} more</Badge>}
           </div>
         </Card>
       )}
@@ -12943,19 +13173,19 @@ function TenantInventoryPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="stock">Stock Actual</TabsTrigger>
-          <TabsTrigger value="movements">Movimientos</TabsTrigger>
-          <TabsTrigger value="alerts">Alertas</TabsTrigger>
+          <TabsTrigger value="stock">{t('retailInv.stock', locale)}</TabsTrigger>
+          <TabsTrigger value="movements">{t('retailInv.movements', locale)}</TabsTrigger>
+          <TabsTrigger value="alerts">{t('retailInv.alerts', locale)}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="stock" className="space-y-4 mt-4">
           <div className="flex flex-wrap gap-3 items-center">
-            <Input placeholder="Buscar item..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" />
+            <div className="relative max-w-xs flex-1"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={`${t('retailInv.productName', locale)} / ${t('retailInv.sku', locale)}`} value={search} onChange={e => setSearch(e.target.value)} className="pl-10" /></div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Categoria" /></SelectTrigger>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder={t('retailInv.categories', locale)} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                {INVENTORY_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                <SelectItem value="all">{t('pos.all', locale)}</SelectItem>
+                {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -12963,44 +13193,42 @@ function TenantInventoryPage() {
           {loading ? (
             <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
           ) : filteredItems.length === 0 ? (
-            <Card className="p-12 text-center"><Database className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">No hay items en el inventario.</p></Card>
+            <Card className="p-12 text-center"><Database className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">{t('retailInv.items', locale)}</p></Card>
           ) : (
             <Card>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead><tr className="border-b bg-muted/50">
-                    <th className="text-left px-4 py-3 font-medium">Nombre</th>
-                    <th className="text-left px-4 py-3 font-medium">Categoria</th>
-                    <th className="text-right px-4 py-3 font-medium">Cantidad</th>
-                    <th className="text-left px-4 py-3 font-medium">Unidad</th>
-                    <th className="text-right px-4 py-3 font-medium">Min Stock</th>
-                    <th className="text-right px-4 py-3 font-medium">Costo Unit.</th>
-                    <th className="text-right px-4 py-3 font-medium">Valor Total</th>
-                    <th className="text-left px-4 py-3 font-medium">Proveedor</th>
-                    <th className="text-center px-4 py-3 font-medium">Estado</th>
-                    <th className="text-center px-4 py-3 font-medium">Accion</th>
-                  </tr></thead>
-                  <tbody>
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>{t('retailInv.productName', locale)}</TableHead>
+                    <TableHead>{t('retailInv.sku', locale)}</TableHead>
+                    <TableHead>{t('retailInv.categories', locale)}</TableHead>
+                    <TableHead className="text-right">{t('pos.total', locale)}</TableHead>
+                    <TableHead className="text-right">{t('retailInv.unitCost', locale)}</TableHead>
+                    <TableHead className="text-right">{t('retailInv.quantity', locale)}</TableHead>
+                    <TableHead className="text-right">{t('retailInv.lowStock', locale)}</TableHead>
+                    <TableHead className="text-right">Margin %</TableHead>
+                    <TableHead className="text-center">{t('retailInv.adjust', locale)}</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
                     {filteredItems.map((i: any) => {
-                      const isLow = i.minStock > 0 && i.quantity <= i.minStock;
-                      const totalVal = (i.quantity || 0) * (i.costPerUnit || 0);
+                      const isLow = i.minStock > 0 && (i.quantity || 0) <= i.minStock;
+                      const margin = i.price > 0 && i.cost > 0 ? (((i.price - i.cost) / i.price) * 100).toFixed(1) : '—';
                       return (
-                        <tr key={i.id} className="border-b hover:bg-muted/30 transition-colors">
-                          <td className="px-4 py-3 font-medium">{i.name}</td>
-                          <td className="px-4 py-3"><Badge variant="outline">{i.category || '-'}</Badge></td>
-                          <td className={`px-4 py-3 text-right font-semibold ${isLow ? 'text-red-600' : ''}`}>{i.quantity || 0}</td>
-                          <td className="px-4 py-3">{i.unit || '-'}</td>
-                          <td className="px-4 py-3 text-right">{i.minStock || '-'}</td>
-                          <td className="px-4 py-3 text-right">{(i.costPerUnit || 0).toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right font-medium">{totalVal.toFixed(2)}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{i.supplier || '-'}</td>
-                          <td className="px-4 py-3 text-center">{isLow ? <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Bajo</Badge> : <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">OK</Badge>}</td>
-                          <td className="px-4 py-3 text-center"><Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => openAdjust(i)}>Ajustar</Button></td>
-                        </tr>
+                        <TableRow key={i.id}>
+                          <TableCell className="font-medium">{i.name}</TableCell>
+                          <TableCell className="font-mono text-xs">{i.sku || '—'}</TableCell>
+                          <TableCell><Badge variant="outline">{i.category || '—'}</Badge></TableCell>
+                          <TableCell className="text-right">{formatCurrency(i.price, currency)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(i.cost || 0, currency)}</TableCell>
+                          <TableCell className={`text-right font-semibold ${isLow ? 'text-red-600' : ''}`}>{i.quantity || 0}</TableCell>
+                          <TableCell className="text-right">{i.minStock || '—'}</TableCell>
+                          <TableCell className="text-right">{margin}%</TableCell>
+                          <TableCell className="text-center"><Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => openAdjust(i)}>{t('retailInv.adjust', locale)}</Button></TableCell>
+                        </TableRow>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </Card>
           )}
@@ -13009,12 +13237,12 @@ function TenantInventoryPage() {
         <TabsContent value="movements" className="space-y-4 mt-4">
           <div className="flex flex-wrap gap-3 items-center">
             <Select value={movTypeFilter} onValueChange={setMovTypeFilter}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder={t('retailInv.type', locale)} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="entry">Entrada</SelectItem>
-                <SelectItem value="exit">Salida</SelectItem>
-                <SelectItem value="adjustment">Ajuste</SelectItem>
+                <SelectItem value="all">{t('pos.all', locale)}</SelectItem>
+                <SelectItem value="entry">{t('retailInv.entry', locale)}</SelectItem>
+                <SelectItem value="exit">{t('retailInv.exit', locale)}</SelectItem>
+                <SelectItem value="adjustment">{t('retailInv.adjustment', locale)}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -13022,36 +13250,32 @@ function TenantInventoryPage() {
           {loadingMov ? (
             <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
           ) : movements.length === 0 ? (
-            <Card className="p-12 text-center"><ClipboardList className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">No hay movimientos registrados.</p></Card>
+            <Card className="p-12 text-center"><ClipboardList className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">{t('retailInv.noMovements', locale)}</p></Card>
           ) : (
             <Card>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead><tr className="border-b bg-muted/50">
-                    <th className="text-left px-4 py-3 font-medium">Fecha</th>
-                    <th className="text-left px-4 py-3 font-medium">Producto</th>
-                    <th className="text-left px-4 py-3 font-medium">Tipo</th>
-                    <th className="text-right px-4 py-3 font-medium">Cantidad</th>
-                    <th className="text-right px-4 py-3 font-medium">Anterior</th>
-                    <th className="text-right px-4 py-3 font-medium">Nuevo</th>
-                    <th className="text-left px-4 py-3 font-medium">Razon</th>
-                    <th className="text-left px-4 py-3 font-medium">Referencia</th>
-                  </tr></thead>
-                  <tbody>
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>{t('retailInv.productName', locale)}</TableHead>
+                    <TableHead>{t('retailInv.type', locale)}</TableHead>
+                    <TableHead className="text-right">{t('retailInv.quantity', locale)}</TableHead>
+                    <TableHead className="text-right">{t('retailInv.previous', locale)}</TableHead>
+                    <TableHead className="text-right">{t('retailInv.newStock', locale)}</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
                     {movements.map((m: any) => (
-                      <tr key={m.id} className="border-b hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3 text-xs">{m.createdAt ? new Date(m.createdAt).toLocaleDateString('es') : '-'}</td>
-                        <td className="px-4 py-3 font-medium">{m.ingredientName || m.ingredientId || '-'}</td>
-                        <td className="px-4 py-3">{getMovTypeBadge(m.type)}</td>
-                        <td className="px-4 py-3 text-right font-semibold">{m.quantity || 0}</td>
-                        <td className="px-4 py-3 text-right text-muted-foreground">{m.previousStock || 0}</td>
-                        <td className="px-4 py-3 text-right font-medium">{m.newStock || 0}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{m.reason || '-'}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{m.reference || '-'}</td>
-                      </tr>
+                      <TableRow key={m.id}>
+                        <TableCell className="text-xs">{m.createdAt ? new Date(m.createdAt).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell className="font-medium">{m.productName || m.productId || '-'}</TableCell>
+                        <TableCell>{getMovTypeBadge(m.type)}</TableCell>
+                        <TableCell className="text-right font-semibold">{m.quantity || 0}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{m.previousStock || 0}</TableCell>
+                        <TableCell className="text-right font-medium">{m.newStock || 0}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </Card>
           )}
@@ -13061,30 +13285,25 @@ function TenantInventoryPage() {
           {loading ? (
             <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
           ) : lowStockItems.length === 0 ? (
-            <Card className="p-12 text-center"><CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500" /><p className="text-muted-foreground">Todo el stock esta en niveles optimos.</p></Card>
+            <Card className="p-12 text-center"><CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500" /><p className="text-muted-foreground">{t('retailInv.noAlerts', locale)}</p></Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {lowStockItems.map((i: any) => {
-                const reorderQty = Math.max(0, ((i.minStock || 0) * 2) - (i.quantity || 0));
-                return (
-                  <Card key={i.id} className="p-4 border-red-200 dark:border-red-900/50">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-sm">{i.name}</h3>
-                      <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Stock Bajo</Badge>
-                    </div>
-                    <div className="space-y-1 text-xs text-muted-foreground">
-                      <p>Categoria: <span className="text-foreground">{i.category || '-'}</span></p>
-                      <p>Stock actual: <span className="text-red-600 font-semibold">{i.quantity || 0} {i.unit}</span></p>
-                      <p>Min. Stock: <span className="text-foreground">{i.minStock} {i.unit}</span></p>
-                      <p>Reorden sugerido: <span className="text-green-600 font-semibold">{reorderQty} {i.unit}</span></p>
-                      {i.supplier && <p>Proveedor: <span className="text-foreground">{i.supplier}</span></p>}
-                    </div>
-                    <Button size="sm" className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-xs" onClick={() => openAdjust(i)}>
-                      <Plus className="w-3 h-3 mr-1" />Reabastecer
-                    </Button>
-                  </Card>
-                );
-              })}
+              {lowStockItems.map((i: any) => (
+                <Card key={i.id} className="p-4 border-red-200 dark:border-red-900/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold text-sm">{i.name}</h3>
+                    <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">{t('retailInv.lowStock', locale)}</Badge>
+                  </div>
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <p>{t('retailInv.sku', locale)}: <span className="text-foreground font-mono">{i.sku || '—'}</span></p>
+                    <p>{t('retailInv.quantity', locale)}: <span className="text-red-600 font-semibold">{i.quantity || 0}</span></p>
+                    <p>{t('retailInv.lowStock', locale)}: <span className="text-foreground">{i.minStock}</span></p>
+                  </div>
+                  <Button size="sm" className="mt-3 w-full bg-gradient-to-r from-blue-700 to-blue-500 text-xs" onClick={() => openAdjust(i)}>
+                    <Plus className="w-3 h-3 mr-1" />{t('retailInv.adjust', locale)}
+                  </Button>
+                </Card>
+              ))}
             </div>
           )}
         </TabsContent>
@@ -13094,79 +13313,57 @@ function TenantInventoryPage() {
       <Dialog open={showAdjust} onOpenChange={setShowAdjust}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Ajustar Stock</DialogTitle>
-            <DialogDescription>Producto: {adjustItem?.name}</DialogDescription>
+            <DialogTitle>{t('retailInv.adjustTitle', locale)}</DialogTitle>
+            <DialogDescription>{adjustItem?.name} ({adjustItem?.sku})</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
-            <div><Label>Tipo de Movimiento</Label>
+            <div><Label>{t('retailInv.type', locale)}</Label>
               <Select value={adjustForm.type} onValueChange={v => setAdjustForm(p => ({ ...p, type: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="entry">Entrada (Recibir)</SelectItem>
-                  <SelectItem value="exit">Salida (Usar)</SelectItem>
-                  <SelectItem value="adjustment">Ajuste (Establecer)</SelectItem>
+                  <SelectItem value="entry">{t('retailInv.entry', locale)}</SelectItem>
+                  <SelectItem value="exit">{t('retailInv.exit', locale)}</SelectItem>
+                  <SelectItem value="adjustment">{t('retailInv.adjustment', locale)}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Cantidad *</Label><Input type="number" min={0} value={adjustForm.quantity || ''} onChange={e => setAdjustForm(p => ({ ...p, quantity: Number(e.target.value) }))} /></div>
-              <div><Label>Costo Unit.</Label><Input type="number" step="0.01" min={0} value={adjustForm.unitCost || ''} onChange={e => setAdjustForm(p => ({ ...p, unitCost: Number(e.target.value) }))} /></div>
+              <div><Label>{t('retailInv.quantity', locale)} *</Label><Input type="number" min={0} value={adjustForm.quantity || ''} onChange={e => setAdjustForm(p => ({ ...p, quantity: Number(e.target.value) }))} className="mt-1" /></div>
+              <div><Label>{t('retailInv.unitCost', locale)}</Label><Input type="number" step="0.01" min={0} value={adjustForm.unitCost || ''} onChange={e => setAdjustForm(p => ({ ...p, unitCost: Number(e.target.value) }))} className="mt-1" /></div>
             </div>
-            <div><Label>Razon</Label>
+            <div><Label>{t('retailInv.reason', locale)}</Label>
               <Select value={adjustForm.reason} onValueChange={v => setAdjustForm(p => ({ ...p, reason: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {MOVEMENT_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  <SelectItem value="purchase">{t('retailInv.reasonPurchase', locale)}</SelectItem>
+                  <SelectItem value="return">{t('retailInv.reasonReturn', locale)}</SelectItem>
+                  <SelectItem value="damage">{t('retailInv.reasonDamage', locale)}</SelectItem>
+                  <SelectItem value="audit">{t('retailInv.reasonAudit', locale)}</SelectItem>
+                  <SelectItem value="correction">{t('retailInv.reasonCorrection', locale)}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Referencia / Orden</Label><Input value={adjustForm.reference} onChange={e => setAdjustForm(p => ({ ...p, reference: e.target.value }))} placeholder="ej: ORD-001" /></div>
-            <div><Label>Lote (opcional)</Label><Input value={adjustForm.batchNumber} onChange={e => setAdjustForm(p => ({ ...p, batchNumber: e.target.value }))} /></div>
-            <div><Label>Metodo</Label>
+            <div><Label>{t('retailInv.reference', locale)}</Label><Input value={adjustForm.reference} onChange={e => setAdjustForm(p => ({ ...p, reference: e.target.value }))} placeholder="PO-001" className="mt-1" /></div>
+            <div><Label>{t('retailInv.batch', locale)}</Label><Input value={adjustForm.batchNumber} onChange={e => setAdjustForm(p => ({ ...p, batchNumber: e.target.value }))} className="mt-1" /></div>
+            <div><Label>{t('retailInv.method', locale)}</Label>
               <Select value={adjustForm.method} onValueChange={v => setAdjustForm(p => ({ ...p, method: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="fifo">FIFO</SelectItem>
-                  <SelectItem value="fefo">FEFO</SelectItem>
+                  <SelectItem value="fifo">{t('retailInv.fifo', locale)}</SelectItem>
+                  <SelectItem value="lifo">{t('retailInv.lifo', locale)}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             {adjustItem && (
               <div className="bg-muted/50 rounded-lg p-3 text-xs">
-                <p>Stock actual: <span className="font-semibold">{adjustItem.quantity || 0} {adjustItem.unit}</span></p>
-                {adjustForm.type === 'entry' && <p className="text-green-600">Nuevo stock: {((adjustItem.quantity || 0) + (adjustForm.quantity || 0))} {adjustItem.unit}</p>}
-                {adjustForm.type === 'exit' && <p className="text-red-600">Nuevo stock: {Math.max(0, (adjustItem.quantity || 0) - (adjustForm.quantity || 0))} {adjustItem.unit}</p>}
-                {adjustForm.type === 'adjustment' && <p className="text-blue-600">Nuevo stock: {adjustForm.quantity || 0} {adjustItem.unit}</p>}
+                <p>{t('retailInv.previous', locale)}: <span className="font-semibold">{adjustItem.quantity || 0}</span></p>
+                {adjustForm.type === 'entry' && <p className="text-green-600">{t('retailInv.newStock', locale)}: {((adjustItem.quantity || 0) + (adjustForm.quantity || 0))}</p>}
+                {adjustForm.type === 'exit' && <p className="text-red-600">{t('retailInv.newStock', locale)}: {Math.max(0, (adjustItem.quantity || 0) - (adjustForm.quantity || 0))}</p>}
+                {adjustForm.type === 'adjustment' && <p className="text-blue-600">{t('retailInv.newStock', locale)}: {adjustForm.quantity || 0}</p>}
               </div>
             )}
           </div>
-          <DialogFooter><Button onClick={handleAdjust} className="bg-blue-600 hover:bg-blue-700">Registrar Movimiento</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* New Item Dialog */}
-      <Dialog open={showNewItem} onOpenChange={setShowNewItem}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Nuevo Item de Inventario</DialogTitle></DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div><Label>Nombre *</Label><Input value={newItemForm.name} onChange={e => setNewItemForm(p => ({ ...p, name: e.target.value }))} /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Categoria</Label>
-                <Select value={newItemForm.category} onValueChange={v => setNewItemForm(p => ({ ...p, category: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{INVENTORY_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div><Label>Unidad</Label><Input value={newItemForm.unit} onChange={e => setNewItemForm(p => ({ ...p, unit: e.target.value }))} /></div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div><Label>Stock Inicial</Label><Input type="number" min={0} value={newItemForm.quantity || ''} onChange={e => setNewItemForm(p => ({ ...p, quantity: Number(e.target.value) }))} /></div>
-              <div><Label>Min. Stock</Label><Input type="number" min={0} value={newItemForm.minStock || ''} onChange={e => setNewItemForm(p => ({ ...p, minStock: Number(e.target.value) }))} /></div>
-              <div><Label>Costo Unit.</Label><Input type="number" step="0.01" min={0} value={newItemForm.costPerUnit || ''} onChange={e => setNewItemForm(p => ({ ...p, costPerUnit: Number(e.target.value) }))} /></div>
-            </div>
-            <div><Label>Proveedor</Label><Input value={newItemForm.supplier} onChange={e => setNewItemForm(p => ({ ...p, supplier: e.target.value }))} /></div>
-          </div>
-          <DialogFooter><Button onClick={handleCreateItem} className="bg-blue-600 hover:bg-blue-700">Agregar Item</Button></DialogFooter>
+          <DialogFooter><Button onClick={handleAdjust} disabled={adjustForm.quantity <= 0} className="bg-gradient-to-r from-blue-700 to-blue-500">{t('retailInv.movementRegistered', locale)}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -16128,55 +16325,267 @@ function TenantSalonAnalyticsPage() {
 
 // ============ PURCHASE ORDERS ============
 function TenantPurchaseOrdersPage() {
-  const { currentTenant, currency } = useAppStore() as any;
+  const { currentTenant, currency, locale } = useAppStore() as any;
   const [orders, setOrders] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ supplierName: '', items: '', totalAmount: 0, status: 'draft', notes: '' });
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [showReceive, setShowReceive] = useState(false);
+  const [selectedPO, setSelectedPO] = useState<any>(null);
+  const [receiveItems, setReceiveItems] = useState<any[]>([]);
   const tenantId = currentTenant?.id;
+  const [form, setForm] = useState({ supplierId: '', expectedDate: '', notes: '', items: [] as any[] });
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
     if (!tenantId) return;
-    authFetch(`/api/tenant/${tenantId}/suppliers`).then(r => r.json()).then(d => { setOrders(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+    Promise.all([
+      authFetch(`/api/tenant/${tenantId}/purchase-orders`).then(r => r.json()).catch(() => []),
+      authFetch(`/api/tenant/${tenantId}/suppliers`).then(r => r.json()).catch(() => []),
+      authFetch(`/api/tenant/${tenantId}/retail-products`).then(r => r.json()).catch(() => []),
+    ]).then(([pos, sups, prods]) => {
+      setOrders(Array.isArray(pos) ? pos : []);
+      setSuppliers(Array.isArray(sups) ? sups : []);
+      setProducts(Array.isArray(prods) ? prods : []);
+      setLoading(false);
+    });
   }, [tenantId]);
   useEffect(() => { load(); }, [load]);
 
-  const handleCreate = async () => {
-    await authFetch(`/api/tenant/${tenantId}/orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, clientName: form.supplierName, items: form.items.split('\n').map(i => ({ name: i, quantity: 1 })), totalAmount: form.totalAmount, orderType: 'purchase', status: 'pending' }) });
-    setShowCreate(false); setForm({ supplierName: '', items: '', totalAmount: 0, status: 'draft', notes: '' }); load(); toast.success('Purchase order created!');
+  const filteredOrders = statusFilter === 'all' ? orders : orders.filter((o: any) => o.status === statusFilter);
+
+  const statusColors: Record<string, string> = {
+    draft: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
+    sent: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    partial: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    received: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+    cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   };
 
-  const statusColors: Record<string, string> = { pending: 'bg-amber-100 text-amber-700', confirmed: 'bg-blue-100 text-blue-700', delivered: 'bg-emerald-100 text-emerald-700', cancelled: 'bg-red-100 text-red-700' };
+  const statusLabel = (s: string) => {
+    const map: Record<string, string> = { draft: t('po.draft', locale), sent: t('po.sent', locale), partial: t('po.partial', locale), received: t('po.received', locale), cancelled: t('po.cancelled', locale) };
+    return map[s] || s;
+  };
+
+  const getSupplierName = (id: string) => suppliers.find(s => s.id === id)?.name || id || '—';
+  const poTotal = (items: any[]) => (items || []).reduce((s: number, i: any) => s + (i.qty || 0) * (i.unitCost || 0), 0);
+  const poReceived = (items: any[]) => (items || []).reduce((s: number, i: any) => s + (i.receivedQty || 0), 0);
+  const poRemaining = (items: any[]) => (items || []).reduce((s: number, i: any) => s + (i.qty || 0) - (i.receivedQty || 0), 0);
+
+  const addProductToForm = (productId: string) => {
+    const p = products.find(pr => pr.id === productId);
+    if (!p) return;
+    if (form.items.find((fi: any) => fi.productId === productId)) return;
+    setForm(f => ({ ...f, items: [...f.items, { productId: p.id, name: p.name, sku: p.sku, qty: 1, unitCost: p.cost || 0 }] }));
+  };
+
+  const removeFormItem = (idx: number) => {
+    setForm(f => ({ ...f, items: f.items.filter((_: any, i: number) => i !== idx) }));
+  };
+
+  const updateFormItem = (idx: number, field: string, value: any) => {
+    setForm(f => ({ ...f, items: f.items.map((item: any, i: number) => i === idx ? { ...item, [field]: value } : item) }));
+  };
+
+  const handleCreate = async () => {
+    if (!form.supplierId || form.items.length === 0) return;
+    setSaving(true);
+    try {
+      const body = { supplierId: form.supplierId, expectedDate: form.expectedDate, notes: form.notes, items: form.items.map((i: any) => ({ productId: i.productId, name: i.name, sku: i.sku, qty: i.qty, unitCost: i.unitCost })), totalAmount: poTotal(form.items) };
+      await authFetchJSON(`/api/tenant/${tenantId}/purchase-orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      setShowCreate(false); setForm({ supplierId: '', expectedDate: '', notes: '', items: [] }); load();
+      toast.success(t('po.poCreated', locale));
+    } catch (e: any) { toast.error(e.message); }
+    setSaving(false);
+  };
+
+  const handleMarkSent = async (po: any) => {
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/purchase-orders`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: po.id, status: 'sent' }) });
+      load(); toast.success(t('po.poUpdated', locale));
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleCancel = async (po: any) => {
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/purchase-orders`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: po.id, status: 'cancelled' }) });
+      load(); toast.success(t('po.poUpdated', locale));
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const openReceiveDialog = (po: any) => {
+    setSelectedPO(po);
+    setReceiveItems((po.items || []).map((i: any) => ({ ...i, qtyToReceive: Math.max(0, (i.qty || 0) - (i.receivedQty || 0)) })));
+    setShowReceive(true);
+  };
+
+  const handleReceive = async () => {
+    if (!selectedPO) return;
+    const itemsToReceive = receiveItems.filter(i => i.qtyToReceive > 0).map(i => ({ productId: i.productId, qty: i.qtyToReceive }));
+    if (itemsToReceive.length === 0) return;
+    setSaving(true);
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/purchase-orders`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: selectedPO.id, receiveItems: itemsToReceive }) });
+      setShowReceive(false); setSelectedPO(null); setReceiveItems([]); load();
+      toast.success(t('po.poUpdated', locale));
+    } catch (e: any) { toast.error(e.message); }
+    setSaving(false);
+  };
 
   if (loading) return <PageSkeleton type="table" />;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg"><ClipboardList className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Purchase Orders</h1><p className="text-sm text-muted-foreground">Track supplier orders and deliveries</p></div>
+          <div><h1 className="text-2xl font-bold">{t('po.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('po.subtitle', locale)}</p></div>
         </div>
-        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />New PO</Button>
+        <Button onClick={() => { setForm({ supplierId: '', expectedDate: '', notes: '', items: [] }); setShowCreate(true); }} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />{t('po.new', locale)}</Button>
       </div>
-      {orders.length === 0 ? <EmptyState icon={ClipboardList} title="No purchase orders" description="Create your first purchase order" action="New PO" onAction={() => setShowCreate(true)} /> : (
-        <DataGrid data={orders} columns={[
-          { key: 'name', label: 'Supplier', render: (v: string) => <span className="font-medium">{v}</span> },
-          { key: 'category', label: 'Category' },
-          { key: 'rating', label: 'Rating', render: (v: number) => v > 0 ? `${v}/5` : 'N/A' },
-          { key: 'phone', label: 'Phone' },
-        ]} onEdit={(row: any) => toast.info('Edit supplier: ' + row.name)} />
-      )}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>New Purchase Order</DialogTitle></DialogHeader>
-          <div className="space-y-4 mt-4">
-            <div><Label>Supplier *</Label><Input value={form.supplierName} onChange={e => setForm(f => ({ ...f, supplierName: e.target.value }))} /></div>
-            <div><Label>Items (one per line)</Label><Textarea value={form.items} onChange={e => setForm(f => ({ ...f, items: e.target.value }))} rows={4} placeholder="Flour - 10kg\nSugar - 5kg\nEggs - 30 units" /></div>
-            <div><Label>Total Amount</Label><Input type="number" value={form.totalAmount || ''} onChange={e => setForm(f => ({ ...f, totalAmount: parseFloat(e.target.value) || 0 }))} /></div>
-            <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
-            <Button onClick={handleCreate} disabled={!form.supplierName} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">Create PO</Button>
+
+      {/* Status Filter Tabs */}
+      <div className="flex gap-2 flex-wrap">
+        {['all', 'draft', 'sent', 'partial', 'received', 'cancelled'].map(s => (
+          <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(s)} className="text-xs">
+            {s === 'all' ? t('pos.all', locale) : statusLabel(s)}
+          </Button>
+        ))}
+      </div>
+
+      {filteredOrders.length === 0 ? (
+        <EmptyState icon={ClipboardList} title={t('po.empty', locale)} description={t('po.emptyDesc', locale)} action={t('po.new', locale)} onAction={() => { setForm({ supplierId: '', expectedDate: '', notes: '', items: [] }); setShowCreate(true); }} />
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>{t('po.poNumber', locale)}</TableHead>
+                <TableHead>{t('po.supplier', locale)}</TableHead>
+                <TableHead>{t('po.status', locale)}</TableHead>
+                <TableHead className="text-right">{t('po.items', locale)}</TableHead>
+                <TableHead className="text-right">{t('po.totalAmount', locale)}</TableHead>
+                <TableHead className="text-right">{t('po.received', locale)}</TableHead>
+                <TableHead className="text-right">{t('po.remaining', locale)}</TableHead>
+                <TableHead>{t('po.expectedDate', locale)}</TableHead>
+                <TableHead className="text-center">%</TableHead>
+                <TableHead className="text-center">{t('po.actions', locale)}</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {filteredOrders.map((po: any) => {
+                  const total = poTotal(po.items);
+                  const recv = poReceived(po.items);
+                  const rem = poRemaining(po.items);
+                  const pct = total > 0 ? Math.min(100, Math.round((recv / total) * 100)) : 0;
+                  return (
+                    <TableRow key={po.id}>
+                      <TableCell className="font-mono text-xs font-medium">{po.poNumber || po.id?.slice(0, 8)}</TableCell>
+                      <TableCell className="font-medium">{getSupplierName(po.supplierId)}</TableCell>
+                      <TableCell><Badge className={statusColors[po.status] || ''}>{statusLabel(po.status)}</Badge></TableCell>
+                      <TableCell className="text-right">{(po.items || []).length}</TableCell>
+                      <TableCell className="text-right font-medium">{formatCurrency(total, currency)}</TableCell>
+                      <TableCell className="text-right text-green-600">{formatCurrency(recv * (total / (total || 1)), currency)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(rem * (total / (total || 1)), currency)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{po.expectedDate || '—'}</TableCell>
+                      <TableCell className="text-center"><div className="flex items-center gap-1 justify-center"><Progress value={pct} className="w-12 h-2" /><span className="text-xs">{pct}%</span></div></TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {po.status === 'draft' && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleMarkSent(po)}>{t('po.send', locale)}</Button>}
+                          {(po.status === 'sent' || po.status === 'partial') && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openReceiveDialog(po)}>{t('po.receive', locale)}</Button>}
+                          {po.status !== 'received' && po.status !== 'cancelled' && <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => handleCancel(po)}>{t('po.cancel', locale)}</Button>}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
+        </Card>
+      )}
+
+      {/* Create PO Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{t('po.new', locale)}</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div><Label>{t('po.supplier', locale)} *</Label>
+              <Select value={form.supplierId} onValueChange={v => setForm(f => ({ ...f, supplierId: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder={t('po.selectSupplier', locale)} /></SelectTrigger>
+                <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div><Label>{t('po.expectedDate', locale)}</Label><Input type="date" value={form.expectedDate} onChange={e => setForm(f => ({ ...f, expectedDate: e.target.value }))} className="mt-1" /></div>
+            <div><Label>{t('po.addProduct', locale)}</Label>
+              <Select onValueChange={addProductToForm}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder={t('po.addProduct', locale)} /></SelectTrigger>
+                <SelectContent>{products.filter(p => !form.items.find((fi: any) => fi.productId === p.id)).map(p => <SelectItem key={p.id} value={p.id}>{p.name} ({p.sku})</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            {form.items.length > 0 && (
+              <Card className="p-3">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b"><th className="text-left py-1 px-2">{t('po.productName', locale)}</th><th className="text-left py-1 px-2">{t('po.sku', locale)}</th><th className="text-right py-1 px-2">{t('po.orderQty', locale)}</th><th className="text-right py-1 px-2">{t('po.unitCost', locale)}</th><th className="text-right py-1 px-2">{t('po.totalAmount', locale)}</th><th></th></tr></thead>
+                    <tbody>
+                      {form.items.map((item: any, idx: number) => (
+                        <tr key={idx} className="border-b last:border-0">
+                          <td className="py-1 px-2">{item.name}</td>
+                          <td className="py-1 px-2 font-mono text-xs">{item.sku}</td>
+                          <td className="py-1 px-2 text-right"><Input type="number" min={1} value={item.qty || ''} onChange={e => updateFormItem(idx, 'qty', parseInt(e.target.value) || 0)} className="w-16 h-7 text-xs text-right" /></td>
+                          <td className="py-1 px-2 text-right"><Input type="number" step="0.01" min={0} value={item.unitCost || ''} onChange={e => updateFormItem(idx, 'unitCost', parseFloat(e.target.value) || 0)} className="w-20 h-7 text-xs text-right" /></td>
+                          <td className="py-1 px-2 text-right font-medium">{formatCurrency(item.qty * item.unitCost, currency)}</td>
+                          <td className="py-1 px-2"><Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => removeFormItem(idx)}><Trash2 className="w-3 h-3" /></Button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot><tr className="font-bold"><td colSpan={4} className="py-1 px-2 text-right">{t('po.totalAmount', locale)}</td><td className="py-1 px-2 text-right">{formatCurrency(poTotal(form.items), currency)}</td><td></td></tr></tfoot>
+                  </table>
+                </div>
+              </Card>
+            )}
+            <div><Label>{t('po.notes', locale)}</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} className="mt-1" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={!form.supplierId || form.items.length === 0 || saving} className="bg-gradient-to-r from-blue-700 to-blue-500">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('po.new', locale)}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receive Items Dialog */}
+      <Dialog open={showReceive} onOpenChange={setShowReceive}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('po.receiveTitle', locale)}</DialogTitle>
+            <DialogDescription>{selectedPO?.poNumber || ''} — {getSupplierName(selectedPO?.supplierId)}</DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('po.receiveHint', locale)}</p>
+          <Card className="p-3">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b"><th className="text-left py-1 px-2">{t('po.productName', locale)}</th><th className="text-right py-1 px-2">{t('po.qtyOrdered', locale)}</th><th className="text-right py-1 px-2">{t('po.qtyReceived', locale)}</th><th className="text-right py-1 px-2">{t('po.qtyToReceive', locale)}</th></tr></thead>
+                <tbody>
+                  {receiveItems.map((item: any, idx: number) => (
+                    <tr key={idx} className="border-b last:border-0">
+                      <td className="py-1 px-2">{item.name}</td>
+                      <td className="py-1 px-2 text-right">{item.qty || 0}</td>
+                      <td className="py-1 px-2 text-right text-green-600">{item.receivedQty || 0}</td>
+                      <td className="py-1 px-2 text-right">
+                        <Input type="number" min={0} max={(item.qty || 0) - (item.receivedQty || 0)} value={item.qtyToReceive || ''} onChange={e => { const val = Math.min(e.target.valueAsNumber || 0, (item.qty || 0) - (item.receivedQty || 0)); setReceiveItems(prev => prev.map((ri: any, i: number) => i === idx ? { ...ri, qtyToReceive: val } : ri)); }} className="w-20 h-7 text-xs text-right" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReceive(false)}>Cancel</Button>
+            <Button onClick={handleReceive} disabled={saving || !receiveItems.some(i => i.qtyToReceive > 0)} className="bg-gradient-to-r from-blue-700 to-blue-500">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('po.confirmReceive', locale)}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
