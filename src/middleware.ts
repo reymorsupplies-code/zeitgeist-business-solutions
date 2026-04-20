@@ -98,9 +98,8 @@ export async function middleware(request: NextRequest) {
     });
   }
 
-  // ─── Block dangerous routes entirely ───
+  // ─── Block dangerous routes entirely (db-init temporarily allowed for first deploy) ───
   if (
-    pathname === '/api/db-init' ||
     pathname === '/api/seed' ||
     pathname === '/api/debug'
   ) {
