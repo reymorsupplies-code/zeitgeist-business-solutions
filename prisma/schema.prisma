@@ -143,7 +143,8 @@ model Tenant {
   maintenanceRequests MaintenanceRequest[]
   rentPayments   RentPayment[]
   propertyDocuments PropertyDocument[]
-  loyaltyMembers     LoyaltyMember[]
+  loyaltyMembers       LoyaltyMember[]
+  loyaltyTransactions  LoyaltyTransaction[] @relation("LoyaltyTransactionTenant")
 }
 
 model TenantMembership {
@@ -281,8 +282,10 @@ model Quotation {
   quoteNumber     String?
   clientName      String?
   clientEmail     String?
+  clientPhone     String?
   items           String   @default("[]")
   subtotal        Float    @default(0)
+  discount        Float    @default(0)
   taxRate         Float    @default(0)
   taxAmount       Float    @default(0)
   totalAmount     Float    @default(0)
@@ -741,7 +744,7 @@ model LoyaltyTransaction {
   createdAt   DateTime @default(now())
 
   member LoyaltyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  tenant Tenant         @relation(fields: [tenantId], references: [id])
+  tenant Tenant         @relation("LoyaltyTransactionTenant", fields: [tenantId], references: [id])
 }
 
 // ============ BOOKKEEPING ============

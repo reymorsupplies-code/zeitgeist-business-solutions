@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, TenantPage } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { formatCurrency, CARIBBEAN_CURRENCIES, getCurrencyConfig } from '@/lib/currencies';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,6 +26,7 @@ import {
   RotateCcw, ArrowRightLeft, BadgeDollarSign, Percent, EyeOff, CalendarDays,
   Twitter, Linkedin, Instagram, Facebook, Tag,
   KeyRound, LogIn, Languages,
+  Server,
   Table as TableIcon, Save, Cake, Pencil,
   CalendarHeart, ScanLine, MessageCircle
 } from 'lucide-react';
@@ -40,6 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
@@ -89,15 +91,15 @@ const authFetchJSON = async (url: string, options: any = {}) => {
 };
 
 // ============ DATA CONSTANTS ============
-const INDUSTRIES_DATA = [
-  { name: 'Bakery & Pastry', slug: 'bakery', icon: ChefHat, color: '#F59E0B', desc: 'Complete bakery management with orders, POS, recipes, and cake design', status: 'active' as const },
-  { name: 'Salon & Spa', slug: 'salon-spa', icon: Scissors, color: '#EC4899', desc: 'Appointment booking, stylist management, and client relations', status: 'active' as const },
-  { name: 'Medical & Clinics', slug: 'clinics', icon: Stethoscope, color: '#10B981', desc: 'Patient management, scheduling, and medical billing', status: 'active' as const },
-  { name: 'Legal Services', slug: 'legal', icon: Scale, color: '#6366F1', desc: 'Case management, time tracking, and client billing', status: 'active' as const },
-  { name: 'Insurance', slug: 'insurance', icon: Shield, color: '#3B82F6', desc: 'Policy management, claims processing, and client portal', status: 'active' as const },
-  { name: 'Retail', slug: 'retail', icon: ShoppingBag, color: '#8B5CF6', desc: 'Inventory, POS, and customer management', status: 'active' as const },
-  { name: 'Events & Hospitality', slug: 'events', icon: PartyPopper, color: '#F59E0B', desc: 'Event planning, venue management, and catering', status: 'active' as const },
-  { name: 'Property Management', slug: 'property-management', icon: Building2, color: '#059669', desc: 'Properties, leases, rent collection, maintenance, and owner reports', status: 'active' as const },
+const INDUSTRIES_DATA: { name: string; slug: string; icon: any; color: string; desc: string; status: string }[] = [
+  { name: 'Bakery & Pastry', slug: 'bakery', icon: ChefHat, color: '#F59E0B', desc: 'Complete bakery management with orders, POS, recipes, and cake design', status: 'active' },
+  { name: 'Salon & Spa', slug: 'salon-spa', icon: Scissors, color: '#EC4899', desc: 'Appointment booking, stylist management, and client relations', status: 'active' },
+  { name: 'Medical & Clinics', slug: 'clinics', icon: Stethoscope, color: '#10B981', desc: 'Patient management, scheduling, and medical billing', status: 'active' },
+  { name: 'Legal Services', slug: 'legal', icon: Scale, color: '#6366F1', desc: 'Case management, time tracking, and client billing', status: 'active' },
+  { name: 'Insurance', slug: 'insurance', icon: Shield, color: '#3B82F6', desc: 'Policy management, claims processing, and client portal', status: 'active' },
+  { name: 'Retail', slug: 'retail', icon: ShoppingBag, color: '#8B5CF6', desc: 'Inventory, POS, and customer management', status: 'active' },
+  { name: 'Events & Hospitality', slug: 'events', icon: PartyPopper, color: '#F59E0B', desc: 'Event planning, venue management, and catering', status: 'active' },
+  { name: 'Property Management', slug: 'property-management', icon: Building2, color: '#059669', desc: 'Properties, leases, rent collection, maintenance, and owner reports', status: 'active' },
 ];
 
 const PLANS_DATA = [
@@ -825,7 +827,7 @@ function PortalTestimonials() {
 }
 
 function PortalPricing() {
-  const { billingCycle, setBillingCycle, currency, setView, setSelectedPlan } = useAppStore();
+  const { billingCycle, setBillingCycle, currency, setCurrency, setView, setSelectedPlan } = useAppStore();
   const isTTD = currency === 'TTD';
   
   return (
@@ -1581,7 +1583,7 @@ function IndustryDetailPage() {
 }
 
 function PortalFooter() {
-  const { setView, locale } = useAppStore() as any;
+  const { setView, setPortalPage, locale } = useAppStore() as any;
   const scrollTo = (id: string) => { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth' }); };
 
   return (
@@ -9015,7 +9017,7 @@ function TenantSidebar() {
   })();
 
   const handleNavClick = (page: string) => {
-    setTenantPage(page);
+    setTenantPage(page as TenantPage);
     setMobileOpen(false);
   };
 
@@ -13558,7 +13560,7 @@ function TenantRawMaterialsPage() {
   const [showDelete, setShowDelete] = useState<any>(null);
 
   // Forms
-  const emptyForm = { name: '', sku: '', category: 'Harinas', unit: 'kg', quantity: 0, minStock: 0, unitCost: 0, supplier: '', expiryDays: 0, method: 'FIFO', notes: '' };
+  const emptyForm = { id: '', name: '', sku: '', category: 'Harinas', unit: 'kg', quantity: 0, minStock: 0, unitCost: 0, supplier: '', expiryDays: 0, method: 'FIFO', notes: '' };
   const [createForm, setCreateForm] = useState(emptyForm);
   const [editForm, setEditForm] = useState(emptyForm);
   const [adjustForm, setAdjustForm] = useState({ type: 'entry', quantity: 0, reason: 'Compra' });
@@ -17697,7 +17699,7 @@ function TenantLoyaltyPage() {
 
 // ============ TENANT WHATSAPP PAGE ============
 function TenantWhatsAppPage() {
-  const { currentTenant, locale, authFetch } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale, authFetch: s.authFetch }));
+  const { currentTenant, locale } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale }));
   const tenantId = currentTenant?.id;
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<any[]>([]);
@@ -17860,7 +17862,7 @@ function TenantWhatsAppPage() {
 
 // ============ TENANT NOTIFICATIONS PAGE ============
 function TenantNotificationsPage() {
-  const { currentTenant, locale, authFetch } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale, authFetch: s.authFetch }));
+  const { currentTenant, locale } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale }));
   const tenantId = currentTenant?.id;
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -17968,7 +17970,7 @@ function TenantNotificationsPage() {
 
 // ============ TENANT PASTELERÍA ANALYTICS PAGE ============
 function TenantPasteleriaAnalyticsPage() {
-  const { currentTenant, locale, authFetch } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale, authFetch: s.authFetch }));
+  const { currentTenant, locale } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale }));
   const tenantId = currentTenant?.id;
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);

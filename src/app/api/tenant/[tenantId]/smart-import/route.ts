@@ -826,7 +826,7 @@ export async function GET(
     };
 
     for (const h of history) {
-      stats.importBreakdown[h.type] = (stats.importBreakdown[h.type] || 0) + h.imported;
+      stats.importBreakdown[h.type as string] = (stats.importBreakdown[h.type as string] || 0) + h.imported;
     }
 
     return NextResponse.json({ history, stats });

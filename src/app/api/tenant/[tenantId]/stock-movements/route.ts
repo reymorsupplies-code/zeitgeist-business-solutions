@@ -65,7 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     }
 
     // Get current stock (parameterized)
-    const ingredient = await pgQuery<any[]>(
+    const ingredient = await pgQuery<any>(
       `SELECT quantity, name FROM "Ingredient" WHERE id = $1 AND "tenantId" = $2`,
       [ingredientId, tenantId]
     );

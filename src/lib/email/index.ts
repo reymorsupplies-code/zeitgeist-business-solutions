@@ -30,7 +30,7 @@ export async function sendEmail(
     }
 
     // Dynamic import — only resolved at runtime
-    const Resend = (await import('resend')).default;
+    const Resend = (await import('resend') as any).default;
     const resend = new Resend(apiKey);
 
     const recipients = Array.isArray(to) ? to : [to];

@@ -392,7 +392,7 @@ async function restQuery<T = any>(sql: string, params: any[] = []): Promise<T[]>
     const rowData = extractInsert(trimmedSql, params);
     if (!rowData) throw new Error(`REST: Cannot parse INSERT values: ${sql.substring(0, 100)}`);
 
-    const { data, error } = await client.from(table).insert(rowData).select();
+    const { data, error } = await (client.from(table) as any).insert(rowData).select();
     if (error) throw new Error(`REST insert error: ${error.message}`);
     return (data || []) as T[];
   }
@@ -405,7 +405,7 @@ async function restQuery<T = any>(sql: string, params: any[] = []): Promise<T[]>
     const setData = extractSetClauses(trimmedSql, params);
     if (!setData) throw new Error(`REST: Cannot parse SET clauses: ${sql.substring(0, 100)}`);
 
-    let query = client.from(table).update(setData);
+    let query = (client.from(table) as any).update(setData);
 
     // Apply WHERE conditions
     const where = extractWhere(trimmedSql, params);
