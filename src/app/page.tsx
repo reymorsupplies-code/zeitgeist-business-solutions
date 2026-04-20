@@ -9382,9 +9382,9 @@ function TenantOrdersPage() {
       const balance = total - deposit;
       const installmentAmount = balance / form.installments;
       paymentSchedule = [
-        { label: 'Deposito', amount: deposit, dueDate: new Date().toISOString().split('T')[0], status: 'paid', method: form.depositMethod },
+        { label: t('orders.schedule.deposit', locale), amount: deposit, dueDate: new Date().toISOString().split('T')[0], status: 'paid', method: form.depositMethod },
         ...Array.from({ length: form.installments }, (_, i) => ({
-          label: `Cuota ${i + 1} de ${form.installments}`,
+          label: t('orders.schedule.installment', locale).replace('{current}', String(i + 1)).replace('{total}', String(form.installments)),
           amount: Math.round(installmentAmount * 100) / 100,
           dueDate: '',
           status: 'pending',
@@ -9402,7 +9402,7 @@ function TenantOrdersPage() {
         depositAmount: deposit,
         depositPaid: deposit,
         depositMethod: form.depositMethod,
-        items: JSON.stringify([{ name: 'Custom Order', qty: 1, price: form.subtotal }]),
+        items: JSON.stringify([{ name: t('orders.customOrder', locale), qty: 1, price: form.subtotal }]),
         paymentSchedule
       })
     });
@@ -9489,7 +9489,7 @@ function TenantOrdersPage() {
       </div>
 
       {loading ? <PageSkeleton type="table" /> : filteredOrders.length === 0 ? (
-        <EmptyState icon={ShoppingCart} title="No orders yet" description="Create your first order" action="New Order" onAction={() => setShowCreate(true)} />
+        <EmptyState icon={ShoppingCart} title={t('orders.empty.title', locale)} description={t('orders.empty.description', locale)} action={t('common.newOrder', locale)} onAction={() => setShowCreate(true)} />
       ) : (
         <div className="space-y-3">
           {filteredOrders.map((order: any) => {
@@ -9575,7 +9575,7 @@ function TenantOrdersPage() {
               <div><Label>{t('common.status', locale)}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="pending">{t('common.pending', locale)}</SelectItem><SelectItem value="confirmed">Confirmed</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value="pending">{t('common.pending', locale)}</SelectItem><SelectItem value="confirmed">{t('common.confirmed', locale)}</SelectItem></SelectContent>
                 </Select>
               </div>
             </div>
@@ -12373,7 +12373,7 @@ function TenantCatalogPage() {
   const filtered = items.filter((i: any) => { if (catFilter !== 'all' && i.category !== catFilter) return false; if (search && !i.name?.toLowerCase().includes(search.toLowerCase())) return false; return true; });
   const [form, setForm] = useState({ name: '', description: '', category: 'Panaderia', price: 0, cost: 0, unit: 'unidad', isAvailable: true });
   const handleCreate = async () => {
-    try { await authFetch(`/api/tenant/${currentTenant.id}/catalog`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }); setShowCreate(false); setForm({ name: '', description: '', category: 'Panaderia', price: 0, cost: 0, unit: 'unidad', isAvailable: true }); load(); toast.success(t('catalog.toast.created', locale)); } catch { toast.error('Error'); }
+    try { await authFetch(`/api/tenant/${currentTenant.id}/catalog`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }); setShowCreate(false); setForm({ name: '', description: '', category: 'Panaderia', price: 0, cost: 0, unit: 'unidad', isAvailable: true }); load(); toast.success(t('catalog.toast.created', locale)); } catch { toast.error(t('common.error', locale)); }
   };
   const handleUpdate = async () => {
     if (!editItem) return;
@@ -12383,7 +12383,7 @@ function TenantCatalogPage() {
         body: JSON.stringify({ id: editItem.id, name: editItem.name, description: editItem.description, category: editItem.category, price: editItem.price, cost: editItem.cost, unit: editItem.unit, imageUrl: editItem.imageUrl, isAvailable: editItem.isAvailable })
       });
       setEditItem(null); load(); toast.success(t('catalog.toast.updated', locale));
-    } catch { toast.error('Error'); }
+    } catch { toast.error(t('common.error', locale)); }
   };
   const handleDelete = async (id: string) => {
     try {
@@ -12392,7 +12392,7 @@ function TenantCatalogPage() {
         body: JSON.stringify({ id })
       });
       load(); toast.success(t('catalog.toast.deleted', locale));
-    } catch { toast.error('Error'); }
+    } catch { toast.error(t('common.error', locale)); }
   };
 
   // Calculate margin
