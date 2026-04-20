@@ -84,10 +84,53 @@ export async function POST(req: NextRequest) {
     trialEnd.setDate(trialEnd.getDate() + trialDurationDays);
     trialEnd.setHours(0, 0, 0, 0);
 
+    // Resolve industryId: frontend sends slug (e.g. 'bakery'), we need the actual Industry.id
+    let resolvedIndustryId: string | null = null;
+    if (data.industryId) {
+      try {
+        const industry = await db.industry.findFirst({
+          where: {
+            OR: [
+              { id: data.industryId },
+              { slug: data.industryId },
+            ]
+          }
+        });
+        resolvedIndustryId = industry?.id || null;
+      } catch {
+        // Fallback: try direct pg query
+        try {
+          const rows = await pgQuery<any>(`SELECT id FROM "Industry" WHERE id = $1 OR slug = $1 LIMIT 1`, [data.industryId]);
+          resolvedIndustryId = rows[0]?.id || null;
+        } catch {}
+      }
+    }
+
+    // Resolve planId similarly
+    let resolvedPlanId: string | null = null;
+    if (data.planId) {
+      try {
+        const plan = await db.plan.findFirst({
+          where: {
+            OR: [
+              { id: data.planId },
+              { slug: data.planId },
+            ]
+          }
+        });
+        resolvedPlanId = plan?.id || null;
+      } catch {
+        try {
+          const rows = await pgQuery<any>(`SELECT id FROM "Plan" WHERE id = $1 OR slug = $1 LIMIT 1`, [data.planId]);
+          resolvedPlanId = rows[0]?.id || null;
+        } catch {}
+      }
+    }
+
     const tenant = await db.tenant.create({
       data: {
         name: data.name, slug,
-        industryId: data.industryId || null, planId: data.planId || null, planName: data.planName || null,
+        industryId: resolvedIndustryId, planId: resolvedPlanId, planName: data.planName || null,
         status: data.status || 'trial', trialStartsAt: new Date(), trialEndsAt: trialEnd,
         trialDurationDays, hasUsedTrial: true,
         primaryColor: data.primaryColor || '#1D4ED8', accentColor: data.accentColor || '#2563EB',
