@@ -9351,7 +9351,7 @@ function TenantDashboardPage() {
 // ═══════════════════════════════════════════════════════════════
 
 function TenantOrdersPage() {
-  const { currentTenant, currency, bakeryWorkspace } = useAppStore() as any;
+  const { currentTenant, currency, bakeryWorkspace, locale } = useAppStore() as any;
   const isPasteleria = bakeryWorkspace === 'pasteleria';
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -9409,7 +9409,7 @@ function TenantOrdersPage() {
     setShowCreate(false);
     setForm({ clientName: '', clientEmail: '', clientPhone: '', items: '', subtotal: 0, totalAmount: 0, status: 'pending', orderType: 'custom', deliveryDate: '', deliveryAddress: '', notes: '', depositAmount: 0, depositMethod: 'cash', hasInstallments: false, installments: 3 });
     load();
-    toast.success('Order created!');
+    toast.success(t('orders.toast.created', locale));
   };
 
   const handleRecordPayment = async () => {
@@ -9428,7 +9428,7 @@ function TenantOrdersPage() {
     setDepositForm({ paymentAmount: 0, paymentMethod: 'cash' });
     setSelectedOrder(null);
     load();
-    toast.success('Payment recorded!');
+    toast.success(t('orders.toast.paymentRecorded', locale));
   };
 
   const handleStatusChange = async (order: any, newStatus: string) => {
@@ -9438,7 +9438,7 @@ function TenantOrdersPage() {
       body: JSON.stringify({ id: order.id, status: newStatus })
     });
     load();
-    toast.success(`Status updated to ${newStatus}`);
+    toast.success(t('orders.toast.statusUpdated', locale).replace('{status}', newStatus));
   };
 
   const filteredOrders = orders.filter(o => statusFilter === 'all' || o.status === statusFilter);
@@ -9457,23 +9457,23 @@ function TenantOrdersPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div><h1 className="text-2xl font-bold">Orders</h1><p className="text-sm text-muted-foreground">Manage your order pipeline</p></div>
-        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />New Order</Button>
+        <div><h1 className="text-2xl font-bold">{t('tenant.orders', locale)}</h1><p className="text-sm text-muted-foreground">{t('orders.subtitle', locale)}</p></div>
+        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />{t('tenant.quick.newOrder', locale)}</Button>
       </div>
 
       {/* Deposit Summary Cards — Pasteleria only */}
       {isPasteleria && orders.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
-            <p className="text-xs text-muted-foreground">Total Pedidos</p>
+            <p className="text-xs text-muted-foreground">{t('orders.card.totalOrders', locale)}</p>
             <p className="text-2xl font-bold">{orders.length}</p>
           </Card>
           <Card className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30">
-            <p className="text-xs text-muted-foreground">Depositos Recibidos</p>
+            <p className="text-xs text-muted-foreground">{t('orders.card.depositsReceived', locale)}</p>
             <p className="text-2xl font-bold text-green-600">{currency?.symbol || 'TT$'}{totalDeposits.toFixed(2)}</p>
           </Card>
           <Card className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30">
-            <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
+            <p className="text-xs text-muted-foreground">{t('orders.card.pendingBalance', locale)}</p>
             <p className="text-2xl font-bold text-orange-600">{currency?.symbol || 'TT$'}{totalBalance.toFixed(2)}</p>
           </Card>
         </div>
@@ -9483,7 +9483,7 @@ function TenantOrdersPage() {
       <div className="flex gap-2 flex-wrap">
         {['all', 'pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'paid'].map(s => (
           <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(s)} className={statusFilter === s ? 'bg-blue-600' : ''}>
-            {s === 'all' ? 'Todos' : s.charAt(0).toUpperCase() + s.slice(1).replace('_', ' ')}
+            {s === 'all' ? t('common.all', locale) : s.charAt(0).toUpperCase() + s.slice(1).replace('_', ' ')}
           </Button>
         ))}
       </div>
@@ -9493,6 +9493,7 @@ function TenantOrdersPage() {
       ) : (
         <div className="space-y-3">
           {filteredOrders.map((order: any) => {
+            const hasNotes = !!order.notes;
             const schedule = typeof order.paymentSchedule === 'string' ? JSON.parse(order.paymentSchedule || '[]') : (order.paymentSchedule || []);
             const hasSchedule = Array.isArray(schedule) && schedule.length > 0;
             return (
@@ -9507,18 +9508,18 @@ function TenantOrdersPage() {
                       <Badge variant="outline" className="text-xs">{order.orderType}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">{order.clientName}{order.clientPhone ? ` — ${order.clientPhone}` : ''}</p>
-                    {order.deliveryDate && <p className="text-xs text-muted-foreground mt-1">Entrega: {new Date(order.deliveryDate).toLocaleDateString()}</p>}
-                    {order.notes && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{order.notes}</p>}
+                    {order.deliveryDate && <p className="text-xs text-muted-foreground mt-1">{`${t('orders.delivery', locale)}: ${new Date(order.deliveryDate).toLocaleDateString()}`}</p>}
+                    {hasNotes && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{order.notes}</p>}
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold">{currency?.symbol || 'TT$'}{(order.totalAmount || 0).toFixed(2)}</p>
                     {isPasteleria && (order.depositPaid > 0 || order.balanceDue > 0) && (
                       <div className="mt-1 space-y-0.5">
-                        <p className="text-xs text-green-600">Pagado: {currency?.symbol || 'TT$'}{(order.depositPaid || 0).toFixed(2)}</p>
-                        <p className="text-xs text-orange-600">Saldo: {currency?.symbol || 'TT$'}{(order.balanceDue || 0).toFixed(2)}</p>
+                        <p className="text-xs text-green-600">{t('orders.paid', locale)}: {currency?.symbol || 'TT$'}{(order.depositPaid || 0).toFixed(2)}</p>
+                        <p className="text-xs text-orange-600">{t('orders.balance', locale)}: {currency?.symbol || 'TT$'}{(order.balanceDue || 0).toFixed(2)}</p>
                         {order.balanceDue > 0 && (
                           <Button size="sm" variant="outline" className="mt-1 text-xs h-6 px-2" onClick={() => { setSelectedOrder(order); setShowDeposit(true); }}>
-                            <CreditCard className="w-3 h-3 mr-1" />Registrar Pago
+                            <CreditCard className="w-3 h-3 mr-1" />{t('orders.btn.recordPayment', locale)}
                           </Button>
                         )}
                       </div>
@@ -9528,11 +9529,11 @@ function TenantOrdersPage() {
                 {/* Installment schedule */}
                 {isPasteleria && hasSchedule && (
                   <div className="mt-3 pt-3 border-t">
-                    <p className="text-xs font-medium text-muted-foreground mb-2">Plan de Pagos</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">{t('orders.planTitle', locale)}</p>
                     <div className="flex gap-2 flex-wrap">
                       {schedule.map((p: any, i: number) => (
                         <div key={i} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${p.status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
-                          {p.label}: {currency?.symbol || 'TT$'}{(p.amount || 0).toFixed(2)} {p.status === 'paid' ? '(Pagado)' : '(Pendiente)'}
+                          {p.label}: {currency?.symbol || 'TT$'}{(p.amount || 0).toFixed(2)} {p.status === 'paid' ? t('orders.installmentPaid', locale) : t('orders.installmentPending', locale)}
                         </div>
                       ))}
                     </div>
@@ -9540,10 +9541,10 @@ function TenantOrdersPage() {
                 )}
                 {/* Action buttons */}
                 <div className="mt-3 pt-3 border-t flex gap-2 flex-wrap">
-                  {order.status === 'pending' && <Button size="sm" variant="outline" className="text-xs" onClick={() => handleStatusChange(order, 'confirmed')}>Confirmar</Button>}
-                  {order.status === 'confirmed' && <Button size="sm" variant="outline" className="text-xs" onClick={() => handleStatusChange(order, 'in_progress')}>Iniciar</Button>}
-                  {order.status === 'in_progress' && <Button size="sm" variant="outline" className="text-xs" onClick={() => handleStatusChange(order, 'completed')}>Completar</Button>}
-                  {!['cancelled', 'completed', 'paid'].includes(order.status) && <Button size="sm" variant="ghost" className="text-xs text-red-600" onClick={() => handleStatusChange(order, 'cancelled')}>Cancelar</Button>}
+                  {order.status === 'pending' && <Button size="sm" variant="outline" className="text-xs" onClick={() => handleStatusChange(order, 'confirmed')}>{t('orders.action.confirm', locale)}</Button>}
+                  {order.status === 'confirmed' && <Button size="sm" variant="outline" className="text-xs" onClick={() => handleStatusChange(order, 'in_progress')}>{t('orders.action.start', locale)}</Button>}
+                  {order.status === 'in_progress' && <Button size="sm" variant="outline" className="text-xs" onClick={() => handleStatusChange(order, 'completed')}>{t('orders.action.complete', locale)}</Button>}
+                  {!['cancelled', 'completed', 'paid'].includes(order.status) && <Button size="sm" variant="ghost" className="text-xs text-red-600" onClick={() => handleStatusChange(order, 'cancelled')}>{t('common.cancel', locale)}</Button>}
                 </div>
               </Card>
             );
@@ -9554,49 +9555,49 @@ function TenantOrdersPage() {
       {/* Create Order Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Create New Order</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('orders.dialog.createTitle', locale)}</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Client Name *</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
-              <div><Label>Phone</Label><Input value={form.clientPhone} onChange={e => setForm(f => ({ ...f, clientPhone: e.target.value }))} /></div>
+              <div><Label>{t('orders.form.clientName', locale)} *</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
+              <div><Label>{t('orders.form.phone', locale)}</Label><Input value={form.clientPhone} onChange={e => setForm(f => ({ ...f, clientPhone: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Subtotal ({currency?.symbol || 'TT$'})</Label><Input type="number" value={form.subtotal || ''} onChange={e => setForm(f => ({ ...f, subtotal: parseFloat(e.target.value) || 0 }))} /></div>
-              <div><Label>Order Type</Label>
+              <div><Label>{t('orders.form.subtotal', locale)} ({currency?.symbol || 'TT$'})</Label><Input type="number" value={form.subtotal || ''} onChange={e => setForm(f => ({ ...f, subtotal: parseFloat(e.target.value) || 0 }))} /></div>
+              <div><Label>{t('orders.form.orderType', locale)}</Label>
                 <Select value={form.orderType} onValueChange={v => setForm(f => ({ ...f, orderType: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="custom">Custom</SelectItem><SelectItem value="walk_in">Walk-in</SelectItem><SelectItem value="online">Online</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value="custom">{t('orders.type.custom', locale)}</SelectItem><SelectItem value="walk_in">{t('orders.type.walkIn', locale)}</SelectItem><SelectItem value="online">{t('orders.type.online', locale)}</SelectItem></SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Delivery Date</Label><Input type="date" value={form.deliveryDate} onChange={e => setForm(f => ({ ...f, deliveryDate: e.target.value }))} /></div>
-              <div><Label>Status</Label>
+              <div><Label>{t('orders.form.deliveryDate', locale)}</Label><Input type="date" value={form.deliveryDate} onChange={e => setForm(f => ({ ...f, deliveryDate: e.target.value }))} /></div>
+              <div><Label>{t('common.status', locale)}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="pending">Pending</SelectItem><SelectItem value="confirmed">Confirmed</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value="pending">{t('common.pending', locale)}</SelectItem><SelectItem value="confirmed">Confirmed</SelectItem></SelectContent>
                 </Select>
               </div>
             </div>
-            <div><Label>Delivery Address</Label><Input value={form.deliveryAddress} onChange={e => setForm(f => ({ ...f, deliveryAddress: e.target.value }))} /></div>
-            <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
+            <div><Label>{t('orders.form.deliveryAddress', locale)}</Label><Input value={form.deliveryAddress} onChange={e => setForm(f => ({ ...f, deliveryAddress: e.target.value }))} /></div>
+            <div><Label>{t('common.notes', locale)}</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
 
             {/* Deposit Section — Pasteleria only */}
             {isPasteleria && (
               <div className="space-y-3 p-4 rounded-xl bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30 border border-pink-200 dark:border-pink-800">
-                <div className="flex items-center gap-2"><CreditCard className="w-4 h-4 text-pink-500" /><span className="text-sm font-semibold text-pink-700 dark:text-pink-300">Deposito / Anticipo</span></div>
+                <div className="flex items-center gap-2"><CreditCard className="w-4 h-4 text-pink-500" /><span className="text-sm font-semibold text-pink-700 dark:text-pink-300">{t('orders.form.depositLabel', locale)}</span></div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><Label className="text-xs">Monto del Deposito</Label><Input type="number" value={form.depositAmount || ''} onChange={e => setForm(f => ({ ...f, depositAmount: parseFloat(e.target.value) || 0 }))} placeholder="0.00" /></div>
-                  <div><Label className="text-xs">Metodo de Pago</Label>
+                  <div><Label className="text-xs">{t('orders.form.depositAmount', locale)}</Label><Input type="number" value={form.depositAmount || ''} onChange={e => setForm(f => ({ ...f, depositAmount: parseFloat(e.target.value) || 0 }))} placeholder="0.00" /></div>
+                  <div><Label className="text-xs">{t('orders.form.paymentMethod', locale)}</Label>
                     <Select value={form.depositMethod} onValueChange={v => setForm(f => ({ ...f, depositMethod: v }))}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent><SelectItem value="cash">Efectivo</SelectItem><SelectItem value="card">Tarjeta</SelectItem><SelectItem value="transfer">Transferencia</SelectItem><SelectItem value="online">Pago Online</SelectItem></SelectContent>
+                      <SelectContent><SelectItem value="cash">{t('orders.method.cash', locale)}</SelectItem><SelectItem value="card">{t('orders.method.card', locale)}</SelectItem><SelectItem value="transfer">{t('orders.method.transfer', locale)}</SelectItem><SelectItem value="online">{t('orders.method.online', locale)}</SelectItem></SelectContent>
                     </Select>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={form.hasInstallments} onCheckedChange={v => setForm(f => ({ ...f, hasInstallments: v === true }))} />
-                  <Label className="text-xs">Pago en cuotas (installments)</Label>
+                  <Label className="text-xs">{t('orders.form.installments', locale)}</Label>
                   {form.hasInstallments && (
                     <Select value={String(form.installments)} onValueChange={v => setForm(f => ({ ...f, installments: parseInt(v) }))}>
                       <SelectTrigger className="w-20 h-7 text-xs"><SelectValue /></SelectTrigger>
@@ -9606,14 +9607,14 @@ function TenantOrdersPage() {
                 </div>
                 {form.depositAmount > 0 && form.subtotal > 0 && (
                   <div className="text-xs text-muted-foreground">
-                    Total est. con IVA: {currency?.symbol || 'TT$'}{(form.subtotal * (1 + (currentTenant?.taxRate || 0.125))).toFixed(2)} | Saldo despues de deposito: {currency?.symbol || 'TT$'}{(form.subtotal * (1 + (currentTenant?.taxRate || 0.125)) - form.depositAmount).toFixed(2)}
-                    {form.hasInstallments && form.installments > 1 && ` | Cuota: ${currency?.symbol || 'TT$'}${((form.subtotal * (1 + (currentTenant?.taxRate || 0.125)) - form.depositAmount) / form.installments).toFixed(2)}/mes`}
+                    {t('orders.form.estTotal', locale)}: {currency?.symbol || 'TT$'}{(form.subtotal * (1 + (currentTenant?.taxRate || 0.125))).toFixed(2)} | {t('orders.form.balanceAfterDeposit', locale)}: {currency?.symbol || 'TT$'}{(form.subtotal * (1 + (currentTenant?.taxRate || 0.125)) - form.depositAmount).toFixed(2)}
+                    {form.hasInstallments && form.installments > 1 && ` | ${t('orders.form.installmentAmount', locale)}: ${currency?.symbol || 'TT$'}${((form.subtotal * (1 + (currentTenant?.taxRate || 0.125)) - form.depositAmount) / form.installments).toFixed(2)}`}
                   </div>
                 )}
               </div>
             )}
 
-            <Button onClick={handleCreate} disabled={!form.clientName} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">Create Order</Button>
+            <Button onClick={handleCreate} disabled={!form.clientName} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">{t('orders.form.createBtn', locale)}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -9621,21 +9622,21 @@ function TenantOrdersPage() {
       {/* Record Payment Dialog */}
       <Dialog open={showDeposit} onOpenChange={setShowDeposit}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Registrar Pago</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('orders.dialog.recordPaymentTitle', locale)}</DialogTitle></DialogHeader>
           {selectedOrder && (
             <div className="space-y-4 mt-2">
               <div className="p-3 bg-muted rounded-lg text-sm">
                 <p className="font-medium">{selectedOrder.orderNumber} — {selectedOrder.clientName}</p>
-                <p className="text-xs text-muted-foreground">Saldo pendiente: {currency?.symbol || 'TT$'}{(selectedOrder.balanceDue || 0).toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">{t('orders.dialog.pendingBalance', locale)}: {currency?.symbol || 'TT$'}{(selectedOrder.balanceDue || 0).toFixed(2)}</p>
               </div>
-              <div><Label>Monto</Label><Input type="number" value={depositForm.paymentAmount || ''} onChange={e => setDepositForm(f => ({ ...f, paymentAmount: parseFloat(e.target.value) || 0 }))} /></div>
-              <div><Label>Metodo</Label>
+              <div><Label>{t('orders.dialog.amount', locale)}</Label><Input type="number" value={depositForm.paymentAmount || ''} onChange={e => setDepositForm(f => ({ ...f, paymentAmount: parseFloat(e.target.value) || 0 }))} /></div>
+              <div><Label>{t('orders.dialog.method', locale)}</Label>
                 <Select value={depositForm.paymentMethod} onValueChange={v => setDepositForm(f => ({ ...f, paymentMethod: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="cash">Efectivo</SelectItem><SelectItem value="card">Tarjeta</SelectItem><SelectItem value="transfer">Transferencia</SelectItem><SelectItem value="online">Pago Online</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value="cash">{t('orders.method.cash', locale)}</SelectItem><SelectItem value="card">{t('orders.method.card', locale)}</SelectItem><SelectItem value="transfer">{t('orders.method.transfer', locale)}</SelectItem><SelectItem value="online">{t('orders.method.online', locale)}</SelectItem></SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleRecordPayment} disabled={depositForm.paymentAmount <= 0} className="w-full bg-green-600 hover:bg-green-700">Registrar Pago</Button>
+              <Button onClick={handleRecordPayment} disabled={depositForm.paymentAmount <= 0} className="w-full bg-green-600 hover:bg-green-700">{t('orders.form.recordBtn', locale)}</Button>
             </div>
           )}
         </DialogContent>
@@ -12357,7 +12358,7 @@ function TenantContractsPage() {
 // ═══════════════════════════════════════════════════════════════
 
 function TenantCatalogPage() {
-  const { currentTenant, currency } = useAppStore() as any;
+  const { currentTenant, currency, locale } = useAppStore() as any;
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -12372,7 +12373,7 @@ function TenantCatalogPage() {
   const filtered = items.filter((i: any) => { if (catFilter !== 'all' && i.category !== catFilter) return false; if (search && !i.name?.toLowerCase().includes(search.toLowerCase())) return false; return true; });
   const [form, setForm] = useState({ name: '', description: '', category: 'Panaderia', price: 0, cost: 0, unit: 'unidad', isAvailable: true });
   const handleCreate = async () => {
-    try { await authFetch(`/api/tenant/${currentTenant.id}/catalog`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }); setShowCreate(false); setForm({ name: '', description: '', category: 'Panaderia', price: 0, cost: 0, unit: 'unidad', isAvailable: true }); load(); toast.success('Producto creado!'); } catch { toast.error('Error'); }
+    try { await authFetch(`/api/tenant/${currentTenant.id}/catalog`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }); setShowCreate(false); setForm({ name: '', description: '', category: 'Panaderia', price: 0, cost: 0, unit: 'unidad', isAvailable: true }); load(); toast.success(t('catalog.toast.created', locale)); } catch { toast.error('Error'); }
   };
   const handleUpdate = async () => {
     if (!editItem) return;
@@ -12381,7 +12382,7 @@ function TenantCatalogPage() {
         method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
         body: JSON.stringify({ id: editItem.id, name: editItem.name, description: editItem.description, category: editItem.category, price: editItem.price, cost: editItem.cost, unit: editItem.unit, imageUrl: editItem.imageUrl, isAvailable: editItem.isAvailable })
       });
-      setEditItem(null); load(); toast.success('Producto actualizado!');
+      setEditItem(null); load(); toast.success(t('catalog.toast.updated', locale));
     } catch { toast.error('Error'); }
   };
   const handleDelete = async (id: string) => {
@@ -12390,7 +12391,7 @@ function TenantCatalogPage() {
         method: 'DELETE', headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
         body: JSON.stringify({ id })
       });
-      load(); toast.success('Producto eliminado!');
+      load(); toast.success(t('catalog.toast.deleted', locale));
     } catch { toast.error('Error'); }
   };
 
@@ -12417,25 +12418,25 @@ function TenantCatalogPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div><h1 className="text-2xl font-bold">Products & Menu</h1><p className="text-sm text-muted-foreground">Gestiona tu catalogo de productos</p></div>
-        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />Nuevo Producto</Button>
+        <div><h1 className="text-2xl font-bold">{t('tenant.catalog', locale)}</h1><p className="text-sm text-muted-foreground">{t('catalog.subtitle', locale)}</p></div>
+        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />{t('catalog.btn.newProduct', locale)}</Button>
       </div>
 
       {/* Margin Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="p-3"><p className="text-xs text-muted-foreground">Productos</p><p className="text-xl font-bold">{totalProducts}</p></Card>
-        <Card className="p-3"><p className="text-xs text-muted-foreground">Margen Promedio</p><p className={`text-xl font-bold ${avgMargin >= 40 ? 'text-green-600' : avgMargin >= 20 ? 'text-yellow-600' : 'text-red-600'}`}>{avgMargin.toFixed(1)}%</p></Card>
-        <Card className="p-3 bg-green-50 dark:bg-green-950/30"><p className="text-xs text-muted-foreground">Alto Margen (50%+)</p><p className="text-xl font-bold text-green-600">{highMargin}</p></Card>
-        <Card className="p-3 bg-red-50 dark:bg-red-950/30"><p className="text-xs text-muted-foreground">Bajo Margen ({'<20%'})</p><p className="text-xl font-bold text-red-600">{lowMargin}</p></Card>
+        <Card className="p-3"><p className="text-xs text-muted-foreground">{t('catalog.card.products', locale)}</p><p className="text-xl font-bold">{totalProducts}</p></Card>
+        <Card className="p-3"><p className="text-xs text-muted-foreground">{t('catalog.card.avgMargin', locale)}</p><p className={`text-xl font-bold ${avgMargin >= 40 ? 'text-green-600' : avgMargin >= 20 ? 'text-yellow-600' : 'text-red-600'}`}>{avgMargin.toFixed(1)}%</p></Card>
+        <Card className="p-3 bg-green-50 dark:bg-green-950/30"><p className="text-xs text-muted-foreground">{t('catalog.card.highMargin', locale)}</p><p className="text-xl font-bold text-green-600">{highMargin}</p></Card>
+        <Card className="p-3 bg-red-50 dark:bg-red-950/30"><p className="text-xs text-muted-foreground">{t('catalog.card.lowMargin', locale)}</p><p className="text-xl font-bold text-red-600">{lowMargin}</p></Card>
       </div>
 
       <div className="flex gap-3 flex-wrap">
-        <Input placeholder="Buscar producto..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" />
-        <Select value={catFilter} onValueChange={setCatFilter}>{categories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'Todas' : c}</SelectItem>)}</Select>
+        <Input placeholder={t('catalog.search', locale)} value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" />
+        <Select value={catFilter} onValueChange={setCatFilter}>{categories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? t('common.all', locale) : c}</SelectItem>)}</Select>
       </div>
 
       {loading ? <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div> : filtered.length === 0 ? (
-        <Card className="p-12 text-center"><Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">No hay productos. Crea tu primer producto.</p></Card>
+        <Card className="p-12 text-center"><Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">{t('catalog.empty', locale)}</p></Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((item: any) => {
@@ -12445,18 +12446,18 @@ function TenantCatalogPage() {
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0"><h3 className="font-semibold truncate">{item.name}</h3><p className="text-xs text-muted-foreground mt-1">{item.category}</p></div>
                   <div className="flex items-center gap-1 ml-2 shrink-0">
-                    <Badge variant={item.isAvailable !== false ? 'outline' : 'secondary'} className={item.isAvailable !== false ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs' : 'text-xs'}>{item.isAvailable !== false ? 'Activo' : 'Inactivo'}</Badge>
+                    <Badge variant={item.isAvailable !== false ? 'outline' : 'secondary'} className={item.isAvailable !== false ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs' : 'text-xs'}>{item.isAvailable !== false ? t('common.active', locale) : t('common.inactive', locale)}</Badge>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${margin.bg} ${margin.color}`}>{margin.label}</span>
                   </div>
                 </div>
                 {item.description && <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{item.description}</p>}
                 <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t text-center">
-                  <div><p className="text-xs text-muted-foreground">Precio</p><p className="text-sm font-bold text-blue-600">{currency?.symbol || 'TT$'}{(item.price || 0).toFixed(2)}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Costo</p><p className="text-sm font-medium">{currency?.symbol || 'TT$'}{(item.cost || 0).toFixed(2)}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Ganancia</p><p className={`text-sm font-bold ${margin.color}`}>{currency?.symbol || 'TT$'}{margin.profit.toFixed(2)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">{t('catalog.label.price', locale)}</p><p className="text-sm font-bold text-blue-600">{currency?.symbol || 'TT$'}{(item.price || 0).toFixed(2)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">{t('catalog.label.cost', locale)}</p><p className="text-sm font-medium">{currency?.symbol || 'TT$'}{(item.cost || 0).toFixed(2)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">{t('catalog.label.profit', locale)}</p><p className={`text-sm font-bold ${margin.color}`}>{currency?.symbol || 'TT$'}{margin.profit.toFixed(2)}</p></div>
                 </div>
                 <div className="flex gap-2 mt-3">
-                  <Button size="sm" variant="outline" className="flex-1 text-xs h-7" onClick={() => setEditItem({...item})}><Pencil className="w-3 h-3 mr-1" />Editar</Button>
+                  <Button size="sm" variant="outline" className="flex-1 text-xs h-7" onClick={() => setEditItem({...item})}><Pencil className="w-3 h-3 mr-1" />{t('common.edit', locale)}</Button>
                   <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500" onClick={() => setDeleteItem(item)}><Trash2 className="w-3 h-3" /></Button>
                 </div>
               </Card>
@@ -12468,51 +12469,51 @@ function TenantCatalogPage() {
       {/* Create Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Nuevo Producto</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('catalog.dialog.createTitle', locale)}</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
-            <div><Label>Nombre *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></div>
-            <div><Label>Categoria</Label><Input value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} /></div>
+            <div><Label>{t('catalog.form.name', locale)} *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></div>
+            <div><Label>{t('catalog.form.category', locale)}</Label><Input value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Precio *</Label><Input type="number" value={form.price || ''} onChange={e => setForm(p => ({ ...p, price: Number(e.target.value) }))} /></div>
-              <div><Label>Costo</Label><Input type="number" value={form.cost || ''} onChange={e => setForm(p => ({ ...p, cost: Number(e.target.value) }))} /></div>
+              <div><Label>{t('catalog.form.price', locale)} *</Label><Input type="number" value={form.price || ''} onChange={e => setForm(p => ({ ...p, price: Number(e.target.value) }))} /></div>
+              <div><Label>{t('catalog.form.cost', locale)}</Label><Input type="number" value={form.cost || ''} onChange={e => setForm(p => ({ ...p, cost: Number(e.target.value) }))} /></div>
             </div>
-            <div><Label>Descripcion</Label><Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
-            <div className="flex items-center gap-2"><Checkbox checked={form.isAvailable} onCheckedChange={v => setForm(p => ({ ...p, isAvailable: v === true }))} /><Label>Disponible</Label></div>
+            <div><Label>{t('catalog.form.description', locale)}</Label><Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
+            <div className="flex items-center gap-2"><Checkbox checked={form.isAvailable} onCheckedChange={v => setForm(p => ({ ...p, isAvailable: v === true }))} /><Label>{t('catalog.form.available', locale)}</Label></div>
           </div>
-          <DialogFooter><Button onClick={handleCreate} className="bg-blue-600 hover:bg-blue-700">Crear Producto</Button></DialogFooter>
+          <DialogFooter><Button onClick={handleCreate} className="bg-blue-600 hover:bg-blue-700">{t('catalog.form.createBtn', locale)}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Editar Producto</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('catalog.dialog.editTitle', locale)}</DialogTitle></DialogHeader>
           {editItem && (
             <div className="space-y-4 mt-2">
-              <div><Label>Nombre *</Label><Input value={editItem.name} onChange={e => setEditItem(p => ({ ...p, name: e.target.value }))} /></div>
-              <div><Label>Categoria</Label><Input value={editItem.category} onChange={e => setEditItem(p => ({ ...p, category: e.target.value }))} /></div>
+              <div><Label>{t('catalog.form.name', locale)} *</Label><Input value={editItem.name} onChange={e => setEditItem(p => ({ ...p, name: e.target.value }))} /></div>
+              <div><Label>{t('catalog.form.category', locale)}</Label><Input value={editItem.category} onChange={e => setEditItem(p => ({ ...p, category: e.target.value }))} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div><Label>Precio *</Label><Input type="number" value={editItem.price || ''} onChange={e => setEditItem(p => ({ ...p, price: Number(e.target.value) }))} /></div>
-                <div><Label>Costo</Label><Input type="number" value={editItem.cost || ''} onChange={e => setEditItem(p => ({ ...p, cost: Number(e.target.value) }))} /></div>
+                <div><Label>{t('catalog.form.price', locale)} *</Label><Input type="number" value={editItem.price || ''} onChange={e => setEditItem(p => ({ ...p, price: Number(e.target.value) }))} /></div>
+                <div><Label>{t('catalog.form.cost', locale)}</Label><Input type="number" value={editItem.cost || ''} onChange={e => setEditItem(p => ({ ...p, cost: Number(e.target.value) }))} /></div>
               </div>
-              <div><Label>Descripcion</Label><Textarea value={editItem.description} onChange={e => setEditItem(p => ({ ...p, description: e.target.value }))} /></div>
-              <div className="flex items-center gap-2"><Checkbox checked={editItem.isAvailable} onCheckedChange={v => setEditItem(p => ({ ...p, isAvailable: v === true }))} /><Label>Disponible</Label></div>
+              <div><Label>{t('catalog.form.description', locale)}</Label><Textarea value={editItem.description} onChange={e => setEditItem(p => ({ ...p, description: e.target.value }))} /></div>
+              <div className="flex items-center gap-2"><Checkbox checked={editItem.isAvailable} onCheckedChange={v => setEditItem(p => ({ ...p, isAvailable: v === true }))} /><Label>{t('catalog.form.available', locale)}</Label></div>
             </div>
           )}
-          <DialogFooter><Button onClick={handleUpdate} className="bg-blue-600 hover:bg-blue-700">Guardar</Button></DialogFooter>
+          <DialogFooter><Button onClick={handleUpdate} className="bg-blue-600 hover:bg-blue-700">{t('catalog.form.updateBtn', locale)}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteItem} onOpenChange={() => setDeleteItem(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Eliminar Producto</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('catalog.dialog.deleteTitle', locale)}</DialogTitle></DialogHeader>
           {deleteItem && (
             <div className="space-y-4 mt-2">
-              <p className="text-sm text-muted-foreground">Estas seguro de eliminar <span className="font-semibold text-foreground">{deleteItem.name}</span>? Esta accion no se puede deshacer.</p>
+              <p className="text-sm text-muted-foreground">{t('catalog.dialog.deleteConfirm', locale).replace('{name}', deleteItem.name)}</p>
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => setDeleteItem(null)}>Cancelar</Button>
-                <Button className="flex-1 bg-red-600 hover:bg-red-700" onClick={() => { handleDelete(deleteItem.id); setDeleteItem(null); }}>Eliminar</Button>
+                <Button variant="outline" className="flex-1" onClick={() => setDeleteItem(null)}>{t('common.cancel', locale)}</Button>
+                <Button className="flex-1 bg-red-600 hover:bg-red-700" onClick={() => { handleDelete(deleteItem.id); setDeleteItem(null); }}>{t('common.delete', locale)}</Button>
               </div>
             </div>
           )}
@@ -15505,7 +15506,7 @@ function TenantKDSPage() {
 // ═══════════════════════════════════════════════════════════════
 
 function TenantCakeMatrixPage() {
-  const { currentTenant, currency } = useAppStore() as any;
+  const { currentTenant, currency, locale } = useAppStore() as any;
   const [matrix, setMatrix] = useState<any[]>([]);
   const [sizes, setSizes] = useState<string[]>([]);
   const [flavors, setFlavors] = useState<string[]>([]);
@@ -15564,10 +15565,10 @@ function TenantCakeMatrixPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'full_grid', entries })
       });
-      toast.success('Cake matrix saved successfully!');
+      toast.success(t('cakeMatrix.toast.saved', locale));
       load();
     } catch {
-      toast.error('Error saving matrix');
+      toast.error(t('cakeMatrix.toast.saveError', locale));
     }
     setSaving(false);
   };
@@ -15582,9 +15583,9 @@ function TenantCakeMatrixPage() {
       });
       setShowAddSize(false);
       setNewSize('');
-      toast.success(`Size "${newSize}" added`);
+      toast.success(t('cakeMatrix.toast.sizeAdded', locale).replace('{size}', newSize));
       load();
-    } catch { toast.error('Error adding size'); }
+    } catch { toast.error(t('cakeMatrix.toast.sizeError', locale)); }
   };
 
   const handleAddFlavor = async () => {
@@ -15597,9 +15598,9 @@ function TenantCakeMatrixPage() {
       });
       setShowAddFlavor(false);
       setNewFlavor('');
-      toast.success(`Flavor "${newFlavor}" added`);
+      toast.success(t('cakeMatrix.toast.flavorAdded', locale).replace('{flavor}', newFlavor));
       load();
-    } catch { toast.error('Error adding flavor'); }
+    } catch { toast.error(t('cakeMatrix.toast.flavorError', locale)); }
   };
 
   // Portion calculator logic
@@ -15629,14 +15630,14 @@ function TenantCakeMatrixPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg"><Layers className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Cake Matrix</h1><p className="text-sm text-muted-foreground">Matriz de precios por tamano y sabor</p></div>
+          <div><h1 className="text-2xl font-bold">{t('tenant.cakeMatrix', locale)}</h1><p className="text-sm text-muted-foreground">{t('cakeMatrix.subtitle', locale)}</p></div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setActiveTab('matrix')} className={activeTab === 'matrix' ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-300' : ''}>
-            <TableIcon className="w-4 h-4 mr-2" />Matriz
+            <TableIcon className="w-4 h-4 mr-2" />{t('cakeMatrix.tab.matrix', locale)}
           </Button>
           <Button variant="outline" onClick={() => setActiveTab('calculator')} className={activeTab === 'calculator' ? 'bg-pink-50 border-pink-200 text-pink-700 dark:bg-pink-950 dark:border-pink-800 dark:text-pink-300' : ''}>
-            <Calculator className="w-4 h-4 mr-2" />Calculadora de Porciones
+            <Calculator className="w-4 h-4 mr-2" />{t('cakeMatrix.tab.calculator', locale)}
           </Button>
         </div>
       </div>
@@ -15647,9 +15648,9 @@ function TenantCakeMatrixPage() {
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th className="border p-3 bg-muted text-left text-sm font-medium sticky left-0 z-10 min-w-[100px]">Tamano / Sabor</th>
+                  <th className="border p-3 bg-muted text-left text-sm font-medium sticky left-0 z-10 min-w-[100px]">{t('cakeMatrix.header.sizeFlavor', locale)}</th>
                   {flavors.map(f => <th key={f} className="border p-3 bg-muted text-center text-sm font-medium min-w-[100px]">{f}</th>)}
-                  <th className="border p-3 bg-muted text-center text-sm font-medium text-blue-600 min-w-[80px]">Porciones</th>
+                  <th className="border p-3 bg-muted text-center text-sm font-medium text-blue-600 min-w-[80px]">{t('cakeMatrix.header.servings', locale)}</th>
                 </tr>
               </thead>
               <tbody>
@@ -15685,12 +15686,12 @@ function TenantCakeMatrixPage() {
 
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex gap-2">
-              <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />Reset</Button>
-              <Button onClick={() => setShowAddSize(true)} variant="outline" size="sm"><Plus className="w-4 h-4 mr-2" />Tamano</Button>
-              <Button onClick={() => setShowAddFlavor(true)} variant="outline" size="sm"><Plus className="w-4 h-4 mr-2" />Sabor</Button>
+              <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />{t('common.refresh', locale)}</Button>
+              <Button onClick={() => setShowAddSize(true)} variant="outline" size="sm"><Plus className="w-4 h-4 mr-2" />{t('cakeMatrix.btn.addSize', locale)}</Button>
+              <Button onClick={() => setShowAddFlavor(true)} variant="outline" size="sm"><Plus className="w-4 h-4 mr-2" />{t('cakeMatrix.btn.addFlavor', locale)}</Button>
             </div>
             <Button className="bg-gradient-to-r from-blue-700 to-blue-500" onClick={handleSave} disabled={saving}>
-              {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Matrix</>}
+              {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('cakeMatrix.btn.saving', locale)}</> : <><Save className="w-4 h-4 mr-2" />{t('cakeMatrix.btn.saveMatrix', locale)}</>}
             </Button>
           </div>
 
@@ -15698,13 +15699,13 @@ function TenantCakeMatrixPage() {
           <Card className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200 dark:border-amber-800">
             <div className="flex items-center gap-2 mb-3">
               <Info className="w-4 h-4 text-amber-600" />
-              <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">Referencia de Porciones</span>
+              <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('cakeMatrix.ref.title', locale)}</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
               {Object.entries(portionMap).sort((a, b) => parseInt(a[0]) - parseInt(b[0])).map(([size, servings]) => (
                 <div key={size} className="flex items-center justify-between bg-white/60 dark:bg-white/5 rounded-lg px-3 py-2">
                   <span className="text-sm font-medium">{size}</span>
-                  <span className="text-xs text-muted-foreground">{servings} porc.</span>
+                  <span className="text-xs text-muted-foreground">{servings} {t('cakeMatrix.ref.perServings', locale)}</span>
                 </div>
               ))}
             </div>
@@ -15713,10 +15714,10 @@ function TenantCakeMatrixPage() {
           {/* Add Size Dialog */}
           <Dialog open={showAddSize} onOpenChange={setShowAddSize}>
             <DialogContent className="max-w-sm">
-              <DialogHeader><DialogTitle>Agregar Tamano</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{t('cakeMatrix.dialog.addSize', locale)}</DialogTitle></DialogHeader>
               <div className="space-y-4 mt-2">
-                <div><Label>Ejemplo: 6&quot;, 8&quot;, 18&quot;</Label><Input value={newSize} onChange={e => setNewSize(e.target.value)} placeholder='6&quot;' className="mt-1" /></div>
-                <Button onClick={handleAddSize} disabled={!newSize.trim()} className="w-full bg-blue-600 hover:bg-blue-700">Agregar</Button>
+                <div><Label>6&quot;, 8&quot;, 18&quot;</Label><Input value={newSize} onChange={e => setNewSize(e.target.value)} placeholder='6&quot;' className="mt-1" /></div>
+                <Button onClick={handleAddSize} disabled={!newSize.trim()} className="w-full bg-blue-600 hover:bg-blue-700">{t('common.add', locale)}</Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -15724,10 +15725,10 @@ function TenantCakeMatrixPage() {
           {/* Add Flavor Dialog */}
           <Dialog open={showAddFlavor} onOpenChange={setShowAddFlavor}>
             <DialogContent className="max-w-sm">
-              <DialogHeader><DialogTitle>Agregar Sabor</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{t('cakeMatrix.dialog.addFlavor', locale)}</DialogTitle></DialogHeader>
               <div className="space-y-4 mt-2">
-                <div><Label>Ejemplo: Vainilla, Moka, Coco</Label><Input value={newFlavor} onChange={e => setNewFlavor(e.target.value)} placeholder="Vainilla" className="mt-1" /></div>
-                <Button onClick={handleAddFlavor} disabled={!newFlavor.trim()} className="w-full bg-blue-600 hover:bg-blue-700">Agregar</Button>
+                <div><Label>Vanilla, Mocha, Coconut</Label><Input value={newFlavor} onChange={e => setNewFlavor(e.target.value)} placeholder="Vainilla" className="mt-1" /></div>
+                <Button onClick={handleAddFlavor} disabled={!newFlavor.trim()} className="w-full bg-blue-600 hover:bg-blue-700">{t('common.add', locale)}</Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -15738,14 +15739,14 @@ function TenantCakeMatrixPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Calculator Input */}
           <Card className="p-6">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Calculator className="w-5 h-5 text-pink-500" />Calculadora de Porciones</h3>
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Calculator className="w-5 h-5 text-pink-500" />{t('cakeMatrix.calc.title', locale)}</h3>
             <div className="space-y-5">
               <div>
-                <Label className="text-sm font-medium">Numero de invitados</Label>
+                <Label className="text-sm font-medium">{t('cakeMatrix.calc.guests', locale)}</Label>
                 <Input type="number" value={calcGuests} onChange={e => setCalcGuests(parseInt(e.target.value) || 0)} min="1" className="mt-1 text-lg" />
               </div>
               <div>
-                <Label className="text-sm font-medium">Numero de niveles (tiers)</Label>
+                <Label className="text-sm font-medium">{t('cakeMatrix.calc.tiers', locale)}</Label>
                 <div className="flex gap-2 mt-1">
                   {[1, 2, 3, 4, 5].map(n => (
                     <Button key={n} variant={calcTierCount === n ? 'default' : 'outline'} size="sm" onClick={() => setCalcTierCount(n)} className={calcTierCount === n ? 'bg-pink-600 hover:bg-pink-700' : ''}>{n}</Button>
@@ -15753,9 +15754,9 @@ function TenantCakeMatrixPage() {
                 </div>
               </div>
               <div>
-                <Label className="text-sm font-medium">Sabor</Label>
+                <Label className="text-sm font-medium">{t('cakeMatrix.calc.flavor', locale)}</Label>
                 <Select value={calcFlavor} onValueChange={setCalcFlavor}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar sabor..." /></SelectTrigger>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder={t('cakeMatrix.calc.selectFlavor', locale)} /></SelectTrigger>
                   <SelectContent>{flavors.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
@@ -15764,33 +15765,33 @@ function TenantCakeMatrixPage() {
 
           {/* Recommendation */}
           <Card className="p-6 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Cake className="w-5 h-5 text-pink-500" />Recomendacion</h3>
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Cake className="w-5 h-5 text-pink-500" />{t('cakeMatrix.calc.recommendation', locale)}</h3>
             {tiers.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Configura tamanos en la matriz primero</p>
+              <p className="text-muted-foreground text-sm">{t('cakeMatrix.calc.configureFirst', locale)}</p>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-3 bg-white/80 dark:bg-white/5 rounded-xl">
-                  <div><span className="text-2xl font-bold text-pink-600">{totalServing}</span><span className="text-sm text-muted-foreground ml-2">porciones totales</span></div>
-                  <div className="text-right"><span className="text-2xl font-bold">{currency?.symbol || 'TT$'}{totalCost.toFixed(2)}</span><span className="text-sm text-muted-foreground block">precio est.</span></div>
+                  <div><span className="text-2xl font-bold text-pink-600">{totalServing}</span><span className="text-sm text-muted-foreground ml-2">{t('cakeMatrix.calc.totalServings', locale)}</span></div>
+                  <div className="text-right"><span className="text-2xl font-bold">{currency?.symbol || 'TT$'}{totalCost.toFixed(2)}</span><span className="text-sm text-muted-foreground block">{t('cakeMatrix.calc.estPrice', locale)}</span></div>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-white/80 dark:bg-white/5 rounded-xl">
-                  <span className="text-sm text-muted-foreground">Costo por invitado</span>
+                  <span className="text-sm text-muted-foreground">{t('cakeMatrix.calc.costPerGuest', locale)}</span>
                   <span className="text-lg font-semibold">{currency?.symbol || 'TT$'}{costPerGuest.toFixed(2)}</span>
                 </div>
                 <div className="space-y-2">
-                  {tiers.map((t, i) => (
+                  {tiers.map((tier, i) => (
                     <div key={i} className="flex items-center justify-between p-3 bg-white/80 dark:bg-white/5 rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-pink-100 dark:bg-pink-900/40 flex items-center justify-center text-pink-600 text-xs font-bold">{i + 1}</div>
-                        <div><span className="font-medium">{t.size}</span><span className="text-xs text-muted-foreground block">{t.servings} porciones</span></div>
+                        <div><span className="font-medium">{tier.size}</span><span className="text-xs text-muted-foreground block">{tier.servings} {t('cakeMatrix.calc.servings', locale)}</span></div>
                       </div>
-                      <span className="font-semibold">{currency?.symbol || 'TT$'}{(priceGrid[`${t.size}-${calcFlavor}`] || 0).toFixed(2)}</span>
+                      <span className="font-semibold">{currency?.symbol || 'TT$'}{(priceGrid[`${tier.size}-${calcFlavor}`] || 0).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
                 {totalServing < calcGuests && (
                   <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
-                    <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2"><AlertTriangle className="w-4 h-4" />Las porciones ({totalServing}) son menores a los invitados ({calcGuests}). Considera agregar un nivel mas.</p>
+                    <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2"><AlertTriangle className="w-4 h-4" />{t('cakeMatrix.calc.warning', locale).replace('{servings}', String(totalServing)).replace('{guests}', String(calcGuests))}</p>
                   </div>
                 )}
               </div>
