@@ -175,6 +175,8 @@ export async function DELETE(req: NextRequest) {
   if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
   try {
     const { id } = await req.json();

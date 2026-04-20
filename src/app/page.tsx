@@ -9600,7 +9600,7 @@ function TenantOrdersPage() {
                   {form.hasInstallments && (
                     <Select value={String(form.installments)} onValueChange={v => setForm(f => ({ ...f, installments: parseInt(v) }))}>
                       <SelectTrigger className="w-20 h-7 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent><SelectItem value="2">2</SelectItem><SelectItem value="3">3</SelectItem><SelectItem value="4">4</SelectItem><SelectItem value="6">6</SelectItem></SelectContent>
+                      <SelectContent><SelectItem value="2">2</SelectItem><SelectItem value="3">3</SelectItem><SelectItem value="4">4</SelectItem><SelectItem value="5">5</SelectItem><SelectItem value="6">6</SelectItem></SelectContent>
                     </Select>
                   )}
                 </div>
@@ -12364,6 +12364,7 @@ function TenantCatalogPage() {
   const [catFilter, setCatFilter] = useState('all');
   const [showCreate, setShowCreate] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
+  const [deleteItem, setDeleteItem] = useState<any>(null);
   const tenantId = currentTenant?.id;
   const load = useCallback(() => { if (tenantId) { authFetch(`/api/tenant/${tenantId}/catalog`).then(r => r.json()).then(d => { setItems(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false)); } }, [tenantId]);
   useEffect(() => { load(); }, [load]);
@@ -12456,7 +12457,7 @@ function TenantCatalogPage() {
                 </div>
                 <div className="flex gap-2 mt-3">
                   <Button size="sm" variant="outline" className="flex-1 text-xs h-7" onClick={() => setEditItem({...item})}><Pencil className="w-3 h-3 mr-1" />Editar</Button>
-                  <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500" onClick={() => handleDelete(item.id)}><Trash2 className="w-3 h-3" /></Button>
+                  <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500" onClick={() => setDeleteItem(item)}><Trash2 className="w-3 h-3" /></Button>
                 </div>
               </Card>
             );
@@ -12499,6 +12500,22 @@ function TenantCatalogPage() {
             </div>
           )}
           <DialogFooter><Button onClick={handleUpdate} className="bg-blue-600 hover:bg-blue-700">Guardar</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteItem} onOpenChange={() => setDeleteItem(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Eliminar Producto</DialogTitle></DialogHeader>
+          {deleteItem && (
+            <div className="space-y-4 mt-2">
+              <p className="text-sm text-muted-foreground">Estas seguro de eliminar <span className="font-semibold text-foreground">{deleteItem.name}</span>? Esta accion no se puede deshacer.</p>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setDeleteItem(null)}>Cancelar</Button>
+                <Button className="flex-1 bg-red-600 hover:bg-red-700" onClick={() => { handleDelete(deleteItem.id); setDeleteItem(null); }}>Eliminar</Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
@@ -15536,7 +15553,7 @@ function TenantCakeMatrixPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const entries = [];
+      const entries: { size: string; flavor: string; price: number }[] = [];
       for (const size of sizes) {
         for (const flavor of flavors) {
           entries.push({ size, flavor, price: priceGrid[`${size}-${flavor}`] || 0 });
