@@ -17,7 +17,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/verify',
   '/api/contact',
   '/api/health',
-  // /api/db-init, /api/seed, /api/debug REMOVED — no longer public
+  '/api/db-init', // TEMPORARY — remove after first production DB initialization
 ];
 
 // Routes that only super admins can access
