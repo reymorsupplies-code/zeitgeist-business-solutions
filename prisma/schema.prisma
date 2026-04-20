@@ -135,6 +135,8 @@ model Tenant {
   purchaseOrders      PurchaseOrder[]
   posSales            POSSale[]
   suppliers           Supplier[]
+  stockMovements      StockMovement[]
+  layaways            Layaway[]
   events         Event[]
   venues         Venue[]
   vendors        Vendor[]
@@ -147,6 +149,9 @@ model Tenant {
   propertyDocuments PropertyDocument[]
   loyaltyMembers       LoyaltyMember[]
   loyaltyTransactions  LoyaltyTransaction[] @relation("LoyaltyTransactionTenant")
+  giftCards            GiftCard[]
+  returns              Return[]
+  registerShifts       RegisterShift[]
 }
 
 model TenantMembership {
@@ -598,6 +603,56 @@ model RetailProduct {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }
 
+// ============ LAYAWAY (APARTADOS) ============
+
+model Layaway {
+  id                String    @id @default(cuid())
+  tenantId          String
+  layawayNumber     String
+  customerName      String
+  customerPhone     String
+  customerEmail     String?
+  items             String    @default("[]")     // JSON: [{productId, name, sku, barcode, quantity, unitPrice, lineTotal}]
+  totalAmount       Float     @default(0)
+  depositAmount     Float     @default(0)
+  balanceRemaining  Float     @default(0)
+  payments          String    @default("[]")     // JSON: [{date, amount, method, reference}]
+  status            String    @default("active") // active, completed, cancelled, expired
+  dueDate           DateTime?
+  expiryDate        DateTime
+  depositPercentage Float     @default(20)
+  notes             String?
+  isDeleted         Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// ============ STOCK MOVEMENT ============
+
+model StockMovement {
+  id            String    @id @default(cuid())
+  tenantId      String
+  ingredientId  String?
+  type          String
+  quantity      Float     @default(0)
+  previousStock Float     @default(0)
+  newStock      Float     @default(0)
+  unitCost      Float     @default(0)
+  reason        String?
+  reference     String?
+  batchNumber   String?
+  expiryDate    DateTime?
+  method        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("StockMovement")
+}
+
 // ============ PURCHASE ORDER ============
 
 model PurchaseOrder {
@@ -642,6 +697,85 @@ model POSSale {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  returns         Return[]
+}
+
+// ============ GIFT CARDS ============
+
+model GiftCard {
+  id              String    @id @default(cuid())
+  tenantId        String
+  cardNumber      String    @unique
+  cardCode        String    @unique
+  initialBalance  Float     @default(0)
+  currentBalance  Float     @default(0)
+  customerName    String?
+  purchaserName   String
+  status          String    @default("active")  // active, used, expired, voided
+  issuedAt        DateTime  @default(now())
+  expiresAt       DateTime?
+  lastUsedAt      DateTime?
+  transactions    String    @default("[]")       // JSON: [{date, type, amount, reference, saleId?}]
+  notes           String?
+  isDeleted       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// ============ RETURNS & EXCHANGES ============
+
+model Return {
+  id            String   @id @default(cuid())
+  tenantId      String
+  saleId        String
+  returnNumber  String
+  items         String   @default("[]")     // JSON: [{productId, name, quantity, unitPrice, reason}]
+  totalRefund   Float    @default(0)
+  refundMethod  String   @default("cash")    // cash, card, storeCredit, transfer
+  reason        String   @default("other")    // defective, wrongItem, changedMind, damaged, other
+  status        String   @default("pending")  // pending, approved, rejected, completed
+  processedBy   String?
+  notes         String?
+  isDeleted     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant   @relation(fields: [tenantId], references: [id])
+  sale   POSSale  @relation(fields: [saleId], references: [id])
+}
+
+// ============ REGISTER SHIFT (CIERRE DE CAJA) ============
+
+model RegisterShift {
+  id                String    @id @default(cuid())
+  tenantId          String
+  shiftNumber       String
+  staffName         String
+  staffId           String?
+  openedAt          DateTime  @default(now())
+  closedAt          DateTime?
+  status            String    @default("open") // open, closed
+  startingCash      Float     @default(0)
+  closingCash       Float?
+  expectedCash      Float?
+  cashSales         Float     @default(0)
+  cardSales         Float     @default(0)
+  transferSales     Float     @default(0)
+  totalSales        Float     @default(0)
+  totalRefunds      Float     @default(0)
+  giftCardSales     Float     @default(0)
+  layawayDeposits   Float     @default(0)
+  transactionCount  Int       @default(0)
+  refundCount       Int       @default(0)
+  discrepancy       Float?
+  notes             String?
+  isDeleted         Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 }
 
 // ============ EVENTS MODELS ============

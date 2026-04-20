@@ -28,7 +28,8 @@ import {
   KeyRound, LogIn, Languages,
   Server,
   Table as TableIcon, Save, Cake, Pencil,
-  CalendarHeart, ScanLine, MessageCircle
+  CalendarHeart, ScanLine, MessageCircle,
+  Printer, Ban,
 } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Button } from '@/components/ui/button';
@@ -251,7 +252,10 @@ function getRetailNav(locale: string) {
   { section: t('tenant.section.operations', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
     { label: t('tenant.posTerminal', locale), icon: CardIcon, page: 'pos' as const, available: true },
+    { label: t('shift.title', locale), icon: Banknote, page: 'register' as const, available: true },
+    { label: t('tenant.returns', locale), icon: RotateCcw, page: 'returns' as const, available: true },
     { label: t('tenant.inventory', locale), icon: Package, page: 'inventory' as const, available: true },
+    { label: t('layaway.title', locale), icon: CreditCard, page: 'layaways' as const, available: true },
   ]},
   { section: t('tenant.section.catalog', locale), items: [
     { label: t('tenant.retailProducts', locale), icon: ShoppingBag, page: 'retail-products' as const, available: true },
@@ -260,10 +264,12 @@ function getRetailNav(locale: string) {
   ]},
   { section: t('tenant.section.clients', locale), items: [
     { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
+    { label: t('custHistory.title', locale), icon: UsersIcon, page: 'customer-history' as const, available: true },
   ]},
   { section: t('tenant.section.finance', locale), items: [
     { label: t('tenant.invoices', locale), icon: Receipt, page: 'invoices' as const, available: true },
     { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
+    { label: t('tenant.giftCards', locale), icon: Gift, page: 'gift_cards' as const, available: true },
     { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
   { section: t('tenant.section.insights', locale), items: [
@@ -11820,7 +11826,7 @@ function TenantPOSPage() {
       </div>
 
       {/* Held Sales Dialog */}
-      <Dialog open={heldSales.length > 0 && false} onOpenChange={() => {}}>
+      <Dialog open={heldSales.length > 0} onOpenChange={() => {}}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{t('pos.heldSales', locale)}</DialogTitle></DialogHeader>
           <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -11936,7 +11942,7 @@ function TenantSuppliersPage() {
   const handleDelete = async (row: any) => {
     try {
       await authFetchJSON(`/api/tenant/${tid}/suppliers`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: row.id }) });
-      load(); toast.success('Deleted');
+      load(); toast.success(t('suppliers.deleted', locale));
     } catch (e: any) { toast.error(e.message); }
   };
 
@@ -12053,7 +12059,7 @@ function TenantSuppliersPage() {
             <div><Label>{t('suppliers.notes', locale)}</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} className="mt-1" /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>{t('common.cancel', locale)}</Button>
             <Button onClick={handleSave} disabled={!form.name} className="bg-gradient-to-r from-blue-700 to-blue-500">{t('suppliers.saved', locale)}</Button>
           </DialogFooter>
         </DialogContent>
@@ -16163,83 +16169,510 @@ function TenantMembershipsPage() {
 
 // ============ GIFT CARDS ============
 function TenantGiftCardsPage() {
-  const { currentTenant, currency } = useAppStore() as any;
+  const { currentTenant, currency, locale } = useAppStore() as any;
   const [cards, setCards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [showRedeem, setShowRedeem] = useState(false);
-  const [form, setForm] = useState({ recipientName: '', recipientEmail: '', initialBalance: 0, notes: '' });
-  const [redeemCode, setRedeemCode] = useState('');
-  const [redeemAmount, setRedeemAmount] = useState(0);
+  const [showReload, setShowReload] = useState(false);
+  const [showDetail, setShowDetail] = useState<any>(null);
+  const [showVoidConfirm, setShowVoidConfirm] = useState<any>(null);
+  const [showCodeFor, setShowCodeFor] = useState<string | null>(null);
   const tenantId = currentTenant?.id;
+
+  // ── Create form ──
+  const [createForm, setCreateForm] = useState({ purchaserName: '', customerName: '', initialBalance: '', expiresAt: '', notes: '' });
+  // ── Reload form ──
+  const [reloadCardId, setReloadCardId] = useState('');
+  const [reloadAmount, setReloadAmount] = useState('');
+  // ── Redeem form ──
+  const [redeemNumber, setRedeemNumber] = useState('');
+  const [redeemPin, setRedeemPin] = useState('');
+  const [redeemAmount, setRedeemAmount] = useState('');
+  const [redeemCard, setRedeemCard] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
     if (!tenantId) return;
-    authFetch(`/api/tenant/${tenantId}/gift-cards`).then(r => r.json()).then(d => { setCards(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
-  }, [tenantId]);
+    setLoading(true);
+    let url = `/api/tenant/${tenantId}/gift-cards`;
+    const params: string[] = [];
+    if (statusFilter && statusFilter !== 'all') params.push(`status=${statusFilter}`);
+    if (searchTerm) params.push(`search=${encodeURIComponent(searchTerm)}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+
+    authFetchJSON(url).then((d: any) => {
+      setCards(Array.isArray(d) ? d : []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [tenantId, statusFilter, searchTerm]);
   useEffect(() => { load(); }, [load]);
 
+  // ── Issue card ──
   const handleCreate = async () => {
-    await authFetch(`/api/tenant/${tenantId}/gift-cards`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-    setShowCreate(false); setForm({ recipientName: '', recipientEmail: '', initialBalance: 0, notes: '' }); load(); toast.success('Gift card issued!');
+    if (!createForm.purchaserName || !createForm.initialBalance || parseFloat(createForm.initialBalance) <= 0) return;
+    setSaving(true);
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/gift-cards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          purchaserName: createForm.purchaserName,
+          customerName: createForm.customerName || null,
+          initialBalance: parseFloat(createForm.initialBalance),
+          expiresAt: createForm.expiresAt || null,
+          notes: createForm.notes || '',
+        }),
+      });
+      setShowCreate(false);
+      setCreateForm({ purchaserName: '', customerName: '', initialBalance: '', expiresAt: '', notes: '' });
+      toast.success(t('giftCards.cardIssued', locale));
+      load();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally { setSaving(false); }
   };
 
+  // ── Reload balance ──
+  const handleReload = async () => {
+    if (!reloadCardId || !reloadAmount || parseFloat(reloadAmount) <= 0) return;
+    setSaving(true);
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/gift-cards`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+        body: JSON.stringify({ id: reloadCardId, action: 'reload', amount: parseFloat(reloadAmount) }),
+      });
+      setShowReload(false);
+      setReloadCardId('');
+      setReloadAmount('');
+      toast.success(t('giftCards.balanceReloaded', locale));
+      load();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally { setSaving(false); }
+  };
+
+  // ── Lookup card for redeem ──
+  const handleLookup = async () => {
+    if (!redeemNumber) return;
+    try {
+      let url = `/api/tenant/${tenantId}/gift-cards?cardNumber=${encodeURIComponent(redeemNumber.toUpperCase().trim())}`;
+      if (redeemPin) url += `&cardCode=${encodeURIComponent(redeemPin.trim())}`;
+      const card = await authFetchJSON(url);
+      if (Array.isArray(card)) {
+        if (card.length === 0) return toast.error(t('giftCards.cardNotFound', locale));
+        setRedeemCard(card[0]);
+      } else {
+        setRedeemCard(card);
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  // ── Redeem ──
   const handleRedeem = async () => {
-    if (!redeemCode) return toast.error('Enter a gift card code');
-    const code = redeemCode.toUpperCase().trim();
-    const card = cards.find((c: any) => c.code === code);
-    if (!card) return toast.error('Gift card not found');
-    if (card.currentBalance < redeemAmount) return toast.error('Insufficient balance');
-    await authFetch(`/api/tenant/${tenantId}/gift-cards`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: card.id, currentBalance: card.currentBalance - redeemAmount }) });
-    setShowRedeem(false); setRedeemCode(''); setRedeemAmount(0); load(); toast.success(`Redeemed ${formatCurrency(redeemAmount, currency)} from ${code}`);
+    if (!redeemCard || !redeemAmount || parseFloat(redeemAmount) <= 0) return;
+    if (redeemCard.currentBalance < parseFloat(redeemAmount)) return toast.error(t('giftCards.insufficientBalance', locale));
+    setSaving(true);
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/gift-cards`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+        body: JSON.stringify({ id: redeemCard.id, action: 'redeem', amount: parseFloat(redeemAmount) }),
+      });
+      setShowRedeem(false);
+      setRedeemNumber('');
+      setRedeemPin('');
+      setRedeemAmount('');
+      setRedeemCard(null);
+      toast.success(t('giftCards.cardRedeemed', locale));
+      load();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally { setSaving(false); }
   };
 
-  const statusColors: Record<string, string> = { active: 'bg-emerald-100 text-emerald-700', redeemed: 'bg-gray-100 text-gray-600', expired: 'bg-red-100 text-red-700' };
+  // ── Void card ──
+  const handleVoid = async () => {
+    if (!showVoidConfirm) return;
+    setSaving(true);
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/gift-cards`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+        body: JSON.stringify({ id: showVoidConfirm.id, action: 'void' }),
+      });
+      setShowVoidConfirm(null);
+      toast.success(t('giftCards.cardVoided', locale));
+      load();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally { setSaving(false); }
+  };
+
+  // ── Delete (soft) ──
+  const handleDelete = async (card: any) => {
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/gift-cards`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+        body: JSON.stringify({ id: card.id }),
+      });
+      load();
+      toast.success(t('common.delete', locale));
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  // ── Copy PIN ──
+  const handleCopyCode = (cardCode: string) => {
+    navigator.clipboard.writeText(cardCode);
+    toast.success(t('giftCards.codeCopied', locale));
+  };
+
+  // ── Print card ──
+  const handlePrint = (card: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    const txns = parseTxnList(card.transactions);
+    printWindow.document.write(`
+      <html><head><title>${t('giftCards.printCard', locale)}</title>
+      <style>
+        body { font-family: system-ui, sans-serif; max-width: 400px; margin: 40px auto; padding: 20px; border: 2px dashed #ccc; border-radius: 16px; text-align: center; }
+        h1 { font-size: 24px; color: #333; } .card { font-family: monospace; font-size: 28px; letter-spacing: 3px; color: #059669; margin: 16px 0; }
+        .pin { font-family: monospace; font-size: 36px; letter-spacing: 6px; color: #1D4ED8; margin: 12px 0; }
+        .amount { font-size: 32px; font-weight: bold; color: #059669; } .label { color: #666; font-size: 14px; }
+        .divider { border-top: 1px dashed #ccc; margin: 16px 0; }
+        .footer { font-size: 11px; color: #999; margin-top: 16px; }
+      </style></head><body>
+      <h1>🎁 ${t('giftCards.title', locale)}</h1>
+      <p class="label">${t('giftCards.cardNumber', locale)}</p>
+      <div class="card">${card.cardNumber}</div>
+      <p class="label">${t('giftCards.pin', locale)}</p>
+      <div class="pin">${card.cardCode}</div>
+      <div class="divider"></div>
+      <p class="label">${t('giftCards.currentBalance', locale)}</p>
+      <div class="amount">${formatCurrency(card.currentBalance, currency)}</div>
+      ${card.customerName ? `<p style="margin-top:12px;"><span class="label">${t('giftCards.customer', locale)}:</span> <strong>${card.customerName}</strong></p>` : ''}
+      ${card.expiresAt ? `<p><span class="label">${t('giftCards.expiresAt', locale)}:</span> ${new Date(card.expiresAt).toLocaleDateString()}</p>` : ''}
+      <div class="footer">Powered by Zeitgeist Business Solutions</div>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  // ── Parse transactions ──
+  function parseTxnList(raw: any): any[] {
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') { try { return JSON.parse(raw); } catch { return []; } }
+    return [];
+  }
+
+  // ── Stats ──
+  const activeCards = cards.filter((c: any) => c.status === 'active');
+  const outstandingBalance = activeCards.reduce((s: number, c: any) => s + (c.currentBalance || 0), 0);
+  const now = new Date();
+  const issuedThisMonth = cards.filter((c: any) => { const d = new Date(c.issuedAt || c.createdAt); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
+  const totalRedeemed = cards.reduce((s: number, c: any) => {
+    const txns = parseTxnList(c.transactions);
+    return s + txns.filter((tx: any) => tx.type === 'redemption').reduce((a: number, tx: any) => a + (tx.amount || 0), 0);
+  }, 0);
+
+  const statusColors: Record<string, string> = {
+    active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+    used: 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400',
+    expired: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    voided: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  };
+  const statusBadge: Record<string, string> = {
+    active: t('giftCards.active', locale),
+    used: t('giftCards.used', locale),
+    expired: t('giftCards.expired', locale),
+    voided: t('giftCards.voided', locale),
+  };
+  const txnTypeColors: Record<string, string> = {
+    purchase: 'text-emerald-600',
+    reload: 'text-blue-600',
+    redemption: 'text-red-600',
+    void: 'text-amber-600',
+  };
 
   if (loading) return <PageSkeleton type="table" />;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 shadow-lg"><Gift className="w-5 h-5 text-white" /></div>
-          <div><h1 className="text-2xl font-bold">Gift Cards</h1><p className="text-sm text-muted-foreground">{cards.filter(c => c.status === 'active').length} active cards | Total balance: {formatCurrency(cards.filter((c: any) => c.status === 'active').reduce((s: number, c: any) => s + (c.currentBalance || 0), 0), currency)}</p></div>
+          <div>
+            <h1 className="text-2xl font-bold">{t('giftCards.title', locale)}</h1>
+            <p className="text-sm text-muted-foreground">{t('giftCards.subtitle', locale)}</p>
+          </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowRedeem(true)}><QrCode className="w-4 h-4 mr-2" />Redeem</Button>
-          <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />Issue Card</Button>
+          <Button variant="outline" size="sm" onClick={() => setShowRedeem(true)}><QrCode className="w-4 h-4 mr-2" />{t('giftCards.redeem', locale)}</Button>
+          <Button variant="outline" size="sm" onClick={() => setShowReload(true)}><RefreshCw className="w-4 h-4 mr-2" />{t('giftCards.reload', locale)}</Button>
+          <Button size="sm" onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-emerald-700 to-emerald-500"><Plus className="w-4 h-4 mr-2" />{t('giftCards.issueCard', locale)}</Button>
         </div>
       </div>
-      {cards.length === 0 ? <EmptyState icon={Gift} title="No gift cards" description="Issue your first gift card" action="Issue Card" onAction={() => setShowCreate(true)} /> : (
-        <DataGrid data={cards} columns={[
-          { key: 'code', label: 'Code', render: (v: string) => <span className="font-mono font-bold">{v}</span> },
-          { key: 'recipientName', label: 'Recipient' },
-          { key: 'initialBalance', label: 'Initial', render: (v: number) => formatCurrency(v, currency) },
-          { key: 'currentBalance', label: 'Balance', render: (v: number) => <span className={v > 0 ? 'text-emerald-600 font-semibold' : 'text-red-500'}>{formatCurrency(v, currency)}</span> },
-          { key: 'status', label: 'Status', render: (v: string) => <Badge className={statusColors[v] || ''}>{v}</Badge> },
-          { key: 'purchaseDate', label: 'Purchased', render: (v: string) => v ? new Date(v).toLocaleDateString() : 'N/A' },
-        ]} onDelete={(row: any) => toast.info('Deactivate: ' + row.code)} />
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard title={t('giftCards.activeCards', locale)} value={activeCards.length} icon={Gift} gradient="from-emerald-500 to-green-600" />
+        <StatCard title={t('giftCards.outstandingBalance', locale)} value={formatCurrency(outstandingBalance, currency)} icon={Wallet} gradient="from-blue-500 to-blue-600" />
+        <StatCard title={t('giftCards.issuedThisMonth', locale)} value={issuedThisMonth.length} icon={CalendarDays} gradient="from-purple-500 to-purple-600" />
+        <StatCard title={t('giftCards.totalRedeemed', locale)} value={formatCurrency(totalRedeemed, currency)} icon={TrendingDown} gradient="from-amber-500 to-orange-500" />
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder={t('giftCards.searchPlaceholder', locale)} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9" />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder={t('giftCards.allStatuses', locale)} /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('giftCards.allStatuses', locale)}</SelectItem>
+            <SelectItem value="active">{t('giftCards.active', locale)}</SelectItem>
+            <SelectItem value="used">{t('giftCards.used', locale)}</SelectItem>
+            <SelectItem value="expired">{t('giftCards.expired', locale)}</SelectItem>
+            <SelectItem value="voided">{t('giftCards.voided', locale)}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Table */}
+      {cards.length === 0 ? (
+        <EmptyState icon={Gift} title={t('giftCards.noCards', locale)} description={t('giftCards.subtitle', locale)} action={t('giftCards.issueCard', locale)} onAction={() => setShowCreate(true)} />
+      ) : (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('giftCards.cardNumber', locale)}</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('giftCards.currentBalance', locale)}</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('giftCards.status', locale)}</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden md:table-cell">{t('giftCards.purchaser', locale)}</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden lg:table-cell">{t('giftCards.customer', locale)}</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden lg:table-cell">{t('giftCards.issuedAt', locale)}</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden xl:table-cell">{t('giftCards.expiresAt', locale)}</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions', locale)}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {cards.map((card: any) => (
+                  <tr key={card.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-sm">{card.cardNumber}</span>
+                        <TooltipProvider><Tooltip><TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowCodeFor(showCodeFor === card.id ? null : card.id)}>
+                            {showCodeFor === card.id ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                          </Button>
+                        </TooltipTrigger><TooltipContent>{showCodeFor === card.id ? t('giftCards.pin', locale) : t('giftCards.showCode', locale)}</TooltipContent></Tooltip></TooltipProvider>
+                        {showCodeFor === card.id && (
+                          <TooltipProvider><Tooltip><TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyCode(card.cardCode)}>
+                              <Copy className="w-3 h-3" />
+                            </Button>
+                          </TooltipTrigger><TooltipContent>{t('giftCards.copyCode', locale)}</TooltipContent></Tooltip></TooltipProvider>
+                        )}
+                        {showCodeFor === card.id && <span className="font-mono text-xs text-muted-foreground">{card.cardCode}</span>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={card.currentBalance > 0 ? 'text-emerald-600 font-semibold' : 'text-muted-foreground'}>
+                        {formatCurrency(card.currentBalance, currency)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge className={statusColors[card.status] || ''}>{statusBadge[card.status] || card.status}</Badge>
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">{card.purchaserName || '—'}</td>
+                    <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">{card.customerName || '—'}</td>
+                    <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">{card.issuedAt || card.createdAt ? new Date(card.issuedAt || card.createdAt).toLocaleDateString() : '—'}</td>
+                    <td className="px-4 py-3 hidden xl:table-cell text-muted-foreground">{card.expiresAt ? new Date(card.expiresAt).toLocaleDateString() : '—'}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <TooltipProvider><Tooltip><TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowDetail(card)}><Eye className="w-3.5 h-3.5" /></Button>
+                        </TooltipTrigger><TooltipContent>{t('common.view', locale)}</TooltipContent></Tooltip></TooltipProvider>
+                        {card.status === 'active' && (
+                          <>
+                            <TooltipProvider><Tooltip><TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handlePrint(card)}><Printer className="w-3.5 h-3.5" /></Button>
+                            </TooltipTrigger><TooltipContent>{t('giftCards.printCard', locale)}</TooltipContent></Tooltip></TooltipProvider>
+                            <TooltipProvider><Tooltip><TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-500 hover:text-amber-600" onClick={() => setShowVoidConfirm(card)}><Ban className="w-3.5 h-3.5" /></Button>
+                            </TooltipTrigger><TooltipContent>{t('giftCards.voidCard', locale)}</TooltipContent></Tooltip></TooltipProvider>
+                          </>
+                        )}
+                        <TooltipProvider><Tooltip><TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(card)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                        </TooltipTrigger><TooltipContent>{t('common.delete', locale)}</TooltipContent></Tooltip></TooltipProvider>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
+
+      {/* ── Issue Card Dialog ── */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Issue Gift Card</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t('giftCards.issueCard', locale)}</DialogTitle><DialogDescription>{t('giftCards.title', locale)}</DialogDescription></DialogHeader>
           <div className="space-y-4 mt-4">
-            <div><Label>Recipient Name *</Label><Input value={form.recipientName} onChange={e => setForm(f => ({ ...f, recipientName: e.target.value }))} /></div>
-            <div><Label>Recipient Email</Label><Input type="email" value={form.recipientEmail} onChange={e => setForm(f => ({ ...f, recipientEmail: e.target.value }))} /></div>
-            <div><Label>Card Value *</Label><Input type="number" value={form.initialBalance || ''} onChange={e => setForm(f => ({ ...f, initialBalance: parseFloat(e.target.value) || 0 }))} /></div>
-            <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
-            <Button onClick={handleCreate} disabled={!form.recipientName || form.initialBalance <= 0} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">Issue Gift Card</Button>
+            <div><Label>{t('giftCards.purchaser', locale)} *</Label><Input value={createForm.purchaserName} onChange={e => setCreateForm(f => ({ ...f, purchaserName: e.target.value }))} placeholder={t('giftCards.purchaser', locale)} /></div>
+            <div><Label>{t('giftCards.customer', locale)}</Label><Input value={createForm.customerName} onChange={e => setCreateForm(f => ({ ...f, customerName: e.target.value }))} placeholder={t('giftCards.customer', locale)} /></div>
+            <div><Label>{t('giftCards.initialBalance', locale)} ({currency}) *</Label><Input type="number" step="0.01" min="0.01" value={createForm.initialBalance} onChange={e => setCreateForm(f => ({ ...f, initialBalance: e.target.value }))} placeholder="100.00" /></div>
+            <div><Label>{t('giftCards.expiresAt', locale)}</Label><Input type="date" value={createForm.expiresAt} onChange={e => setCreateForm(f => ({ ...f, expiresAt: e.target.value }))} /></div>
+            <div><Label>{t('giftCards.notes', locale)}</Label><Textarea value={createForm.notes} onChange={e => setCreateForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
+            <Button onClick={handleCreate} disabled={!createForm.purchaserName || !createForm.initialBalance || parseFloat(createForm.initialBalance) <= 0 || saving} className="w-full bg-gradient-to-r from-emerald-700 to-emerald-500">
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}{t('giftCards.issueCard', locale)}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
-      <Dialog open={showRedeem} onOpenChange={setShowRedeem}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Redeem Gift Card</DialogTitle></DialogHeader>
+
+      {/* ── Reload Dialog ── */}
+      <Dialog open={showReload} onOpenChange={setShowReload}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t('giftCards.reloadBalance', locale)}</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-4">
-            <div><Label>Card Code *</Label><Input value={redeemCode} onChange={e => setRedeemCode(e.target.value)} placeholder="GIFT-XXXX" className="font-mono uppercase" /></div>
-            <div><Label>Redeem Amount *</Label><Input type="number" value={redeemAmount || ''} onChange={e => setRedeemAmount(parseFloat(e.target.value) || 0)} /></div>
-            <Button onClick={handleRedeem} disabled={!redeemCode || redeemAmount <= 0} className="w-full bg-gradient-to-r from-emerald-600 to-green-600">Redeem</Button>
+            <div>
+              <Label>{t('giftCards.selectCard', locale)} *</Label>
+              <Select value={reloadCardId} onValueChange={setReloadCardId}>
+                <SelectTrigger><SelectValue placeholder={t('giftCards.selectCard', locale)} /></SelectTrigger>
+                <SelectContent>
+                  {cards.filter((c: any) => c.status === 'active').map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>{c.cardNumber} — {formatCurrency(c.currentBalance, currency)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>{t('giftCards.enterAmount', locale)} ({currency}) *</Label><Input type="number" step="0.01" min="0.01" value={reloadAmount} onChange={e => setReloadAmount(e.target.value)} placeholder="50.00" /></div>
+            <Button onClick={handleReload} disabled={!reloadCardId || !reloadAmount || parseFloat(reloadAmount) <= 0 || saving} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}{t('giftCards.reload', locale)}
+            </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Redeem Dialog ── */}
+      <Dialog open={showRedeem} onOpenChange={(v) => { setShowRedeem(v); if (!v) { setRedeemCard(null); setRedeemNumber(''); setRedeemPin(''); setRedeemAmount(''); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t('giftCards.redeem', locale)}</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div><Label>{t('giftCards.enterCardNumber', locale)}</Label><Input value={redeemNumber} onChange={e => setRedeemNumber(e.target.value)} placeholder="GC-XXXX-XXXX-XXXX" className="font-mono uppercase" /></div>
+            <div><Label>{t('giftCards.enterPin', locale)}</Label><Input value={redeemPin} onChange={e => setRedeemPin(e.target.value)} placeholder="000000" maxLength={6} className="font-mono" /></div>
+            <Button variant="outline" onClick={handleLookup} disabled={!redeemNumber} className="w-full">{t('giftCards.lookupCard', locale)}</Button>
+            {redeemCard && (
+              <Card className="bg-muted/30">
+                <CardContent className="p-3 space-y-1">
+                  <div className="flex justify-between"><span className="text-xs text-muted-foreground">{t('giftCards.cardNumber', locale)}</span><span className="font-mono text-sm font-bold">{redeemCard.cardNumber}</span></div>
+                  <div className="flex justify-between"><span className="text-xs text-muted-foreground">{t('giftCards.currentBalance', locale)}</span><span className="font-bold text-emerald-600">{formatCurrency(redeemCard.currentBalance, currency)}</span></div>
+                  {redeemCard.status !== 'active' && (
+                    <p className="text-xs text-destructive">{redeemCard.status === 'expired' ? t('giftCards.cardExpired', locale) : redeemCard.status === 'voided' ? t('giftCards.cardVoid', locale) : ''}</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            {redeemCard && redeemCard.status === 'active' && (
+              <>
+                <div><Label>{t('giftCards.enterAmount', locale)} ({currency}) *</Label><Input type="number" step="0.01" min="0.01" max={redeemCard.currentBalance} value={redeemAmount} onChange={e => setRedeemAmount(e.target.value)} placeholder={t('giftCards.enterAmount', locale)} /></div>
+                <Button onClick={handleRedeem} disabled={!redeemAmount || parseFloat(redeemAmount) <= 0 || parseFloat(redeemAmount) > redeemCard.currentBalance || saving} className="w-full bg-gradient-to-r from-emerald-600 to-green-600">
+                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}{t('giftCards.redeem', locale)}
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Void Confirm Dialog ── */}
+      <Dialog open={!!showVoidConfirm} onOpenChange={() => setShowVoidConfirm(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>{t('giftCards.voidCard', locale)}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('giftCards.confirmVoid', locale)}</p>
+          {showVoidConfirm && <p className="font-mono text-sm font-bold">{showVoidConfirm.cardNumber} — {formatCurrency(showVoidConfirm.currentBalance, currency)}</p>}
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setShowVoidConfirm(null)}>{t('common.cancel', locale)}</Button>
+            <Button variant="destructive" onClick={handleVoid} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}{t('giftCards.voidCard', locale)}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Card Detail Dialog ── */}
+      <Dialog open={!!showDetail} onOpenChange={() => setShowDetail(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          {showDetail && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Gift className="w-5 h-5 text-amber-500" /> {t('giftCards.cardDetail', locale)}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
+                {/* Card Info */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div><p className="text-xs text-muted-foreground">{t('giftCards.cardNumber', locale)}</p><p className="font-mono font-bold">{showDetail.cardNumber}</p></div>
+                  <div><p className="text-xs text-muted-foreground">{t('giftCards.cardCode', locale)}</p><p className="font-mono font-bold">{showDetail.cardCode}</p></div>
+                  <div><p className="text-xs text-muted-foreground">{t('giftCards.initialBalance', locale)}</p><p className="font-semibold">{formatCurrency(showDetail.initialBalance, currency)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">{t('giftCards.currentBalance', locale)}</p><p className={`font-bold ${showDetail.currentBalance > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>{formatCurrency(showDetail.currentBalance, currency)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">{t('giftCards.purchaser', locale)}</p><p>{showDetail.purchaserName || '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">{t('giftCards.customer', locale)}</p><p>{showDetail.customerName || '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">{t('giftCards.status', locale)}</p><Badge className={statusColors[showDetail.status] || ''}>{statusBadge[showDetail.status] || showDetail.status}</Badge></div>
+                  <div><p className="text-xs text-muted-foreground">{t('giftCards.issuedAt', locale)}</p><p>{showDetail.issuedAt || showDetail.createdAt ? new Date(showDetail.issuedAt || showDetail.createdAt).toLocaleDateString() : '—'}</p></div>
+                  {showDetail.expiresAt && <div><p className="text-xs text-muted-foreground">{t('giftCards.expiresAt', locale)}</p><p>{new Date(showDetail.expiresAt).toLocaleDateString()}</p></div>}
+                </div>
+                {showDetail.notes && <div><p className="text-xs text-muted-foreground">{t('giftCards.notes', locale)}</p><p className="text-sm">{showDetail.notes}</p></div>}
+
+                {/* Transaction History */}
+                <Separator />
+                <div>
+                  <h3 className="font-semibold mb-3">{t('giftCards.transactions', locale)}</h3>
+                  {parseTxnList(showDetail.transactions).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">{t('common.noData', locale)}</p>
+                  ) : (
+                    <div className="max-h-64 overflow-y-auto space-y-2">
+                      {parseTxnList(showDetail.transactions).map((txn: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 text-sm">
+                          <div>
+                            <p className={`font-medium capitalize ${txnTypeColors[txn.type] || ''}`}>{txn.type}</p>
+                            <p className="text-xs text-muted-foreground">{new Date(txn.date).toLocaleString()}{txn.reference ? ` — ${txn.reference}` : ''}</p>
+                          </div>
+                          <span className={`font-semibold ${txn.type === 'redemption' || txn.type === 'void' ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {txn.type === 'redemption' || txn.type === 'void' ? '-' : '+'}{formatCurrency(txn.amount, currency)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Actions */}
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" onClick={() => handlePrint(showDetail)}><Printer className="w-4 h-4 mr-2" />{t('giftCards.printCard', locale)}</Button>
+                  <Button variant="outline" size="sm" onClick={() => handleCopyCode(showDetail.cardCode)}><Copy className="w-4 h-4 mr-2" />{t('giftCards.copyCode', locale)}</Button>
+                  {showDetail.status === 'active' && (
+                    <Button variant="destructive" size="sm" onClick={() => { setShowVoidConfirm(showDetail); setShowDetail(null); }}>{t('giftCards.voidCard', locale)}</Button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
@@ -16585,6 +17018,475 @@ function TenantPurchaseOrdersPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReceive(false)}>Cancel</Button>
             <Button onClick={handleReceive} disabled={saving || !receiveItems.some(i => i.qtyToReceive > 0)} className="bg-gradient-to-r from-blue-700 to-blue-500">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('po.confirmReceive', locale)}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ RETURNS & EXCHANGES ============
+function TenantReturnsPage() {
+  const { currentTenant, currency, locale, session } = useAppStore() as any;
+  const [returns, setReturns] = useState<any[]>([]);
+  const [sales, setSales] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [saving, setSaving] = useState(false);
+  const tenantId = currentTenant?.id;
+
+  const [form, setForm] = useState({
+    saleId: '',
+    items: [] as any[],
+    refundMethod: 'cash',
+    reason: 'other',
+    notes: '',
+  });
+  const [selectedSaleItems, setSelectedSaleItems] = useState<any[]>([]);
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    Promise.all([
+      authFetch(`/api/tenant/${tenantId}/returns`).then(r => r.json()).catch(() => []),
+      authFetch(`/api/tenant/${tenantId}/pos-sales?status=completed`).then(r => r.json()).catch(() => []),
+    ]).then(([ret, sls]) => {
+      setReturns(Array.isArray(ret) ? ret : []);
+      setSales(Array.isArray(sls) ? sls : []);
+      setLoading(false);
+    });
+  }, [tenantId]);
+  useEffect(() => { load(); }, [load]);
+
+  const filteredReturns = returns
+    .filter((r: any) => statusFilter === 'all' || r.status === statusFilter)
+    .filter((r: any) => !searchTerm || (r.returnNumber || '').toLowerCase().includes(searchTerm.toLowerCase()));
+
+  // Stats
+  const today = new Date().toISOString().slice(0, 10);
+  const todayReturns = returns.filter((r: any) => (r.createdAt || '').slice(0, 10) === today);
+  const pendingReturns = returns.filter((r: any) => r.status === 'pending');
+  const totalRefunded = returns.filter((r: any) => r.status === 'completed').reduce((s: number, r: any) => s + (r.totalRefund || 0), 0);
+
+  const statusColors: Record<string, string> = {
+    pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    approved: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    rejected: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  };
+
+  const statusLabel = (s: string) => {
+    const map: Record<string, string> = {
+      pending: t('returns.pending', locale),
+      approved: t('returns.approved', locale),
+      rejected: t('returns.rejected', locale),
+      completed: t('returns.completed', locale),
+    };
+    return map[s] || s;
+  };
+
+  const reasonLabel = (r: string) => {
+    const map: Record<string, string> = {
+      defective: t('returns.defective', locale),
+      wrongItem: t('returns.wrongItem', locale),
+      changedMind: t('returns.changedMind', locale),
+      damaged: t('returns.damaged', locale),
+      other: t('returns.other', locale),
+    };
+    return map[r] || r;
+  };
+
+  const refundMethodLabel = (m: string) => {
+    const map: Record<string, string> = {
+      cash: t('returns.methodCash', locale),
+      card: t('returns.methodCard', locale),
+      storeCredit: t('returns.methodStoreCredit', locale),
+      transfer: t('returns.methodTransfer', locale),
+    };
+    return map[m] || m;
+  };
+
+  const handleSelectSale = (saleId: string) => {
+    setForm(f => ({ ...f, saleId, items: [] }));
+    const sale = sales.find(s => s.id === saleId);
+    if (sale) {
+      const items = typeof sale.items === 'string' ? JSON.parse(sale.items) : (sale.items || []);
+      setSelectedSaleItems(items.map((it: any) => ({
+        ...it,
+        returnQty: 0,
+        returnReason: 'other',
+        selected: false,
+      })));
+    } else {
+      setSelectedSaleItems([]);
+    }
+  };
+
+  const toggleItemSelection = (idx: number) => {
+    setSelectedSaleItems(prev => prev.map((item: any, i: number) =>
+      i === idx ? { ...item, selected: !item.selected, returnQty: !item.selected ? 1 : 0 } : item
+    ));
+  };
+
+  const updateReturnItem = (idx: number, field: string, value: any) => {
+    setSelectedSaleItems(prev => prev.map((item: any, i: number) =>
+      i === idx ? { ...item, [field]: value } : item
+    ));
+  };
+
+  const selectedItemsTotal = selectedSaleItems
+    .filter((it: any) => it.selected && it.returnQty > 0)
+    .reduce((s: number, it: any) => s + it.returnQty * (it.price || it.unitPrice || 0), 0);
+
+  const handleCreate = async () => {
+    if (!form.saleId) return;
+    const itemsToReturn = selectedSaleItems
+      .filter((it: any) => it.selected && it.returnQty > 0)
+      .map((it: any) => ({
+        productId: it.productId,
+        name: it.name,
+        quantity: it.returnQty,
+        unitPrice: it.price || it.unitPrice || 0,
+        reason: it.returnReason,
+      }));
+    if (itemsToReturn.length === 0) return;
+
+    setSaving(true);
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/returns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          saleId: form.saleId,
+          items: itemsToReturn,
+          refundMethod: form.refundMethod,
+          reason: form.reason,
+          notes: form.notes,
+          processedBy: session?.user?.fullName || '',
+        }),
+      });
+      setShowCreate(false);
+      setForm({ saleId: '', items: [], refundMethod: 'cash', reason: 'other', notes: '' });
+      setSelectedSaleItems([]);
+      load();
+      toast.success(t('returns.returnCreated', locale));
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+    setSaving(false);
+  };
+
+  const handleStatusChange = async (ret: any, newStatus: string) => {
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/returns`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenantId,
+        },
+        body: JSON.stringify({ id: ret.id, status: newStatus }),
+      });
+      load();
+      if (newStatus === 'approved') toast.success(t('returns.refundApproved', locale));
+      else if (newStatus === 'rejected') toast.success(t('returns.refundRejected', locale));
+      else toast.success(t('returns.returnUpdated', locale));
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleDelete = async (ret: any) => {
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/returns`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenantId,
+        },
+        body: JSON.stringify({ id: ret.id }),
+      });
+      load();
+      toast.success(t('returns.returnDeleted', locale));
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  if (loading) return <PageSkeleton type="table" />;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg">
+            <RotateCcw className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">{t('returns.title', locale)}</h1>
+            <p className="text-sm text-muted-foreground">{t('returns.subtitle', locale)}</p>
+          </div>
+        </div>
+        <Button onClick={() => { setForm({ saleId: '', items: [], refundMethod: 'cash', reason: 'other', notes: '' }); setSelectedSaleItems([]); setShowCreate(true); }} className="bg-gradient-to-r from-blue-700 to-blue-500">
+          <Plus className="w-4 h-4 mr-2" />{t('returns.newReturn', locale)}
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard
+          title={t('returns.today', locale)}
+          value={todayReturns.length}
+          subtitle=""
+          icon={RotateCcw}
+          gradient="from-amber-500 to-orange-500"
+        />
+        <StatCard
+          title={t('returns.pendingReturns', locale)}
+          value={pendingReturns.length}
+          subtitle=""
+          icon={Clock}
+          gradient="from-yellow-500 to-amber-500"
+        />
+        <StatCard
+          title={t('returns.totalRefunded', locale)}
+          value={formatCurrency(totalRefunded, currency)}
+          subtitle=""
+          icon={DollarSign}
+          gradient="from-emerald-500 to-green-500"
+        />
+      </div>
+
+      {/* Filter & Search */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex gap-2 flex-wrap flex-1">
+          {['all', 'pending', 'approved', 'rejected', 'completed'].map(s => (
+            <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(s)} className="text-xs">
+              {s === 'all' ? t('returns.allStatuses', locale) : statusLabel(s)}
+            </Button>
+          ))}
+        </div>
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder={t('returns.searchPlaceholder', locale)} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9" />
+        </div>
+      </div>
+
+      {/* Table */}
+      {filteredReturns.length === 0 ? (
+        <EmptyState
+          icon={RotateCcw}
+          title={t('returns.noReturns', locale)}
+          description={t('returns.emptyDesc', locale)}
+          action={t('returns.newReturn', locale)}
+          onAction={() => { setForm({ saleId: '', items: [], refundMethod: 'cash', reason: 'other', notes: '' }); setSelectedSaleItems([]); setShowCreate(true); }}
+        />
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('returns.returnNumber', locale)}</TableHead>
+                  <TableHead>{t('returns.originalSale', locale)}</TableHead>
+                  <TableHead className="text-center">{t('returns.items', locale)}</TableHead>
+                  <TableHead className="text-right">{t('returns.totalRefund', locale)}</TableHead>
+                  <TableHead>{t('returns.refundMethod', locale)}</TableHead>
+                  <TableHead>{t('returns.reason', locale)}</TableHead>
+                  <TableHead>{t('returns.status', locale)}</TableHead>
+                  <TableHead className="text-xs text-muted-foreground">Date</TableHead>
+                  <TableHead className="text-center">{t('common.actions', locale)}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredReturns.map((ret: any) => {
+                  const items = typeof ret.items === 'string' ? JSON.parse(ret.items) : (ret.items || []);
+                  return (
+                    <TableRow key={ret.id}>
+                      <TableCell className="font-mono text-xs font-medium">{ret.returnNumber || ret.id?.slice(0, 8)}</TableCell>
+                      <TableCell className="font-mono text-xs">{ret.saleNumber || ret.sale?.saleNumber || '—'}</TableCell>
+                      <TableCell className="text-center">{items.length}</TableCell>
+                      <TableCell className="text-right font-medium">{formatCurrency(ret.totalRefund || 0, currency)}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-xs">{refundMethodLabel(ret.refundMethod)}</Badge></TableCell>
+                      <TableCell className="text-xs">{reasonLabel(ret.reason)}</TableCell>
+                      <TableCell><Badge className={statusColors[ret.status] || ''}>{statusLabel(ret.status)}</Badge></TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{ret.createdAt ? new Date(ret.createdAt).toLocaleDateString() : '—'}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {ret.status === 'pending' && (
+                            <>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button size="sm" variant="outline" className="h-7 text-xs text-green-600 hover:text-green-700" onClick={() => handleStatusChange(ret, 'approved')}>
+                                    <Check className="w-3 h-3 mr-1" />{t('returns.approveReturn', locale)}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{t('returns.restoreStock', locale)}</TooltipContent>
+                              </Tooltip>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => handleStatusChange(ret, 'rejected')}>
+                                <XCircle className="w-3 h-3 mr-1" />{t('returns.rejectReturn', locale)}
+                              </Button>
+                            </>
+                          )}
+                          {ret.status === 'approved' && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleStatusChange(ret, 'completed')}>
+                              {t('returns.completeRefund', locale)}
+                            </Button>
+                          )}
+                          {ret.status === 'pending' && (
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDelete(ret)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
+
+      {/* Create Return Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('returns.newReturn', locale)}</DialogTitle>
+            <DialogDescription>{t('returns.selectSale', locale)}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            {/* Select original sale */}
+            <div>
+              <Label>{t('returns.originalSale')} *</Label>
+              <Select value={form.saleId} onValueChange={handleSelectSale}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder={t('returns.selectSale', locale)} />
+                </SelectTrigger>
+                <SelectContent>
+                  {sales.filter(s => s.status === 'completed').map(s => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.saleNumber} — {s.customerName || 'Walk-in'} — {formatCurrency(s.totalAmount, s.currency || currency)} — {s.createdAt ? new Date(s.createdAt).toLocaleDateString() : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Sale items to return */}
+            {form.saleId && selectedSaleItems.length > 0 && (
+              <div>
+                <Label className="mb-2 block">{t('returns.selectItems', locale)}</Label>
+                <Card className="p-3">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-1 px-2 w-8"></th>
+                          <th className="text-left py-1 px-2">{t('returns.itemName', locale)}</th>
+                          <th className="text-right py-1 px-2">{t('returns.itemPrice', locale)}</th>
+                          <th className="text-right py-1 px-2">{t('returns.itemQty', locale)}</th>
+                          <th className="text-left py-1 px-2">{t('returns.itemReason', locale)}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedSaleItems.map((item: any, idx: number) => (
+                          <tr key={idx} className="border-b last:border-0">
+                            <td className="py-1 px-2">
+                              <Checkbox
+                                checked={item.selected || false}
+                                onCheckedChange={() => toggleItemSelection(idx)}
+                              />
+                            </td>
+                            <td className="py-1 px-2 font-medium">{item.name}</td>
+                            <td className="py-1 px-2 text-right">{formatCurrency(item.price || item.unitPrice || 0, currency)}</td>
+                            <td className="py-1 px-2 text-right">
+                              <Input
+                                type="number"
+                                min={1}
+                                max={item.qty || 99}
+                                disabled={!item.selected}
+                                value={item.returnQty || ''}
+                                onChange={e => updateReturnItem(idx, 'returnQty', Math.min(parseInt(e.target.value) || 0, item.qty || 99))}
+                                className="w-16 h-7 text-xs text-right"
+                              />
+                            </td>
+                            <td className="py-1 px-2">
+                              <Select disabled={!item.selected} value={item.returnReason || 'other'} onValueChange={v => updateReturnItem(idx, 'returnReason', v)}>
+                                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="defective">{t('returns.defective', locale)}</SelectItem>
+                                  <SelectItem value="wrongItem">{t('returns.wrongItem', locale)}</SelectItem>
+                                  <SelectItem value="changedMind">{t('returns.changedMind', locale)}</SelectItem>
+                                  <SelectItem value="damaged">{t('returns.damaged', locale)}</SelectItem>
+                                  <SelectItem value="other">{t('returns.other', locale)}</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      {selectedItemsTotal > 0 && (
+                        <tfoot>
+                          <tr className="font-bold">
+                            <td colSpan={3} className="py-1 px-2 text-right">{t('returns.totalRefund', locale)}</td>
+                            <td className="py-1 px-2 text-right">{formatCurrency(selectedItemsTotal, currency)}</td>
+                            <td></td>
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* Refund method */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>{t('returns.refundMethod', locale)}</Label>
+                <Select value={form.refundMethod} onValueChange={v => setForm(f => ({ ...f, refundMethod: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">{t('returns.methodCash', locale)}</SelectItem>
+                    <SelectItem value="card">{t('returns.methodCard', locale)}</SelectItem>
+                    <SelectItem value="storeCredit">{t('returns.methodStoreCredit', locale)}</SelectItem>
+                    <SelectItem value="transfer">{t('returns.methodTransfer', locale)}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>{t('returns.reason', locale)}</Label>
+                <Select value={form.reason} onValueChange={v => setForm(f => ({ ...f, reason: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="defective">{t('returns.defective', locale)}</SelectItem>
+                    <SelectItem value="wrongItem">{t('returns.wrongItem', locale)}</SelectItem>
+                    <SelectItem value="changedMind">{t('returns.changedMind', locale)}</SelectItem>
+                    <SelectItem value="damaged">{t('returns.damaged', locale)}</SelectItem>
+                    <SelectItem value="other">{t('returns.other', locale)}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <Label>{t('returns.notes', locale)}</Label>
+              <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} className="mt-1" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>{t('common.cancel', locale)}</Button>
+            <Button
+              onClick={handleCreate}
+              disabled={!form.saleId || selectedItemsTotal === 0 || saving}
+              className="bg-gradient-to-r from-blue-700 to-blue-500"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('returns.newReturn', locale)}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -18568,6 +19470,10 @@ function TenantAppView() {
       // Industry-specific core pages
       case 'inventory': return <TenantInventoryPage />;
       case 'purchase-orders': return <TenantPurchaseOrdersPage />;
+      case 'returns': return <TenantReturnsPage />;
+      case 'layaways': return <TenantLayawaysPage />;
+      case 'register': return <TenantRegisterPage />;
+      case 'customer-history': return <TenantCustomerHistoryPage />;
       case 'catering': return <TenantCateringPage />;
       case 'budget-tracker': return <TenantBudgetTrackerPage />;
       case 'guest-lists': return <TenantGuestListsPage />;
@@ -18645,6 +19551,1041 @@ function CTErrorDisplay({ error, onRetry }: { error: string; onRetry: () => void
         )}
       </div>
     </motion.div>
+  );
+}
+
+// ============ REGISTER SHIFT (CIERRE DE CAJA) PAGE ============
+
+function TenantRegisterPage() {
+  const { currentTenant, currency, locale } = useAppStore() as any;
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [openShift, setOpenShift] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showOpenDialog, setShowOpenDialog] = useState(false);
+  const [showCloseDialog, setShowCloseDialog] = useState(false);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [selectedShift, setSelectedShift] = useState<any>(null);
+  const [elapsedMin, setElapsedMin] = useState(0);
+  const tenantId = currentTenant?.id;
+  const [openForm, setOpenForm] = useState({ staffName: '', staffId: '', startingCash: '' });
+  const [closeForm, setCloseForm] = useState({ closingCash: '', notes: '' });
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
+    authFetchJSON(`/api/tenant/${tenantId}/register-shifts?${params}`)
+      .then((data: any) => {
+        const list = data?.shifts || data || [];
+        setShifts(Array.isArray(list) ? list : []);
+        setOpenShift(Array.isArray(list) ? list.find((s: any) => s.status === 'open') || null : null);
+      })
+      .catch(() => { setShifts([]); setOpenShift(null); })
+      .finally(() => setLoading(false));
+  }, [tenantId, statusFilter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Elapsed timer for open shift
+  useEffect(() => {
+    if (!openShift) { setElapsedMin(0); return; }
+    const tick = () => {
+      const diff = Math.floor((Date.now() - new Date(openShift.openedAt).getTime()) / 60000);
+      setElapsedMin(diff);
+    };
+    tick();
+    const iv = setInterval(tick, 30000);
+    return () => clearInterval(iv);
+  }, [openShift]);
+
+  const filteredShifts = shifts.filter((s: any) => {
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const match = (s.shiftNumber || '').toLowerCase().includes(q) || (s.staffName || '').toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    if (statusFilter && statusFilter !== 'all' && s.status !== statusFilter) return false;
+    return true;
+  });
+
+  const handleOpenShift = async () => {
+    if (!openForm.staffName.trim() || !openForm.startingCash) {
+      toast.error(t('shift.staffRequired', locale));
+      return;
+    }
+    const amount = parseFloat(openForm.startingCash);
+    if (isNaN(amount)) {
+      toast.error(t('shift.startingCashRequired', locale));
+      return;
+    }
+    setSaving(true);
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/register-shifts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staffName: openForm.staffName.trim(), staffId: openForm.staffId.trim() || null, startingCash: amount }),
+      });
+      setShowOpenDialog(false);
+      setOpenForm({ staffName: '', staffId: '', startingCash: '' });
+      load();
+      toast.success(t('shift.shiftOpened', locale));
+    } catch (e: any) {
+      const msg = e?.message || '';
+      if (msg.includes('already exists') || msg.includes('409')) {
+        toast.error(t('shift.openExists', locale));
+      } else {
+        toast.error(msg);
+      }
+    }
+    setSaving(false);
+  };
+
+  const handleCloseShift = async () => {
+    const amount = parseFloat(closeForm.closingCash);
+    if (isNaN(amount)) {
+      toast.error(t('shift.closingRequired', locale));
+      return;
+    }
+    setSaving(true);
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/register-shifts`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+        body: JSON.stringify({ id: openShift.id, action: 'close', closingCash: amount, notes: closeForm.notes.trim() || null }),
+      });
+      setShowCloseDialog(false);
+      setCloseForm({ closingCash: '', notes: '' });
+      load();
+      toast.success(t('shift.shiftClosed', locale));
+    } catch (e: any) {
+      toast.error(e?.message || 'Error closing shift');
+    }
+    setSaving(false);
+  };
+
+  const handleDeleteShift = async (shift: any) => {
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/register-shifts`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+        body: JSON.stringify({ id: shift.id }),
+      });
+      load();
+      toast.success(t('common.delete', locale));
+    } catch (e: any) {
+      toast.error(e?.message || 'Error deleting shift');
+    }
+  };
+
+  const formatElapsed = (min: number) => {
+    if (min < 60) return `${min}m`;
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return `${h}h ${m}m`;
+  };
+
+  const formatDateTime = (d: string) => {
+    if (!d) return '—';
+    try {
+      return new Date(d).toLocaleString(locale === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch { return d; }
+  };
+
+  const discrepancyBadge = (disc: number | null | undefined) => {
+    if (disc === null || disc === undefined) return null;
+    if (disc === 0) return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">{t('shift.perfect', locale)}</Badge>;
+    if (Math.abs(disc) <= 5) return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{disc > 0 ? `+${formatCurrency(disc, currency)} ${t('shift.over', locale)}` : `${formatCurrency(disc, currency)} ${t('shift.short', locale)}`}</Badge>;
+    return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">{disc > 0 ? `+${formatCurrency(disc, currency)} ${t('shift.over', locale)}` : `${formatCurrency(disc, currency)} ${t('shift.short', locale)}`}</Badge>;
+  };
+
+  if (loading) return <PageSkeleton type="table" />;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg"><Banknote className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">{t('shift.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('shift.subtitle', locale)}</p></div>
+        </div>
+        {!openShift && (
+          <Button onClick={() => setShowOpenDialog(true)} className="bg-gradient-to-r from-emerald-600 to-teal-500"><Plus className="w-4 h-4 mr-2" />{t('shift.openShift', locale)}</Button>
+        )}
+      </div>
+
+      {/* Active Shift Banner */}
+      {openShift && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="border-2 border-emerald-500/50 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+                  <div>
+                    <h3 className="font-bold text-emerald-800 dark:text-emerald-300">{t('shift.activeShift', locale)} — {openShift.shiftNumber}</h3>
+                    <p className="text-sm text-emerald-600 dark:text-emerald-400">{openShift.staffName} &middot; {t('shift.elapsed', locale)}: {formatElapsed(elapsedMin)} &middot; {t('shift.openedAt', locale)}: {formatDateTime(openShift.openedAt)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">{t('shift.startingCash', locale)}</p>
+                    <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(openShift.startingCash, currency)}</p>
+                  </div>
+                  <Button onClick={() => { setCloseForm({ closingCash: '', notes: '' }); setShowCloseDialog(true); }} className="bg-gradient-to-r from-red-600 to-rose-500"><XCircle className="w-4 h-4 mr-2" />{t('shift.closeShift', locale)}</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Summary Stats (closed shifts today) */}
+      {!openShift && shifts.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: t('shift.totalSales', locale), value: shifts.reduce((s: number, sh: any) => s + (sh.totalSales || 0), 0), gradient: 'from-emerald-500 to-teal-500', icon: TrendingUp },
+            { label: t('shift.cashSales', locale), value: shifts.reduce((s: number, sh: any) => s + (sh.cashSales || 0), 0), gradient: 'from-amber-500 to-orange-500', icon: Banknote },
+            { label: t('shift.cardSales', locale), value: shifts.reduce((s: number, sh: any) => s + (sh.cardSales || 0), 0), gradient: 'from-violet-500 to-purple-500', icon: CreditCard },
+            { label: t('shift.transactionCount', locale), value: shifts.reduce((s: number, sh: any) => s + (sh.transactionCount || 0), 0), gradient: 'from-cyan-500 to-blue-500', icon: ShoppingCart },
+          ].map((stat, i) => (
+            <StatCard key={i} title={stat.label} value={typeof stat.value === 'number' && stat.label !== t('shift.transactionCount', locale) ? formatCurrency(stat.value, currency) : stat.value} icon={stat.icon} gradient={stat.gradient} />
+          ))}
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder={t('shift.searchPlaceholder', locale)} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
+        </div>
+        <div className="flex gap-2">
+          {['all', 'open', 'closed'].map(s => (
+            <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(s)} className="text-xs">
+              {s === 'all' ? t('shift.allStatuses', locale) : s === 'open' ? t('shift.open', locale) : t('shift.closed', locale)}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Shift History Table */}
+      {filteredShifts.length === 0 ? (
+        <EmptyState icon={Banknote} title={t('shift.noShifts', locale)} description="" action={t('shift.openNew', locale)} onAction={() => setShowOpenDialog(true)} />
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>{t('shift.shiftNumber', locale)}</TableHead>
+                <TableHead>{t('shift.staff', locale)}</TableHead>
+                <TableHead>{t('shift.status', locale)}</TableHead>
+                <TableHead>{t('shift.openedAt', locale)}</TableHead>
+                <TableHead>{t('shift.closedAt', locale)}</TableHead>
+                <TableHead className="text-right">{t('shift.startingCash', locale)}</TableHead>
+                <TableHead className="text-right">{t('shift.totalSales', locale)}</TableHead>
+                <TableHead className="text-center">{t('shift.discrepancy', locale)}</TableHead>
+                <TableHead className="text-center">{t('common.actions', locale)}</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {filteredShifts.map((shift: any) => (
+                  <TableRow key={shift.id} className={shift.status === 'open' ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : ''}>
+                    <TableCell className="font-mono text-xs font-medium">{shift.shiftNumber}</TableCell>
+                    <TableCell className="font-medium">{shift.staffName}</TableCell>
+                    <TableCell>
+                      <Badge className={shift.status === 'open' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'}>
+                        {shift.status === 'open' ? t('shift.open', locale) : t('shift.closed', locale)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs">{formatDateTime(shift.openedAt)}</TableCell>
+                    <TableCell className="text-xs">{formatDateTime(shift.closedAt)}</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(shift.startingCash, currency)}</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(shift.totalSales || 0, currency)}</TableCell>
+                    <TableCell className="text-center">{discrepancyBadge(shift.discrepancy) || <span className="text-muted-foreground">—</span>}</TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setSelectedShift(shift); setShowDetailDialog(true); }}><Eye className="w-3.5 h-3.5" /></Button>
+                        {shift.status === 'closed' && <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => handleDeleteShift(shift)}><Trash2 className="w-3.5 h-3.5" /></Button>}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
+
+      {/* Open Shift Dialog */}
+      <Dialog open={showOpenDialog} onOpenChange={setShowOpenDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-emerald-500" />{t('shift.openShift', locale)}</DialogTitle>
+            <DialogDescription>{t('shift.cashInDrawer', locale)}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label>{t('shift.staff', locale)} *</Label>
+              <Input value={openForm.staffName} onChange={e => setOpenForm(f => ({ ...f, staffName: e.target.value }))} placeholder="John Smith" className="mt-1" />
+            </div>
+            <div>
+              <Label>Staff ID</Label>
+              <Input value={openForm.staffId} onChange={e => setOpenForm(f => ({ ...f, staffId: e.target.value }))} placeholder="Optional" className="mt-1" />
+            </div>
+            <div>
+              <Label>{t('shift.startingCash', locale)} *</Label>
+              <Input type="number" step="0.01" min="0" value={openForm.startingCash} onChange={e => setOpenForm(f => ({ ...f, startingCash: e.target.value }))} placeholder="0.00" className="mt-1" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOpenDialog(false)}>{t('common.cancel', locale)}</Button>
+            <Button onClick={handleOpenShift} disabled={saving} className="bg-gradient-to-r from-emerald-600 to-teal-500">{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}{t('shift.openShift', locale)}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Close Shift Dialog */}
+      <Dialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><XCircle className="w-5 h-5 text-red-500" />{t('shift.confirmClose', locale)}</DialogTitle>
+            <DialogDescription>{t('shift.closeWarning', locale)}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">{t('shift.registerSummary', locale)}</p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <span className="text-muted-foreground">{t('shift.shiftNumber', locale)}:</span>
+                <span className="font-medium">{openShift?.shiftNumber}</span>
+                <span className="text-muted-foreground">{t('shift.staff', locale)}:</span>
+                <span className="font-medium">{openShift?.staffName}</span>
+                <span className="text-muted-foreground">{t('shift.startingCash', locale)}:</span>
+                <span className="font-medium">{formatCurrency(openShift?.startingCash || 0, currency)}</span>
+              </div>
+            </div>
+            <div>
+              <Label className="text-base font-semibold">{t('shift.countCash', locale)} *</Label>
+              <Input type="number" step="0.01" min="0" value={closeForm.closingCash} onChange={e => setCloseForm(f => ({ ...f, closingCash: e.target.value }))} placeholder="0.00" className="mt-1 text-lg font-bold" autoFocus />
+              {closeForm.closingCash && !isNaN(parseFloat(closeForm.closingCash)) && openShift && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">{t('shift.startingCash', locale)}: {formatCurrency(openShift.startingCash, currency)}</span>
+                  <span className="text-sm text-muted-foreground">+</span>
+                  <span className="text-sm text-muted-foreground">{t('shift.cashSales', locale)}: auto</span>
+                  <span className="text-sm text-muted-foreground">=</span>
+                  <span className="text-sm font-semibold">{t('shift.expectedCash', locale)}: auto</span>
+                </div>
+              )}
+            </div>
+            <div>
+              <Label>{t('shift.notes', locale)}</Label>
+              <Textarea value={closeForm.notes} onChange={e => setCloseForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional notes..." className="mt-1" rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCloseDialog(false)}>{t('common.cancel', locale)}</Button>
+            <Button onClick={handleCloseShift} disabled={saving || !closeForm.closingCash} className="bg-gradient-to-r from-red-600 to-rose-500">{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}{t('shift.closeShift', locale)}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shift Detail Dialog */}
+      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Eye className="w-5 h-5 text-emerald-500" />{t('shift.shiftDetail', locale)} — {selectedShift?.shiftNumber}</DialogTitle>
+          </DialogHeader>
+          {selectedShift && (
+            <div className="space-y-6 mt-4">
+              {/* Status & Staff */}
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Badge className={selectedShift.status === 'open' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'}>
+                    {selectedShift.status === 'open' ? t('shift.open', locale) : t('shift.closed', locale)}
+                  </Badge>
+                  <span className="text-sm font-medium">{selectedShift.staffName}</span>
+                </div>
+                {selectedShift.discrepancy !== null && selectedShift.discrepancy !== undefined && discrepancyBadge(selectedShift.discrepancy)}
+              </div>
+
+              {/* Cash Breakdown */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <Card className="p-4"><p className="text-xs text-muted-foreground">{t('shift.startingCash', locale)}</p><p className="text-lg font-bold">{formatCurrency(selectedShift.startingCash, currency)}</p></Card>
+                <Card className="p-4"><p className="text-xs text-muted-foreground">{t('shift.cashSales', locale)}</p><p className="text-lg font-bold text-amber-600">{formatCurrency(selectedShift.cashSales || 0, currency)}</p></Card>
+                <Card className="p-4"><p className="text-xs text-muted-foreground">{t('shift.cardSales', locale)}</p><p className="text-lg font-bold text-violet-600">{formatCurrency(selectedShift.cardSales || 0, currency)}</p></Card>
+                <Card className="p-4"><p className="text-xs text-muted-foreground">{t('shift.transferSales', locale)}</p><p className="text-lg font-bold text-blue-600">{formatCurrency(selectedShift.transferSales || 0, currency)}</p></Card>
+                <Card className="p-4"><p className="text-xs text-muted-foreground">{t('shift.giftCardSales', locale)}</p><p className="text-lg font-bold text-pink-600">{formatCurrency(selectedShift.giftCardSales || 0, currency)}</p></Card>
+                <Card className="p-4"><p className="text-xs text-muted-foreground">{t('shift.layawayDeposits', locale)}</p><p className="text-lg font-bold text-teal-600">{formatCurrency(selectedShift.layawayDeposits || 0, currency)}</p></Card>
+              </div>
+
+              {/* Totals & Counts */}
+              <Separator />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div><p className="text-xs text-muted-foreground">{t('shift.totalSales', locale)}</p><p className="text-xl font-bold">{formatCurrency(selectedShift.totalSales || 0, currency)}</p></div>
+                <div><p className="text-xs text-muted-foreground">{t('shift.totalRefunds', locale)}</p><p className="text-xl font-bold text-red-600">-{formatCurrency(selectedShift.totalRefunds || 0, currency)}</p></div>
+                <div><p className="text-xs text-muted-foreground">{t('shift.transactionCount', locale)}</p><p className="text-xl font-bold">{selectedShift.transactionCount || 0}</p></div>
+                <div><p className="text-xs text-muted-foreground">{t('shift.refundCount', locale)}</p><p className="text-xl font-bold">{selectedShift.refundCount || 0}</p></div>
+              </div>
+
+              {/* Close details (only for closed shifts) */}
+              {selectedShift.status === 'closed' && (
+                <>
+                  <Separator />
+                  <div className="bg-muted/50 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold mb-3">{t('shift.closingCash', locale)}</h4>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">{t('shift.calculated', locale)}</p>
+                        <p className="font-semibold">{formatCurrency(selectedShift.expectedCash || 0, currency)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('shift.actual', locale)}</p>
+                        <p className="font-semibold">{formatCurrency(selectedShift.closingCash || 0, currency)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('shift.difference', locale)}</p>
+                        <div>{discrepancyBadge(selectedShift.discrepancy)}</div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Times */}
+              <Separator />
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><p className="text-muted-foreground">{t('shift.openedAt', locale)}</p><p className="font-medium">{formatDateTime(selectedShift.openedAt)}</p></div>
+                <div><p className="text-muted-foreground">{t('shift.closedAt', locale)}</p><p className="font-medium">{formatDateTime(selectedShift.closedAt)}</p></div>
+              </div>
+
+              {/* Notes */}
+              {selectedShift.notes && (
+                <div><p className="text-xs text-muted-foreground">{t('shift.notes', locale)}</p><p className="text-sm mt-1">{selectedShift.notes}</p></div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDetailDialog(false)}>{t('common.close', locale)}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ LAYAWAY (APARTADOS) PAGE ============
+
+function TenantLayawaysPage() {
+  const { currentTenant, currency, locale } = useAppStore() as any;
+  const [layaways, setLayaways] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
+  const [selectedLayaway, setSelectedLayaway] = useState<any>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const tenantId = currentTenant?.id;
+  const [saving, setSaving] = useState(false);
+
+  const [createForm, setCreateForm] = useState({
+    customerName: '', customerPhone: '', customerEmail: '',
+    items: [] as any[], depositAmount: 0, depositPercentage: 20,
+    paymentMethod: 'cash', reference: '', expiryDays: 30, notes: '',
+  });
+
+  const [paymentForm, setPaymentForm] = useState({
+    paymentAmount: 0, paymentMethod: 'cash', paymentReference: '',
+  });
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    Promise.all([
+      authFetch(`/api/tenant/${tenantId}/layaways`).then(r => r.json()).catch(() => []),
+      authFetch(`/api/tenant/${tenantId}/retail-products`).then(r => r.json()).catch(() => []),
+    ]).then(([lays, prods]) => {
+      setLayaways(Array.isArray(lays) ? lays : []);
+      setProducts(Array.isArray(prods) ? prods.filter((p: any) => p.isActive && !p.isDeleted) : []);
+      setLoading(false);
+    });
+  }, [tenantId]);
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = (() => {
+    let list = layaways;
+    if (statusFilter !== 'all') list = list.filter((l: any) => l.status === statusFilter);
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((l: any) => l.layawayNumber?.toLowerCase().includes(q) || l.customerName?.toLowerCase().includes(q));
+    }
+    return list;
+  })();
+
+  const activeLayaways = layaways.filter((l: any) => l.status === 'active');
+  const reservedValue = activeLayaways.reduce((s: number, l: any) => s + (l.balanceRemaining || 0), 0);
+  const overdueCount = activeLayaways.filter((l: any) => { const exp = new Date(l.expiryDate); return exp < new Date(); }).length;
+  const depositsCollected = layaways.reduce((s: number, l: any) => s + (l.depositAmount || 0), 0);
+
+  const statusColors: Record<string, string> = {
+    active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+    completed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    cancelled: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
+    expired: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  };
+
+  const statusLabel = (s: string) => {
+    const map: Record<string, string> = { active: t('layaway.active', locale), completed: t('layaway.completed', locale), cancelled: t('layaway.cancelled', locale), expired: t('layaway.expired', locale) };
+    return map[s] || s;
+  };
+
+  const getDaysRemaining = (l: any) => {
+    if (l.status === 'completed' || l.status === 'cancelled') return null;
+    const exp = new Date(l.expiryDate);
+    return Math.ceil((exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  };
+
+  const getProgress = (l: any) => {
+    const total = l.totalAmount || 0;
+    if (total <= 0) return 0;
+    return Math.min(100, Math.round(((total - (l.balanceRemaining || 0)) / total) * 100));
+  };
+
+  const inStockProducts = products.filter((p: any) => (p.quantity || 0) > 0);
+
+  const addItemToForm = (productId: string) => {
+    const p = products.find(pr => pr.id === productId);
+    if (!p || createForm.items.find((fi: any) => fi.productId === productId)) return;
+    setCreateForm(f => ({ ...f, items: [...f.items, { productId: p.id, name: p.name, sku: p.sku || '', barcode: p.barcode || '', quantity: 1, unitPrice: p.price || 0, lineTotal: p.price || 0 }] }));
+  };
+
+  const updateFormItem = (idx: number, field: string, value: any) => {
+    setCreateForm(f => {
+      const items = f.items.map((item: any, i: number) => {
+        if (i !== idx) return item;
+        const updated = { ...item, [field]: value };
+        updated.lineTotal = (updated.quantity || 0) * (updated.unitPrice || 0);
+        return updated;
+      });
+      const totalAmount = items.reduce((s: number, it: any) => s + (it.lineTotal || 0), 0);
+      return { ...f, items, depositAmount: totalAmount * (f.depositPercentage / 100) };
+    });
+  };
+
+  const removeFormItem = (idx: number) => {
+    setCreateForm(f => {
+      const items = f.items.filter((_: any, i: number) => i !== idx);
+      const totalAmount = items.reduce((s: number, it: any) => s + (it.lineTotal || 0), 0);
+      return { ...f, items, depositAmount: totalAmount * (f.depositPercentage / 100) };
+    });
+  };
+
+  const createTotal = createForm.items.reduce((s: number, i: any) => s + (i.lineTotal || 0), 0);
+
+  const handleCreate = async () => {
+    if (!createForm.customerName || !createForm.customerPhone || createForm.items.length === 0) return;
+    setSaving(true);
+    try {
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + createForm.expiryDays);
+      await authFetchJSON(`/api/tenant/${tenantId}/layaways`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: createForm.customerName, customerPhone: createForm.customerPhone,
+          customerEmail: createForm.customerEmail || null, items: createForm.items,
+          depositAmount: createForm.depositAmount, depositPercentage: createForm.depositPercentage,
+          paymentMethod: createForm.paymentMethod, reference: createForm.reference,
+          expiryDate: expiryDate.toISOString(), notes: createForm.notes || null,
+        }),
+      });
+      setShowCreate(false);
+      setCreateForm({ customerName: '', customerPhone: '', customerEmail: '', items: [], depositAmount: 0, depositPercentage: 20, paymentMethod: 'cash', reference: '', expiryDays: 30, notes: '' });
+      load(); toast.success(t('layaway.layawayCreated', locale));
+    } catch (e: any) { toast.error(e.message); }
+    setSaving(false);
+  };
+
+  const openPaymentDialog = (l: any) => {
+    setSelectedLayaway(l);
+    setPaymentForm({ paymentAmount: 0, paymentMethod: 'cash', paymentReference: '' });
+    setShowPayment(true);
+  };
+
+  const handleAddPayment = async () => {
+    if (!selectedLayaway || paymentForm.paymentAmount <= 0) return;
+    setSaving(true);
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/layaways`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+        body: JSON.stringify({ id: selectedLayaway.id, action: 'addPayment', paymentAmount: paymentForm.paymentAmount, paymentMethod: paymentForm.paymentMethod, paymentReference: paymentForm.paymentReference }),
+      });
+      setShowPayment(false); setSelectedLayaway(null); load();
+      toast.success(t('layaway.paymentAdded', locale));
+    } catch (e: any) { toast.error(e.message); }
+    setSaving(false);
+  };
+
+  const handleCancel = async (l: any) => {
+    if (!confirm(t('layaway.confirmCancel', locale))) return;
+    setSaving(true);
+    try {
+      await authFetchJSON(`/api/tenant/${tenantId}/layaways`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
+        body: JSON.stringify({ id: l.id, action: 'cancel' }),
+      });
+      load(); toast.success(t('layaway.layawayCancelled', locale));
+    } catch (e: any) { toast.error(e.message); }
+    setSaving(false);
+  };
+
+  const openDetail = (l: any) => { setSelectedLayaway(l); setShowDetail(true); };
+
+  if (loading) return <PageSkeleton type="table" />;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg"><CreditCard className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">{t('layaway.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('layaway.subtitle', locale)}</p></div>
+        </div>
+        <Button onClick={() => { setCreateForm({ customerName: '', customerPhone: '', customerEmail: '', items: [], depositAmount: 0, depositPercentage: 20, paymentMethod: 'cash', reference: '', expiryDays: 30, notes: '' }); setShowCreate(true); }} className="bg-gradient-to-r from-amber-600 to-orange-500"><Plus className="w-4 h-4 mr-2" />{t('layaway.newLayaway', locale)}</Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard title={t('layaway.activeLayaways', locale)} value={activeLayaways.length} icon={CreditCard} gradient="from-emerald-500 to-green-500" />
+        <StatCard title={t('layaway.reservedValue', locale)} value={formatCurrency(reservedValue, currency)} icon={PiggyBank} gradient="from-amber-500 to-orange-500" />
+        <StatCard title={t('layaway.overdueCount', locale)} value={overdueCount} icon={AlertCircle} gradient="from-red-500 to-rose-500" />
+        <StatCard title={t('layaway.depositsCollected', locale)} value={formatCurrency(depositsCollected, currency)} icon={Wallet} gradient="from-blue-500 to-cyan-500" />
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder={t('layaway.searchPlaceholder', locale)} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {['all', 'active', 'completed', 'cancelled', 'expired'].map(s => (
+            <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-foreground text-background shadow' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
+              {s === 'all' ? t('layaway.allStatuses', locale) : statusLabel(s)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* List */}
+      {filtered.length === 0 ? (
+        <EmptyState icon={CreditCard} title={t('layaway.noLayaways', locale)} description={t('layaway.noLayawaysDesc', locale)} action={t('layaway.newLayaway', locale)} onAction={() => setShowCreate(true)} />
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="font-medium">{t('layaway.layawayNumber', locale)}</TableHead>
+                <TableHead className="font-medium">{t('layaway.customer', locale)}</TableHead>
+                <TableHead className="font-medium">{t('layaway.items', locale)}</TableHead>
+                <TableHead className="font-medium text-right">{t('layaway.total', locale)}</TableHead>
+                <TableHead className="font-medium text-right">{t('layaway.deposit', locale)}</TableHead>
+                <TableHead className="font-medium text-right">{t('layaway.balance', locale)}</TableHead>
+                <TableHead className="font-medium">{t('layaway.progress', locale)}</TableHead>
+                <TableHead className="font-medium">{t('layaway.status', locale)}</TableHead>
+                <TableHead className="font-medium">{t('layaway.daysRemaining', locale).replace('{n}', '')}</TableHead>
+                <TableHead className="font-medium text-right">{t('common.actions', locale)}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((l: any) => {
+                const items = typeof l.items === 'string' ? JSON.parse(l.items) : (l.items || []);
+                const progress = getProgress(l);
+                const daysRem = getDaysRemaining(l);
+                return (
+                  <TableRow key={l.id} className="hover:bg-muted/30">
+                    <TableCell className="font-mono text-xs font-semibold">{l.layawayNumber}</TableCell>
+                    <TableCell><div><p className="font-medium text-sm">{l.customerName}</p><p className="text-xs text-muted-foreground">{l.customerPhone}</p></div></TableCell>
+                    <TableCell className="text-sm">{items.length} {items.length === 1 ? 'item' : 'items'}</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(l.totalAmount, currency)}</TableCell>
+                    <TableCell className="text-right text-sm">{formatCurrency(l.depositAmount, currency)}</TableCell>
+                    <TableCell className="text-right text-sm font-medium">{formatCurrency(l.balanceRemaining, currency)}</TableCell>
+                    <TableCell><div className="flex items-center gap-2 min-w-[100px]"><Progress value={progress} className="h-2 flex-1" /><span className="text-xs font-medium w-8">{progress}%</span></div></TableCell>
+                    <TableCell><Badge className={statusColors[l.status] || ''}>{statusLabel(l.status)}</Badge></TableCell>
+                    <TableCell>{daysRem !== null ? <span className={`text-xs font-medium ${daysRem < 0 ? 'text-red-500' : daysRem <= 7 ? 'text-amber-500' : 'text-muted-foreground'}`}>{daysRem < 0 ? t('layaway.overdue', locale) : t('layaway.daysRemaining', locale).replace('{n}', String(daysRem))}</span> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
+                    <TableCell><div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openDetail(l)}><Eye className="w-3.5 h-3.5" /></Button>
+                      {l.status === 'active' && (<>
+                        <Button variant="ghost" size="sm" onClick={() => openPaymentDialog(l)} className="text-emerald-600"><Plus className="w-3.5 h-3.5 mr-1" /><span className="text-xs hidden sm:inline">{t('layaway.addPayment', locale)}</span></Button>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleCancel(l)}><XCircle className="w-3.5 h-3.5" /></Button>
+                      </>)}
+                    </div></TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* ═══ CREATE DIALOG ═══ */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="text-xl">{t('layaway.newLayaway', locale)}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div><Label>{t('layaway.customerName', locale)} *</Label><Input value={createForm.customerName} onChange={e => setCreateForm(f => ({ ...f, customerName: e.target.value }))} placeholder="John Doe" /></div>
+              <div><Label>{t('layaway.customerPhone', locale)} *</Label><Input value={createForm.customerPhone} onChange={e => setCreateForm(f => ({ ...f, customerPhone: e.target.value }))} placeholder="+1 868-XXX-XXXX" /></div>
+              <div className="sm:col-span-2"><Label>{t('layaway.customerEmail', locale)}</Label><Input value={createForm.customerEmail} onChange={e => setCreateForm(f => ({ ...f, customerEmail: e.target.value }))} placeholder="email@example.com" type="email" /></div>
+            </div>
+            <div>
+              <Label className="mb-2 block">{t('layaway.items', locale)}</Label>
+              <div className="flex gap-2 mb-2">
+                <Select onValueChange={v => addItemToForm(v)}>
+                  <SelectTrigger className="flex-1"><SelectValue placeholder={t('layaway.selectProduct', locale)} /></SelectTrigger>
+                  <SelectContent>{inStockProducts.map((p: any) => (<SelectItem key={p.id} value={p.id} disabled={createForm.items.find((fi: any) => fi.productId === p.id) !== undefined}>{p.name} — {formatCurrency(p.price, currency)} (Stock: {p.quantity})</SelectItem>))}</SelectContent>
+                </Select>
+              </div>
+              {createForm.items.length > 0 && (<div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow className="bg-muted/50"><TableHead className="text-xs">{t('layaway.product', locale)}</TableHead><TableHead className="text-xs text-right">{t('layaway.unitPrice', locale)}</TableHead><TableHead className="text-xs text-right">{t('layaway.quantity', locale)}</TableHead><TableHead className="text-xs text-right">{t('layaway.lineTotal', locale)}</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader><TableBody>{createForm.items.map((item: any, idx: number) => (<TableRow key={idx}><TableCell className="text-sm">{item.name}</TableCell><TableCell className="text-right text-sm">{formatCurrency(item.unitPrice, currency)}</TableCell><TableCell className="text-right"><Input type="number" min={1} value={item.quantity} onChange={e => updateFormItem(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))} className="w-20 text-right text-sm h-8" /></TableCell><TableCell className="text-right text-sm font-medium">{formatCurrency(item.lineTotal, currency)}</TableCell><TableCell><Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeFormItem(idx)}><Minus className="w-3.5 h-3.5" /></Button></TableCell></TableRow>))}</TableBody></Table></div>)}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div><Label>{t('layaway.depositPct', locale)}: {createForm.depositPercentage}%</Label><Input type="number" min={5} max={100} value={createForm.depositPercentage} onChange={e => { const pct = Math.min(100, Math.max(5, parseInt(e.target.value) || 20)); setCreateForm(f => ({ ...f, depositPercentage: pct, depositAmount: createTotal * pct / 100 })); }} className="h-9" /></div>
+              <div><Label>{t('layaway.selectExpiry', locale)}</Label><Select value={String(createForm.expiryDays)} onValueChange={v => setCreateForm(f => ({ ...f, expiryDays: parseInt(v) }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="30">{t('layaway.days30', locale)}</SelectItem><SelectItem value="60">{t('layaway.days60', locale)}</SelectItem><SelectItem value="90">{t('layaway.days90', locale)}</SelectItem></SelectContent></Select></div>
+              <div><Label>{t('layaway.deposit', locale)} ({t('layaway.minDeposit', locale)}: {formatCurrency(createTotal * createForm.depositPercentage / 100, currency)})</Label><Input type="number" min={0} step="0.01" value={createForm.depositAmount} onChange={e => setCreateForm(f => ({ ...f, depositAmount: parseFloat(e.target.value) || 0 }))} className="h-9" /></div>
+              <div><Label>{t('layaway.paymentMethod', locale)}</Label><Select value={createForm.paymentMethod} onValueChange={v => setCreateForm(f => ({ ...f, paymentMethod: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cash">{t('orders.method.cash', locale)}</SelectItem><SelectItem value="card">{t('orders.method.card', locale)}</SelectItem><SelectItem value="transfer">{t('orders.method.transfer', locale)}</SelectItem></SelectContent></Select></div>
+            </div>
+            <div><Label>{t('layaway.reference', locale)}</Label><Input value={createForm.reference} onChange={e => setCreateForm(f => ({ ...f, reference: e.target.value }))} /></div>
+            <div><Label>{t('layaway.notes', locale)}</Label><Textarea value={createForm.notes} onChange={e => setCreateForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
+            <div className="bg-muted/50 rounded-lg p-4 space-y-1">
+              <div className="flex justify-between text-sm"><span>{t('layaway.total', locale)}</span><span className="font-bold">{formatCurrency(createTotal, currency)}</span></div>
+              <div className="flex justify-between text-sm"><span>{t('layaway.deposit', locale)}</span><span>{formatCurrency(createForm.depositAmount, currency)}</span></div>
+              <div className="flex justify-between text-sm font-medium"><span>{t('layaway.balanceRemaining', locale)}</span><span>{formatCurrency(createTotal - createForm.depositAmount, currency)}</span></div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>{t('common.cancel', locale)}</Button>
+            <Button onClick={handleCreate} disabled={saving || !createForm.customerName || !createForm.customerPhone || createForm.items.length === 0} className="bg-gradient-to-r from-amber-600 to-orange-500">{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}{t('layaway.newLayaway', locale)}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ PAYMENT DIALOG ═══ */}
+      <Dialog open={showPayment} onOpenChange={setShowPayment}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('layaway.addPayment', locale)}</DialogTitle>
+            <DialogDescription>{selectedLayaway?.layawayNumber} — {selectedLayaway?.customerName}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+              <div className="flex justify-between text-sm"><span>{t('layaway.total', locale)}</span><span>{formatCurrency(selectedLayaway?.totalAmount || 0, currency)}</span></div>
+              <div className="flex justify-between text-sm"><span>{t('layaway.balanceRemaining', locale)}</span><span className="font-bold text-destructive">{formatCurrency(selectedLayaway?.balanceRemaining || 0, currency)}</span></div>
+            </div>
+            <div><Label>{t('layaway.paymentAmount', locale)}</Label><Input type="number" min={0} step="0.01" value={paymentForm.paymentAmount} onChange={e => setPaymentForm(f => ({ ...f, paymentAmount: parseFloat(e.target.value) || 0 }))} placeholder="0.00" /></div>
+            <div><Label>{t('layaway.paymentMethod', locale)}</Label><Select value={paymentForm.paymentMethod} onValueChange={v => setPaymentForm(f => ({ ...f, paymentMethod: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cash">{t('orders.method.cash', locale)}</SelectItem><SelectItem value="card">{t('orders.method.card', locale)}</SelectItem><SelectItem value="transfer">{t('orders.method.transfer', locale)}</SelectItem></SelectContent></Select></div>
+            <div><Label>{t('layaway.reference', locale)}</Label><Input value={paymentForm.paymentReference} onChange={e => setPaymentForm(f => ({ ...f, paymentReference: e.target.value }))} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPayment(false)}>{t('common.cancel', locale)}</Button>
+            <Button onClick={handleAddPayment} disabled={saving || paymentForm.paymentAmount <= 0} className="bg-gradient-to-r from-emerald-600 to-green-500">{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}{t('layaway.addPayment', locale)}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ DETAIL DIALOG ═══ */}
+      <Dialog open={showDetail} onOpenChange={setShowDetail}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {selectedLayaway && (() => {
+            const l = selectedLayaway;
+            const items = typeof l.items === 'string' ? JSON.parse(l.items) : (l.items || []);
+            const payments = typeof l.payments === 'string' ? JSON.parse(l.payments) : (l.payments || []);
+            const progress = getProgress(l);
+            const daysRem = getDaysRemaining(l);
+            return (<>
+              <DialogHeader>
+                <div className="flex items-center gap-3"><DialogTitle className="text-xl">{t('layaway.layawayDetail', locale)}</DialogTitle><Badge className={statusColors[l.status] || ''}>{statusLabel(l.status)}</Badge></div>
+                <DialogDescription>{l.layawayNumber} — {l.customerName} ({l.customerPhone})</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-2"><span className="text-sm font-medium">{t('layaway.progress', locale)}</span><span className="text-sm font-bold">{progress}%</span></div>
+                  <Progress value={progress} className="h-3" />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-2"><span>{t('layaway.deposit', locale)}: {formatCurrency(l.depositAmount, currency)}</span><span>{t('layaway.total', locale)}: {formatCurrency(l.totalAmount, currency)}</span><span>{t('layaway.balance', locale)}: {formatCurrency(l.balanceRemaining, currency)}</span></div>
+                  {daysRem !== null && <p className={`text-xs mt-1 font-medium ${daysRem < 0 ? 'text-red-500' : daysRem <= 7 ? 'text-amber-500' : 'text-muted-foreground'}`}>{daysRem < 0 ? t('layaway.overdue', locale) : t('layaway.daysRemaining', locale).replace('{n}', String(daysRem))}</p>}
+                </div>
+                <div><h4 className="text-sm font-semibold mb-2">{t('layaway.items', locale)}</h4><div className="rounded-lg border"><Table><TableHeader><TableRow className="bg-muted/50"><TableHead className="text-xs">{t('layaway.product', locale)}</TableHead><TableHead className="text-xs text-right">{t('layaway.unitPrice', locale)}</TableHead><TableHead className="text-xs text-right">{t('layaway.quantity', locale)}</TableHead><TableHead className="text-xs text-right">{t('layaway.lineTotal', locale)}</TableHead></TableRow></TableHeader><TableBody>{items.map((item: any, idx: number) => (<TableRow key={idx}><TableCell className="text-sm">{item.name}{item.sku ? <span className="text-xs text-muted-foreground ml-2">({item.sku})</span> : ''}</TableCell><TableCell className="text-right text-sm">{formatCurrency(item.unitPrice, currency)}</TableCell><TableCell className="text-right text-sm">{item.quantity}</TableCell><TableCell className="text-right text-sm font-medium">{formatCurrency(item.lineTotal, currency)}</TableCell></TableRow>))}</TableBody></Table></div></div>
+                <div><h4 className="text-sm font-semibold mb-2">{t('layaway.paymentHistory', locale)}</h4>{payments.length === 0 ? <p className="text-sm text-muted-foreground">No payments recorded.</p> : (<div className="rounded-lg border"><Table><TableHeader><TableRow className="bg-muted/50"><TableHead className="text-xs">{t('layaway.date', locale)}</TableHead><TableHead className="text-xs text-right">{t('layaway.amount', locale)}</TableHead><TableHead className="text-xs">{t('layaway.method', locale)}</TableHead><TableHead className="text-xs">{t('layaway.ref', locale)}</TableHead></TableRow></TableHeader><TableBody>{payments.map((p: any, idx: number) => (<TableRow key={idx}><TableCell className="text-sm">{new Date(p.date).toLocaleDateString()}</TableCell><TableCell className="text-right text-sm font-medium">{formatCurrency(p.amount, currency)}</TableCell><TableCell className="text-sm">{p.method}</TableCell><TableCell className="text-sm text-muted-foreground">{p.reference || '—'}</TableCell></TableRow>))}</TableBody></Table></div>)}</div>
+                {(l.notes || l.expiryDate) && (<div className="bg-muted/30 rounded-lg p-3 space-y-1 text-sm">{l.expiryDate && <p><span className="text-muted-foreground">{t('layaway.expiryDate', locale)}:</span> <span className="font-medium">{new Date(l.expiryDate).toLocaleDateString()}</span></p>}{l.dueDate && <p><span className="text-muted-foreground">{t('layaway.dueDate', locale)}:</span> <span className="font-medium">{new Date(l.dueDate).toLocaleDateString()}</span></p>}{l.notes && <p><span className="text-muted-foreground">{t('layaway.notes', locale)}:</span> <span>{l.notes}</span></p>}</div>)}
+              </div>
+            </>);
+          })()}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ TENANT CUSTOMER HISTORY PAGE ============
+function getLoyaltyLevel(totalSpent: number, locale: string) {
+  if (totalSpent >= 10000) return { key: 'diamond', label: t('custHistory.diamond', locale), color: 'bg-violet-100 text-violet-700 border-violet-300', gradient: 'from-violet-500 to-purple-600', icon: '💎' };
+  if (totalSpent >= 5000) return { key: 'platinum', label: t('custHistory.platinum', locale), color: 'bg-slate-100 text-slate-700 border-slate-300', gradient: 'from-slate-400 to-slate-600', icon: '🥇' };
+  if (totalSpent >= 2000) return { key: 'gold', label: t('custHistory.gold', locale), color: 'bg-amber-100 text-amber-700 border-amber-300', gradient: 'from-amber-400 to-yellow-600', icon: '🥈' };
+  if (totalSpent >= 500) return { key: 'silver', label: t('custHistory.silver', locale), color: 'bg-gray-100 text-gray-600 border-gray-300', gradient: 'from-gray-400 to-gray-500', icon: '🥉' };
+  return { key: 'regular', label: t('custHistory.regular', locale), color: 'bg-muted text-muted-foreground border-border', gradient: 'from-stone-400 to-stone-500', icon: '👤' };
+}
+
+function formatShortDate(d: string) {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return '—'; }
+}
+
+function TenantCustomerHistoryPage() {
+  const { currentTenant, currency, locale } = useAppStore() as any;
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [showDetail, setShowDetail] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [customerDetail, setCustomerDetail] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const tenantId = currentTenant?.id;
+
+  const load = useCallback(() => {
+    if (!tenantId) return;
+    authFetch(`/api/tenant/${tenantId}/customer-history`)
+      .then(r => r.json())
+      .then(data => { setCustomers(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => { setCustomers([]); setLoading(false); });
+  }, [tenantId]);
+  useEffect(() => { load(); }, [load]);
+
+  const openCustomerDetail = async (name: string) => {
+    setSelectedCustomer(name);
+    setShowDetail(true);
+    setDetailLoading(true);
+    try {
+      const data = await authFetchJSON(`/api/tenant/${tenantId}/customer-history?customerName=${encodeURIComponent(name)}`);
+      setCustomerDetail(data);
+    } catch { setCustomerDetail(null); }
+    setDetailLoading(false);
+  };
+
+  const filtered = (() => {
+    if (!search) return customers;
+    const q = search.toLowerCase();
+    return customers.filter((c: any) => c.customerName?.toLowerCase().includes(q));
+  })();
+
+  // Stats
+  const totalCustomers = customers.length;
+  const topSpender = customers.length > 0 ? customers[0] : null;
+  const mostFrequent = customers.length > 0 ? [...customers].sort((a: any, b: any) => (b.visitCount || 0) - (a.visitCount || 0))[0] : null;
+  const avgTicket = customers.length > 0 ? customers.reduce((s: number, c: any) => s + (c.avgTicket || 0), 0) / customers.length : 0;
+
+  if (loading) return <PageSkeleton type="table" />;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg"><UsersIcon className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">{t('custHistory.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('custHistory.subtitle', locale)}</p></div>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard title={t('custHistory.allCustomers', locale)} value={totalCustomers} icon={Users} gradient="from-violet-500 to-purple-600" />
+        <StatCard title={t('custHistory.avgTicket', locale)} value={formatCurrency(avgTicket, currency)} icon={TrendingUp} gradient="from-emerald-500 to-green-500" />
+        <StatCard
+          title={t('custHistory.topSpender', locale)}
+          value={topSpender ? topSpender.customerName : '—'}
+          subtitle={topSpender ? formatCurrency(topSpender.totalSpent, currency) : undefined}
+          icon={Trophy}
+          gradient="from-amber-500 to-orange-500"
+          onClick={topSpender ? () => openCustomerDetail(topSpender.customerName) : undefined}
+        />
+        <StatCard
+          title={t('custHistory.mostFrequent', locale)}
+          value={mostFrequent ? mostFrequent.customerName : '—'}
+          subtitle={mostFrequent ? `${mostFrequent.visitCount} ${t('custHistory.visitCount', locale).toLowerCase()}` : undefined}
+          icon={Clock}
+          gradient="from-blue-500 to-cyan-500"
+          onClick={mostFrequent ? () => openCustomerDetail(mostFrequent.customerName) : undefined}
+        />
+      </div>
+
+      {/* Search */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder={t('custHistory.searchCustomer', locale)} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        </div>
+      </div>
+
+      {/* Customer Table */}
+      {filtered.length === 0 ? (
+        <EmptyState icon={Users} title={t('custHistory.noCustomers', locale)} description="" />
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="font-medium w-12">{t('custHistory.rank', locale)}</TableHead>
+                <TableHead className="font-medium">{t('custHistory.customer', locale)}</TableHead>
+                <TableHead className="font-medium text-center">{t('custHistory.visitCount', locale)}</TableHead>
+                <TableHead className="font-medium text-right">{t('custHistory.totalSpent', locale)}</TableHead>
+                <TableHead className="font-medium text-right">{t('custHistory.avgTicket', locale)}</TableHead>
+                <TableHead className="font-medium hidden md:table-cell">{t('custHistory.firstPurchase', locale)}</TableHead>
+                <TableHead className="font-medium hidden md:table-cell">{t('custHistory.lastPurchase', locale)}</TableHead>
+                <TableHead className="font-medium text-center">{t('custHistory.level', locale)}</TableHead>
+                <TableHead className="font-medium text-right">{t('common.actions', locale)}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((c: any, idx: number) => {
+                const level = getLoyaltyLevel(Number(c.totalSpent || 0), locale);
+                const isTop3 = idx < 3;
+                return (
+                  <TableRow key={c.customerName} className={`hover:bg-muted/30 ${isTop3 ? 'bg-amber-50/50 dark:bg-amber-900/10' : ''}`}>
+                    <TableCell className="font-mono text-sm font-semibold text-muted-foreground">{idx + 1}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white bg-gradient-to-br ${level.gradient}`}>
+                          {c.customerName?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{c.customerName}</p>
+                          {isTop3 && <Badge className="bg-amber-100 text-amber-700 border-amber-300 text-[10px] px-1.5 py-0">{t('custHistory.topCustomers', locale)}</Badge>}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center font-medium">{c.visitCount || 0}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatCurrency(c.totalSpent || 0, currency)}</TableCell>
+                    <TableCell className="text-right text-sm">{formatCurrency(c.avgTicket || 0, currency)}</TableCell>
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{formatShortDate(c.firstPurchase)}</TableCell>
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{formatShortDate(c.lastPurchase)}</TableCell>
+                    <TableCell className="text-center"><Badge variant="outline" className={`${level.color} text-[10px] px-2 py-0`}>{level.icon} {level.label}</Badge></TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => openCustomerDetail(c.customerName)}>
+                        <Eye className="w-3.5 h-3.5 mr-1" /><span className="text-xs">{t('custHistory.viewHistory', locale)}</span>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* ═══ CUSTOMER DETAIL DIALOG ═══ */}
+      <Dialog open={showDetail} onOpenChange={setShowDetail}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-3">
+              {customerDetail && (() => {
+                const lv = getLoyaltyLevel(Number(customerDetail.stats?.totalSpent || 0), locale);
+                return <Badge variant="outline" className={`${lv.color} px-2 py-1`}>{lv.icon} {lv.label}</Badge>;
+              })()}
+              {selectedCustomer}
+            </DialogTitle>
+            <DialogDescription>{t('custHistory.customerDetail', locale)}</DialogDescription>
+          </DialogHeader>
+
+          {detailLoading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+          ) : customerDetail ? (() => {
+            const { stats, purchases } = customerDetail;
+            return (
+              <div className="space-y-6">
+                {/* Stats row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-muted/50 rounded-lg p-3 text-center">
+                    <p className="text-xs text-muted-foreground">{t('custHistory.visitCount', locale)}</p>
+                    <p className="text-xl font-bold">{stats?.visitCount || 0}</p>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-3 text-center">
+                    <p className="text-xs text-muted-foreground">{t('custHistory.totalSpent', locale)}</p>
+                    <p className="text-xl font-bold">{formatCurrency(stats?.totalSpent || 0, currency)}</p>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-3 text-center">
+                    <p className="text-xs text-muted-foreground">{t('custHistory.avgTicket', locale)}</p>
+                    <p className="text-xl font-bold">{formatCurrency(stats?.avgTicket || 0, currency)}</p>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-3 text-center">
+                    <p className="text-xs text-muted-foreground">{t('custHistory.since', locale)}</p>
+                    <p className="text-sm font-medium">{formatShortDate(stats?.firstPurchase)}</p>
+                  </div>
+                </div>
+
+                {/* Spending trend mini chart */}
+                {purchases && purchases.length > 1 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase mb-2">{t('custHistory.totalSpent', locale)} — {t('custHistory.purchaseHistory', locale)}</p>
+                    <div className="h-32">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={[...purchases].reverse().map((p: any) => ({ date: new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), amount: Number(p.total || 0) }))}>
+                          <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                          <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} />
+                          <RechartsTooltip formatter={(v: number) => formatCurrency(v, currency)} />
+                          <Area type="monotone" dataKey="amount" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.15} strokeWidth={2} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {/* Purchase list */}
+                <div>
+                  <p className="text-sm font-semibold mb-2">{t('custHistory.purchaseHistory', locale)} ({purchases?.length || 0})</p>
+                  {!purchases || purchases.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center">{t('custHistory.noHistory', locale)}</p>
+                  ) : (
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                      {purchases.map((p: any, idx: number) => {
+                        const items: any[] = Array.isArray(p.items) ? p.items : [];
+                        return (
+                          <motion.div key={idx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }} className="border rounded-lg p-3 hover:shadow-sm transition-shadow">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">{p.saleNumber}</span>
+                                <span className="text-xs text-muted-foreground">{formatShortDate(p.date)}</span>
+                                <Badge variant="outline" className="text-[10px]">{p.paymentMethod}</Badge>
+                              </div>
+                              <span className="font-bold">{formatCurrency(p.total, currency)}</span>
+                            </div>
+                            {items.length > 0 && (
+                              <div className="mt-2 space-y-0.5">
+                                {items.map((item: any, iIdx: number) => (
+                                  <div key={iIdx} className="flex justify-between text-xs text-muted-foreground">
+                                    <span>{item.name || item.productName || `Item ${iIdx + 1}`}{item.qty ? ` ×${item.qty}` : ''}</span>
+                                    {item.total != null && <span>{formatCurrency(item.total, currency)}</span>}
+                                    {item.total == null && item.price != null && <span>{formatCurrency(item.price * (item.qty || 1), currency)}</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })() : (
+            <p className="text-sm text-muted-foreground py-8 text-center">{t('custHistory.noHistory', locale)}</p>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
