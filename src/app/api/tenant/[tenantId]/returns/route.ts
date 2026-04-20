@@ -53,7 +53,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       const returns = await pgQuery<any>(sql, params);
       return NextResponse.json(returns);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[returns] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -102,27 +103,39 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       }
     }
 
-    // Generate return number
-    const count = await db.productReturn.count({ where: { tenantId } });
-    const returnNumber = `RET-${String(count + 1).padStart(5, '0')}`;
-
+    // Generate return number with retry loop for unique constraint
+    let ret: any;
+    let attempts = 0;
+    const maxAttempts = 3;
     const itemsStr = typeof data.items === 'string' ? data.items : JSON.stringify(data.items || []);
     const totalRefund = (data.items || []).reduce((s: number, i: any) => s + (i.quantity || 0) * (i.unitPrice || 0), 0);
-
-    const ret = await db.productReturn.create({
-      data: {
-        tenantId,
-        saleId: data.saleId,
-        returnNumber,
-        items: itemsStr,
-        totalRefund,
-        refundMethod: data.refundMethod || 'cash',
-        reason: data.reason || 'other',
-        status: 'pending',
-        processedBy: data.processedBy || null,
-        notes: data.notes || '',
-      },
-    });
+    while (attempts < maxAttempts) {
+      try {
+        const count = await db.productReturn.count({ where: { tenantId } });
+        const returnNumber = `RET-${String(count + 1).padStart(5, '0')}`;
+        ret = await db.productReturn.create({
+          data: {
+            tenantId,
+            saleId: data.saleId,
+            returnNumber,
+            items: itemsStr,
+            totalRefund,
+            refundMethod: data.refundMethod || 'cash',
+            reason: data.reason || 'other',
+            status: 'pending',
+            processedBy: data.processedBy || null,
+            notes: data.notes || '',
+          },
+        });
+        break;
+      } catch (err: any) {
+        if (err.code === 'P2002' && attempts < maxAttempts - 1) {
+          attempts++;
+          continue;
+        }
+        throw err;
+      }
+    }
     return NextResponse.json(ret);
   } catch (error: any) {
     try {
@@ -153,23 +166,39 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         }
       }
 
-      const count = await pgQuery<any>(`SELECT COUNT(*)::int as c FROM "ProductReturn" WHERE "tenantId" = $1`, [tenantId]);
-      const cn = (count[0]?.c || 0) + 1;
-      const returnNumber = `RET-${String(cn).padStart(5, '0')}`;
+      // Generate return number with retry loop for unique constraint (pg fallback)
+      let created: any;
+      let pgAttempts = 0;
+      const pgMaxAttempts = 3;
       const itemsStr = typeof data.items === 'string' ? data.items : JSON.stringify(data.items || []);
       const totalRefund = (data.items || []).reduce((s: number, i: any) => s + (i.quantity || 0) * (i.unitPrice || 0), 0);
-      const now = new Date().toISOString();
+      while (pgAttempts < pgMaxAttempts) {
+        try {
+          const count = await pgQuery<any>(`SELECT COUNT(*)::int as c FROM "ProductReturn" WHERE "tenantId" = $1`, [tenantId]);
+          const cn = (count[0]?.c || 0) + 1;
+          const returnNumber = `RET-${String(cn).padStart(5, '0')}`;
+          const now = new Date().toISOString();
 
-      await pgQuery(
-        `INSERT INTO "ProductReturn" ("tenantId","saleId","returnNumber","items","totalRefund","refundMethod","reason","status","processedBy","notes","isDeleted","createdAt","updatedAt")
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8,$9,false,$10,$11)`,
-        [tenantId, data.saleId, returnNumber, itemsStr, totalRefund, data.refundMethod || 'cash', data.reason || 'other', data.processedBy || null, data.notes || '', now, now]
-      );
+          await pgQuery(
+            `INSERT INTO "ProductReturn" ("tenantId","saleId","returnNumber","items","totalRefund","refundMethod","reason","status","processedBy","notes","isDeleted","createdAt","updatedAt")
+             VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8,$9,false,$10,$11)`,
+            [tenantId, data.saleId, returnNumber, itemsStr, totalRefund, data.refundMethod || 'cash', data.reason || 'other', data.processedBy || null, data.notes || '', now, now]
+          );
 
-      const created = await pgQueryOne(`SELECT * FROM "ProductReturn" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC LIMIT 1`, [tenantId]);
+          created = await pgQueryOne(`SELECT * FROM "ProductReturn" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC LIMIT 1`, [tenantId]);
+          break;
+        } catch (pgErr: any) {
+          if (pgErr.code === '23505' && pgAttempts < pgMaxAttempts - 1) {
+            pgAttempts++;
+            continue;
+          }
+          throw pgErr;
+        }
+      }
       return NextResponse.json(created);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[returns] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -248,7 +277,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
       const final = await pgQueryOne(`SELECT * FROM "ProductReturn" WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
       return NextResponse.json(final);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[returns] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -272,7 +302,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
       await pgQuery(`UPDATE "ProductReturn" SET "isDeleted" = true, "updatedAt" = NOW() WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
       return NextResponse.json({ success: true });
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[returns] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }

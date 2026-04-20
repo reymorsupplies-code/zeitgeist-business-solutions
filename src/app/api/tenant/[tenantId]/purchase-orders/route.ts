@@ -21,6 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     const orders = await db.purchaseOrder.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      take: 200,
     });
     return NextResponse.json(orders);
   } catch {
@@ -28,11 +29,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       let sql = `SELECT * FROM "PurchaseOrder" WHERE "tenantId" = $1 AND "isDeleted" = false`;
       const params: any[] = [tenantId];
       if (status && status !== 'all') { sql += ` AND status = $2`; params.push(status); }
-      sql += ` ORDER BY "createdAt" DESC`;
+      sql += ` ORDER BY "createdAt" DESC LIMIT 200`;
       const orders = await pgQuery<any>(sql, params);
       return NextResponse.json(orders);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[purchase-orders] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -49,43 +51,73 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   try { data = await req.json(); } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }); }
 
   try {
-    const count = await db.purchaseOrder.count({ where: { tenantId } });
-    const poNumber = `PO-${String(count + 1).padStart(5, '0')}`;
-
-    const po = await db.purchaseOrder.create({
-      data: {
-        tenantId,
-        poNumber,
-        supplierId: data.supplierId || null,
-        supplierName: data.supplierName || '',
-        status: data.status || 'draft',
-        items: typeof data.items === 'string' ? data.items : JSON.stringify(data.items || []),
-        totalAmount: data.totalAmount || 0,
-        receivedAmount: 0,
-        notes: data.notes || '',
-        expectedDate: data.expectedDate ? new Date(data.expectedDate) : null,
-      },
-    });
+    // Generate PO number with retry loop for unique constraint
+    let po: any;
+    let attempts = 0;
+    const maxAttempts = 3;
+    while (attempts < maxAttempts) {
+      try {
+        const count = await db.purchaseOrder.count({ where: { tenantId } });
+        const poNumber = `PO-${String(count + 1).padStart(5, '0')}`;
+        po = await db.purchaseOrder.create({
+          data: {
+            tenantId,
+            poNumber,
+            supplierId: data.supplierId || null,
+            supplierName: data.supplierName || '',
+            status: data.status || 'draft',
+            items: typeof data.items === 'string' ? data.items : JSON.stringify(data.items || []),
+            totalAmount: data.totalAmount || 0,
+            receivedAmount: 0,
+            notes: data.notes || '',
+            expectedDate: data.expectedDate ? new Date(data.expectedDate) : null,
+          },
+        });
+        break;
+      } catch (err: any) {
+        if (err.code === 'P2002' && attempts < maxAttempts - 1) {
+          attempts++;
+          continue;
+        }
+        throw err;
+      }
+    }
     return NextResponse.json(po);
   } catch {
     try {
       // pg fallback — data already parsed
-      const count = await pgQuery<any>(`SELECT COUNT(*)::int as c FROM "PurchaseOrder" WHERE "tenantId" = $1`, [tenantId]);
-      const cn = (count[0]?.c || 0) + 1;
-      const poNumber = `PO-${String(cn).padStart(5, '0')}`;
-      const itemsStr = typeof data.items === 'string' ? data.items : JSON.stringify(data.items || []);
-      const now = new Date().toISOString();
+      // Generate PO number with retry loop for unique constraint
+      let created: any;
+      let pgAttempts = 0;
+      const pgMaxAttempts = 3;
+      while (pgAttempts < pgMaxAttempts) {
+        try {
+          const count = await pgQuery<any>(`SELECT COUNT(*)::int as c FROM "PurchaseOrder" WHERE "tenantId" = $1`, [tenantId]);
+          const cn = (count[0]?.c || 0) + 1;
+          const poNumber = `PO-${String(cn).padStart(5, '0')}`;
+          const itemsStr = typeof data.items === 'string' ? data.items : JSON.stringify(data.items || []);
+          const now = new Date().toISOString();
 
-      await pgQuery(
-        `INSERT INTO "PurchaseOrder" ("tenantId","poNumber","supplierId","supplierName","status","items","totalAmount","receivedAmount","notes","expectedDate","isDeleted","createdAt","updatedAt")
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,false,$11,$12)`,
-        [tenantId, poNumber, data.supplierId || null, data.supplierName || '', data.status || 'draft', itemsStr, data.totalAmount || 0, 0, data.notes || '', data.expectedDate ? new Date(data.expectedDate).toISOString() : null, now, now]
-      );
+          await pgQuery(
+            `INSERT INTO "PurchaseOrder" ("tenantId","poNumber","supplierId","supplierName","status","items","totalAmount","receivedAmount","notes","expectedDate","isDeleted","createdAt","updatedAt")
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,false,$11,$12)`,
+            [tenantId, poNumber, data.supplierId || null, data.supplierName || '', data.status || 'draft', itemsStr, data.totalAmount || 0, 0, data.notes || '', data.expectedDate ? new Date(data.expectedDate).toISOString() : null, now, now]
+          );
 
-      const created = await pgQueryOne(`SELECT * FROM "PurchaseOrder" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC LIMIT 1`, [tenantId]);
+          created = await pgQueryOne(`SELECT * FROM "PurchaseOrder" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC LIMIT 1`, [tenantId]);
+          break;
+        } catch (pgErr: any) {
+          if (pgErr.code === '23505' && pgAttempts < pgMaxAttempts - 1) {
+            pgAttempts++;
+            continue;
+          }
+          throw pgErr;
+        }
+      }
       return NextResponse.json(created);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[purchase-orders] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -137,7 +169,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
         }
 
         // Update received amount and items
-        const newReceivedAmount = po.receivedAmount + totalReceived;
+        const newReceivedAmount = Number(po.receivedAmount) + totalReceived;
         const allReceived = currentItems.every((it: any) => it.receivedQty >= it.qty);
         await db.purchaseOrder.update({
           where: { id },
@@ -200,7 +232,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
       const final = await pgQueryOne(`SELECT * FROM "PurchaseOrder" WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
       return NextResponse.json(final);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[purchase-orders] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -224,7 +257,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
       await pgQuery(`UPDATE "PurchaseOrder" SET "isDeleted" = true, "updatedAt" = NOW() WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
       return NextResponse.json({ success: true });
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[purchase-orders] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }

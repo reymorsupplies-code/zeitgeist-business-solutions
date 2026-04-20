@@ -48,6 +48,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       },
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[barcode-lookup] Error:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

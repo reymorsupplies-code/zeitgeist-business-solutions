@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, {params }: { params: Promise<{ tenan
   try {
     const items = await db.retailProduct.findMany({ where: { tenantId, isDeleted: false }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json(items);
-  } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }
+  } catch (error: any) { console.error('[retail-products] Error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500 }); }
 }
 
 export async function POST(req: NextRequest, {params }: { params: Promise<{ tenantId: string }> }) {
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest, {params }: { params: Promise<{ tena
     const data = await req.json();
     const item = await db.retailProduct.create({ data: { ...data, tenantId } });
     return NextResponse.json(item);
-  } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }
+  } catch (error: any) { console.error('[retail-products] Error:', error); return NextResponse.json({ error: 'Internal server error' }, { status: 500 }); }
 }
 
 export async function PUT(req: NextRequest, {params }: { params: Promise<{ tenantId: string }> }) {
@@ -69,7 +69,8 @@ export async function PUT(req: NextRequest, {params }: { params: Promise<{ tenan
       const updated = await pgQueryOne(`SELECT * FROM "RetailProduct" WHERE id = $1`, [id]);
       return NextResponse.json(updated);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[retail-products] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -96,7 +97,8 @@ export async function DELETE(req: NextRequest, {params }: { params: Promise<{ te
       await pgQuery(`UPDATE "RetailProduct" SET "isDeleted" = true, "updatedAt" = NOW() WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
       return NextResponse.json({ success: true });
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[retail-products] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }

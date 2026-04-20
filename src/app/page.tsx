@@ -11623,7 +11623,7 @@ function TenantPOSPage() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [customerName, setCustomerName] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer' | 'gift_card'>('cash');
   const [discountPct, setDiscountPct] = useState(0);
   const [cashReceived, setCashReceived] = useState(0);
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
@@ -11632,6 +11632,14 @@ function TenantPOSPage() {
   const [showHeldSales, setShowHeldSales] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
+  // Gift card state
+  const [gcNumber, setGcNumber] = useState('');
+  const [gcPin, setGcPin] = useState('');
+  const [gcCard, setGcCard] = useState<any>(null);
+  const [gcLoading, setGcLoading] = useState(false);
+  // Split payment state
+  const [isSplitPayment, setIsSplitPayment] = useState(false);
+  const [splitSecondaryMethod, setSplitSecondaryMethod] = useState<'cash' | 'card' | 'transfer'>('cash');
   const tid = currentTenant?.id;
 
   const categories = ['all', ...Array.from(new Set((products || []).map((p: any) => p.category).filter(Boolean)))];
@@ -11713,21 +11721,86 @@ function TenantPOSPage() {
     saveHeldSales(heldSales.filter(h => h.id !== heldId));
   };
 
+  const handleLookUpGiftCard = async () => {
+    if (!gcNumber.trim()) return;
+    setGcLoading(true);
+    setGcCard(null);
+    try {
+      const url = `/api/tenant/${tid}/gift-cards?cardNumber=${encodeURIComponent(gcNumber.trim())}${gcPin.trim() ? '&cardCode=' + encodeURIComponent(gcPin.trim()) : ''}`;
+      const res = await authFetchJSON(url);
+      if (Array.isArray(res) && res.length > 0) {
+        const card = res[0];
+        // If PIN was provided, verify it matches
+        if (gcPin.trim() && card.cardCode !== gcPin.trim()) {
+          toast.error(t('pos.cardNotFound', locale));
+        } else {
+          setGcCard(card);
+          // If card balance < grand total, auto-switch to split
+          if (card.currentBalance < grandTotal && grandTotal > 0) {
+            setIsSplitPayment(true);
+          } else {
+            setIsSplitPayment(false);
+          }
+        }
+      } else {
+        toast.error(t('pos.cardNotFound', locale));
+      }
+    } catch (e: any) { toast.error(e.message || t('pos.cardNotFound', locale)); }
+    setGcLoading(false);
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) return;
-    if (paymentMethod === 'cash' && cashReceived < grandTotal) { toast.error(t('pos.insufficientCash', locale)); return; }
+    if (paymentMethod === 'cash' && !isSplitPayment && cashReceived < grandTotal) { toast.error(t('pos.insufficientCash', locale)); return; }
+    if (paymentMethod === 'gift_card' && !gcCard) { toast.error(t('pos.cardNotFound', locale)); return; }
+    if (paymentMethod === 'gift_card' && gcCard && gcCard.currentBalance < grandTotal && !isSplitPayment) { toast.error(t('pos.insufficientBalance', locale)); return; }
+    if (isSplitPayment && paymentMethod === 'cash' && cashReceived < (gcCard ? grandTotal - gcCard.currentBalance : grandTotal)) { toast.error(t('pos.insufficientCash', locale)); return; }
     setCheckingOut(true);
     try {
-      const orderBody = {
+      let effectivePaymentMethod: string = paymentMethod;
+      let giftCardId: string | null = null;
+      let splitDetails: any = null;
+      let effectiveCashReceived = paymentMethod === 'cash' ? cashReceived : 0;
+      let effectiveChange = change;
+
+      if (paymentMethod === 'gift_card' && gcCard) {
+        if (isSplitPayment && gcCard.currentBalance < grandTotal) {
+          // Split: gift card covers what it can, secondary method covers rest
+          effectivePaymentMethod = 'split';
+          const gcAmount = gcCard.currentBalance;
+          const remaining = Math.round((grandTotal - gcAmount) * 100) / 100;
+          giftCardId = gcCard.id;
+          splitDetails = {
+            cash: splitSecondaryMethod === 'cash' ? remaining : 0,
+            card: splitSecondaryMethod === 'card' ? remaining : 0,
+            giftCard: gcAmount,
+            transfer: splitSecondaryMethod === 'transfer' ? remaining : 0,
+            giftCardId: gcCard.id,
+          };
+          if (splitSecondaryMethod === 'cash') {
+            effectiveCashReceived = cashReceived;
+            effectiveChange = Math.max(0, cashReceived - remaining);
+          }
+        } else {
+          // Full gift card payment
+          giftCardId = gcCard.id;
+        }
+      }
+
+      const orderBody: any = {
         items: cart.map(i => ({ productId: i.id, name: i.name, sku: i.sku, qty: i.qty, price: i.price, cost: i.cost || 0 })),
         subtotal, discountPct, discountAmount: discountAmt, taxAmount: taxAmt, totalAmount: grandTotal,
-        paymentMethod, cashReceived: paymentMethod === 'cash' ? cashReceived : 0, changeAmount: change,
+        paymentMethod: effectivePaymentMethod, cashReceived: effectiveCashReceived, changeAmount: effectiveChange,
         currency, customerName: customerName || t('pos.walkIn', locale), status: 'completed',
       };
+      if (giftCardId) orderBody.giftCardId = giftCardId;
+      if (splitDetails) orderBody.splitDetails = splitDetails;
+
       const result = await authFetchJSON(`/api/tenant/${tid}/pos-sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderBody) });
       const receiptOrder = { ...orderBody, id: result.saleNumber || `POS-${Date.now().toString(36).toUpperCase()}`, date: new Date().toISOString() };
       setReceiptOrder(receiptOrder);
       setCart([]); setDiscountPct(0); setCashReceived(0); setCustomerName('');
+      setGcCard(null); setGcNumber(''); setGcPin(''); setIsSplitPayment(false);
       const today = new Date().toISOString().split('T')[0];
       authFetch(`/api/tenant/${tid}/pos-sales?from=${today}`).then(r => r.json()).then(d => { setTodaySales(Array.isArray(d) ? d : []); }).catch(() => {});
       toast.success(t('pos.saleComplete', locale));
@@ -11737,7 +11810,10 @@ function TenantPOSPage() {
 
   const handlePrint = () => { window.print(); };
 
-  const paymentMethodLabel = (m: string) => m === 'cash' ? t('pos.cash', locale) : m === 'card' ? t('pos.card', locale) : t('pos.transfer', locale);
+  const paymentMethodLabel = (m: string) => m === 'cash' ? t('pos.cash', locale) : m === 'card' ? t('pos.card', locale) : m === 'transfer' ? t('pos.transfer', locale) : m === 'gift_card' ? t('pos.giftCard', locale) : t('pos.splitPayment', locale);
+
+  const giftCardAmount = gcCard ? Math.min(gcCard.currentBalance, grandTotal) : 0;
+  const remainingAmount = isSplitPayment && gcCard ? Math.max(0, Math.round((grandTotal - gcCard.currentBalance) * 100) / 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -11819,12 +11895,48 @@ function TenantPOSPage() {
             <Separator />
             <div>
               <Label className="text-xs font-medium">{t('pos.payment', locale)}</Label>
-              <div className="flex gap-2 mt-1">
-                {([['cash', t('pos.cash', locale)], ['card', t('pos.card', locale)], ['transfer', t('pos.transfer', locale)]] as const).map(([val, label]) => (
-                  <Button key={val} variant={paymentMethod === val ? 'default' : 'outline'} size="sm" className="flex-1 text-xs" onClick={() => setPaymentMethod(val as any)}>{label}</Button>
+              <div className="flex gap-1 mt-1 flex-wrap">
+                {([['cash', t('pos.cash', locale)], ['card', t('pos.card', locale)], ['transfer', t('pos.transfer', locale)], ['gift_card', t('pos.giftCard', locale)]] as const).map(([val, label]) => (
+                  <Button key={val} variant={paymentMethod === val ? 'default' : 'outline'} size="sm" className="flex-1 text-xs min-w-0" onClick={() => { setPaymentMethod(val as any); if (val !== 'gift_card') { setGcCard(null); setIsSplitPayment(false); } }}>{label}</Button>
                 ))}
               </div>
             </div>
+            {paymentMethod === 'gift_card' && !isSplitPayment && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-2 border rounded-lg p-3 bg-muted/30">
+                <div className="flex gap-2">
+                  <div className="flex-1"><Label className="text-xs">{t('pos.giftCardNumber', locale)}</Label><Input value={gcNumber} onChange={e => setGcNumber(e.target.value)} placeholder="GC-XXXX-XXXX-XXXX" className="mt-1 h-8 text-sm" /></div>
+                  <div className="w-24"><Label className="text-xs">{t('pos.giftCardPin', locale)}</Label><Input value={gcPin} onChange={e => setGcPin(e.target.value)} placeholder="000000" maxLength={6} className="mt-1 h-8 text-sm" /></div>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleLookUpGiftCard} disabled={gcLoading || !gcNumber.trim()} className="w-full">{gcLoading ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Gift className="w-3 h-3 mr-1" />}{t('pos.lookUpCard', locale)}</Button>
+                {gcCard && (
+                  <div className="flex items-center justify-between text-sm p-2 bg-green-50 dark:bg-green-900/20 rounded-md">
+                    <span className="text-green-700 dark:text-green-400 font-medium">{t('pos.cardBalance', locale)}:</span>
+                    <span className="font-bold text-green-700 dark:text-green-400">{formatCurrency(gcCard.currentBalance, currency)}</span>
+                  </div>
+                )}
+              </motion.div>
+            )}
+            {paymentMethod === 'gift_card' && isSplitPayment && gcCard && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-2 border rounded-lg p-3 bg-amber-50 dark:bg-amber-900/20">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">{t('pos.splitPayment', locale)}</p>
+                <div className="flex justify-between text-sm"><span>{t('pos.giftCardAmount', locale)}:</span><span className="font-medium">{formatCurrency(giftCardAmount, currency)}</span></div>
+                <div className="flex justify-between text-sm"><span>{t('pos.remainingAmount', locale)}:</span><span className="font-bold text-amber-700 dark:text-amber-400">{formatCurrency(remainingAmount, currency)}</span></div>
+                <Separator />
+                <p className="text-xs text-muted-foreground">{t('pos.selectPaymentMethod', locale)}</p>
+                <div className="flex gap-1">
+                  {([['cash', t('pos.cash', locale)], ['card', t('pos.card', locale)], ['transfer', t('pos.transfer', locale)]] as const).map(([val, label]) => (
+                    <Button key={val} variant={splitSecondaryMethod === val ? 'default' : 'outline'} size="sm" className="flex-1 text-xs" onClick={() => setSplitSecondaryMethod(val as any)}>{label}</Button>
+                  ))}
+                </div>
+                {splitSecondaryMethod === 'cash' && (
+                  <div><Label className="text-xs">{t('pos.amountReceived', locale)}</Label><Input type="number" min={0} step={0.01} value={cashReceived || ''} onChange={e => setCashReceived(parseFloat(e.target.value) || 0)} placeholder={String(remainingAmount)} className="mt-1 h-8 text-sm" />
+                  {cashReceived >= remainingAmount && remainingAmount > 0 && (
+                    <div className="flex justify-between font-medium text-xs text-green-600 mt-1"><span>{t('pos.change', locale)}</span><span>{formatCurrency(Math.max(0, cashReceived - remainingAmount), currency)}</span></div>
+                  )}
+                  </div>
+                )}
+              </motion.div>
+            )}
             {paymentMethod === 'cash' && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-2">
                 <div><Label className="text-xs">{t('pos.amountReceived', locale)}</Label><Input type="number" min={0} step={0.01} value={cashReceived || ''} onChange={e => setCashReceived(parseFloat(e.target.value) || 0)} placeholder="0.00" className="mt-1" /></div>
@@ -11901,6 +12013,17 @@ function TenantPOSPage() {
                   <div className="flex justify-between"><span>{t('pos.amountReceived', locale)}:</span><span>{formatCurrency(receiptOrder.cashReceived, currency)}</span></div>
                   <div className="flex justify-between"><span>{t('pos.change', locale)}:</span><span>{formatCurrency(receiptOrder.changeAmount, currency)}</span></div>
                 </>
+              )}
+              {receiptOrder?.paymentMethod === 'split' && receiptOrder?.splitDetails && (
+                <>
+                  {receiptOrder.splitDetails.cash > 0 && <div className="flex justify-between"><span>{t('pos.cash', locale)}:</span><span>{formatCurrency(receiptOrder.splitDetails.cash, currency)}</span></div>}
+                  {receiptOrder.splitDetails.card > 0 && <div className="flex justify-between"><span>{t('pos.card', locale)}:</span><span>{formatCurrency(receiptOrder.splitDetails.card, currency)}</span></div>}
+                  {receiptOrder.splitDetails.giftCard > 0 && <div className="flex justify-between"><span>{t('pos.giftCard', locale)}:</span><span>{formatCurrency(receiptOrder.splitDetails.giftCard, currency)}</span></div>}
+                  {receiptOrder.splitDetails.transfer > 0 && <div className="flex justify-between"><span>{t('pos.transfer', locale)}:</span><span>{formatCurrency(receiptOrder.splitDetails.transfer, currency)}</span></div>}
+                </>
+              )}
+              {receiptOrder?.paymentMethod === 'gift_card' && (
+                <div className="flex justify-between"><span>{t('pos.giftCard', locale)}:</span><span>{formatCurrency(receiptOrder?.totalAmount || 0, currency)}</span></div>
               )}
             </div>
             <p className="text-center text-xs text-muted-foreground mt-2">{t('pos.receipt', locale)}</p>

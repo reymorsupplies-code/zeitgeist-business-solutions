@@ -75,7 +75,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       const cards = await pgQuery<any>(sql, params);
       return NextResponse.json(cards);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[gift-cards] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -163,7 +164,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       const created = await pgQueryOne(`SELECT * FROM "GiftCard" WHERE id = $1`, [id]);
       return NextResponse.json(created);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[gift-cards] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -206,7 +208,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
       const updated = await db.giftCard.update({
         where: { id },
         data: {
-          currentBalance: card.currentBalance + reloadAmount,
+          currentBalance: Number(card.currentBalance) + reloadAmount,
           transactions: stringifyTransactions(txns),
           status: card.status === 'used' ? 'active' : card.status,
         },
@@ -223,9 +225,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
       if (!card) return NextResponse.json({ error: 'Gift card not found' }, { status: 404 });
       if (card.status !== 'active') return NextResponse.json({ error: `Card is ${card.status}` }, { status: 400 });
       if (card.expiresAt && new Date(card.expiresAt) < new Date()) return NextResponse.json({ error: 'Card has expired' }, { status: 400 });
-      if (card.currentBalance < redeemAmount) return NextResponse.json({ error: 'Insufficient balance' }, { status: 400 });
+      if (Number(card.currentBalance) < redeemAmount) return NextResponse.json({ error: 'Insufficient balance' }, { status: 400 });
 
-      const newBalance = Math.round((card.currentBalance - redeemAmount) * 100) / 100;
+      const newBalance = Math.round((Number(card.currentBalance) - redeemAmount) * 100) / 100;
       const txns = parseTransactions(card.transactions);
       txns.push({
         date: new Date().toISOString(),
@@ -254,7 +256,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
       if (card.status === 'voided') return NextResponse.json({ error: 'Card already voided' }, { status: 400 });
 
       const txns = parseTransactions(card.transactions);
-      if (card.currentBalance > 0) {
+      if (Number(card.currentBalance) > 0) {
         txns.push({
           date: new Date().toISOString(),
           type: 'void',
@@ -324,7 +326,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
         newStatus = newBalance <= 0 ? 'used' : 'active';
       } else if (action === 'void') {
         if (card.status === 'voided') return NextResponse.json({ error: 'Card already voided' }, { status: 400 });
-        if (card.currentBalance > 0) {
+        if (Number(card.currentBalance) > 0) {
           txns.push({ date: now, type: 'void', amount: card.currentBalance, reference: 'Card voided — balance forfeited' });
         }
         newBalance = 0;
@@ -361,7 +363,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
         return NextResponse.json(updated);
       }
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[gift-cards] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -385,7 +388,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
       await pgQuery(`UPDATE "GiftCard" SET "isDeleted" = true, "updatedAt" = NOW() WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
       return NextResponse.json({ success: true });
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[gift-cards] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }

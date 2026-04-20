@@ -48,6 +48,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     const layaways = await db.layaway.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      take: 200,
     });
     return NextResponse.json(layaways);
   } catch {
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
       if (status && status !== 'all') { sql += ` AND status = $${pIdx++}`; params.push(status); }
       if (search) { sql += ` AND ("layawayNumber" ILIKE $${pIdx} OR "customerName" ILIKE $${pIdx})`; params.push(`%${search}%`); pIdx++; }
-      sql += ` ORDER BY "createdAt" DESC`;
+      sql += ` ORDER BY "createdAt" DESC LIMIT 200`;
 
       // Mark expired
       await pgQuery(`UPDATE "Layaway" SET status = 'expired', "updatedAt" = NOW() WHERE "tenantId" = $1 AND "isDeleted" = false AND status = 'active' AND "expiryDate" < NOW()`, [tenantId]);
@@ -70,7 +71,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       const layaways = await pgQuery<any>(sql, params);
       return NextResponse.json(layaways);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[layaways] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -111,9 +113,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       }
     }
 
-    const count = await db.layaway.count({ where: { tenantId } });
-    const layawayNumber = `LAY-${String(count + 1).padStart(5, '0')}`;
-
+    // Generate layaway number with retry loop for unique constraint
     const payments = depositAmount > 0 ? [{
       date: new Date().toISOString(),
       amount: depositAmount,
@@ -121,25 +121,41 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       reference: data.reference || '',
     }] : [];
 
-    const layaway = await db.layaway.create({
-      data: {
-        tenantId,
-        layawayNumber,
-        customerName: data.customerName,
-        customerPhone: data.customerPhone,
-        customerEmail: data.customerEmail || null,
-        items: JSON.stringify(data.items),
-        totalAmount,
-        depositAmount,
-        balanceRemaining: totalAmount - depositAmount,
-        payments: JSON.stringify(payments),
-        status: 'active',
-        dueDate: data.dueDate ? new Date(data.dueDate) : null,
-        expiryDate: new Date(data.expiryDate),
-        depositPercentage: depositPct,
-        notes: data.notes || null,
-      },
-    });
+    let layaway: any;
+    let attempts = 0;
+    const maxAttempts = 3;
+    while (attempts < maxAttempts) {
+      try {
+        const count = await db.layaway.count({ where: { tenantId } });
+        const layawayNumber = `LAY-${String(count + 1).padStart(5, '0')}`;
+        layaway = await db.layaway.create({
+          data: {
+            tenantId,
+            layawayNumber,
+            customerName: data.customerName,
+            customerPhone: data.customerPhone,
+            customerEmail: data.customerEmail || null,
+            items: JSON.stringify(data.items),
+            totalAmount,
+            depositAmount,
+            balanceRemaining: totalAmount - depositAmount,
+            payments: JSON.stringify(payments),
+            status: 'active',
+            dueDate: data.dueDate ? new Date(data.dueDate) : null,
+            expiryDate: new Date(data.expiryDate),
+            depositPercentage: depositPct,
+            notes: data.notes || null,
+          },
+        });
+        break;
+      } catch (err: any) {
+        if (err.code === 'P2002' && attempts < maxAttempts - 1) {
+          attempts++;
+          continue;
+        }
+        throw err;
+      }
+    }
 
     // Reserve stock (reduce quantity - atomic)
     for (const item of data.items) {
@@ -180,30 +196,46 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         }
       }
 
-      const count = await pgQuery<any>(`SELECT COUNT(*)::int as c FROM "Layaway" WHERE "tenantId" = $1`, [tenantId]);
-      const cn = (count[0]?.c || 0) + 1;
-      const layawayNumber = `LAY-${String(cn).padStart(5, '0')}`;
-
+      // Generate layaway number with retry loop for unique constraint (pg fallback)
       const payments = depositAmount > 0 ? [{ date: new Date().toISOString(), amount: depositAmount, method: data.paymentMethod || 'cash', reference: data.reference || '' }] : [];
-      const now = new Date().toISOString();
 
-      await pgQuery(
-        `INSERT INTO "Layaway" ("tenantId","layawayNumber","customerName","customerPhone","customerEmail","items","totalAmount","depositAmount","balanceRemaining","payments","status","dueDate","expiryDate","depositPercentage","notes","isDeleted","createdAt","updatedAt")
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16,$17)`,
-        [tenantId, layawayNumber, data.customerName, data.customerPhone, data.customerEmail || null, JSON.stringify(data.items), totalAmount, depositAmount, totalAmount - depositAmount, JSON.stringify(payments), 'active', data.dueDate ? new Date(data.dueDate).toISOString() : null, new Date(data.expiryDate).toISOString(), depositPct, data.notes || null, now, now]
-      );
+      let created: any;
+      let pgAttempts = 0;
+      const pgMaxAttempts = 3;
+      while (pgAttempts < pgMaxAttempts) {
+        try {
+          const count = await pgQuery<any>(`SELECT COUNT(*)::int as c FROM "Layaway" WHERE "tenantId" = $1`, [tenantId]);
+          const cn = (count[0]?.c || 0) + 1;
+          const layawayNumber = `LAY-${String(cn).padStart(5, '0')}`;
+          const now = new Date().toISOString();
 
-      // Reserve stock (atomic)
-      for (const item of data.items) {
-        if (item.productId) {
-          try { await pgQuery(`UPDATE "RetailProduct" SET quantity = GREATEST(0, quantity - $1), "updatedAt" = NOW() WHERE id = $2 AND "tenantId" = $3`, [item.quantity, item.productId, tenantId]); } catch { /* best-effort */ }
+          await pgQuery(
+            `INSERT INTO "Layaway" ("tenantId","layawayNumber","customerName","customerPhone","customerEmail","items","totalAmount","depositAmount","balanceRemaining","payments","status","dueDate","expiryDate","depositPercentage","notes","isDeleted","createdAt","updatedAt")
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16,$17)`,
+            [tenantId, layawayNumber, data.customerName, data.customerPhone, data.customerEmail || null, JSON.stringify(data.items), totalAmount, depositAmount, totalAmount - depositAmount, JSON.stringify(payments), 'active', data.dueDate ? new Date(data.dueDate).toISOString() : null, new Date(data.expiryDate).toISOString(), depositPct, data.notes || null, now, now]
+          );
+
+          // Reserve stock (atomic)
+          for (const item of data.items) {
+            if (item.productId) {
+              try { await pgQuery(`UPDATE "RetailProduct" SET quantity = GREATEST(0, quantity - $1), "updatedAt" = NOW() WHERE id = $2 AND "tenantId" = $3`, [item.quantity, item.productId, tenantId]); } catch { /* best-effort */ }
+            }
+          }
+
+          created = await pgQueryOne(`SELECT * FROM "Layaway" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC LIMIT 1`, [tenantId]);
+          break;
+        } catch (pgErr: any) {
+          if (pgErr.code === '23505' && pgAttempts < pgMaxAttempts - 1) {
+            pgAttempts++;
+            continue;
+          }
+          throw pgErr;
         }
       }
-
-      const created = await pgQueryOne(`SELECT * FROM "Layaway" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC LIMIT 1`, [tenantId]);
       return NextResponse.json(created);
     } catch (pgErr: any) {
-      return NextResponse.json({ error: pgErr.message }, { status: 500 });
+        console.error('[layaways] Error:', pgErr);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -241,7 +273,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
       });
 
       const totalPaid = currentPayments.reduce((s: number, p: any) => s + (p.amount || 0), 0);
-      const newBalance = layaway.totalAmount - totalPaid;
+      const newBalance = Number(layaway.totalAmount) - totalPaid;
       const isPaidInFull = newBalance <= 0.01; // floating point tolerance
 
       await db.layaway.update({
@@ -358,7 +390,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
       const final = await pgQueryOne(`SELECT * FROM "Layaway" WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
       return NextResponse.json(final);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[layaways] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -405,7 +438,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
       await pgQuery(`UPDATE "Layaway" SET "isDeleted" = true, "updatedAt" = NOW() WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
       return NextResponse.json({ success: true });
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[layaways] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }

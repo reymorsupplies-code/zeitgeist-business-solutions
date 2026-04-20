@@ -19,7 +19,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       const items = await pgQuery<any>(`SELECT * FROM "Supplier" WHERE "tenantId" = $1 AND "isDeleted" = false ORDER BY "createdAt" DESC`, [tenantId]);
       return NextResponse.json(items);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[suppliers] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -48,7 +49,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       const created = await pgQueryOne(`SELECT * FROM "Supplier" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC LIMIT 1`, [tenantId]);
       return NextResponse.json(created);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[suppliers] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -81,7 +83,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
       const updated = await pgQueryOne(`SELECT * FROM "Supplier" WHERE id = $1`, [id]);
       return NextResponse.json(updated);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[suppliers] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
@@ -105,7 +108,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
       await pgQuery(`UPDATE "Supplier" SET "isDeleted" = true, "updatedAt" = NOW() WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
       return NextResponse.json({ success: true });
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[suppliers] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }

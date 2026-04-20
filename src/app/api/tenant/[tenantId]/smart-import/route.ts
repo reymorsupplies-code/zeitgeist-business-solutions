@@ -116,6 +116,8 @@ const TABLE_CONFIGS: Record<
     // Aliases: each key is a "canonical" keyword, value is the actual DB column name
     fieldAliases: Record<string, string>;
     requiredFields: string[];
+    // Whitelist of DB column names that are permitted for INSERT — SQL injection defence
+    allowedColumns: string[];
   }
 > = {
   clients: {
@@ -130,6 +132,7 @@ const TABLE_CONFIGS: Record<
       country: 'address',
     },
     requiredFields: ['name'],
+    allowedColumns: ['name', 'email', 'phone', 'address', 'tenantId', 'id', 'createdAt', 'updatedAt', 'isDeleted'],
   },
   products: {
     table: '"CatalogItem"',
@@ -143,6 +146,7 @@ const TABLE_CONFIGS: Record<
       cost: 'cost',
     },
     requiredFields: ['name'],
+    allowedColumns: ['name', 'price', 'sku', 'description', 'category', 'cost', 'tenantId', 'id', 'createdAt', 'updatedAt', 'isDeleted'],
   },
   patients: {
     table: '"Patient"',
@@ -158,6 +162,7 @@ const TABLE_CONFIGS: Record<
       allergies: 'allergies',
     },
     requiredFields: ['name'],
+    allowedColumns: ['firstName', 'dateOfBirth', 'gender', 'phone', 'email', 'bloodType', 'allergies', 'tenantId', 'id', 'createdAt', 'updatedAt', 'isDeleted'],
   },
   policies: {
     table: '"Policy"',
@@ -171,6 +176,7 @@ const TABLE_CONFIGS: Record<
       status: 'status',
     },
     requiredFields: [],
+    allowedColumns: ['policyNumber', 'clientName', 'type', 'premium', 'startDate', 'endDate', 'status', 'tenantId', 'id', 'createdAt', 'updatedAt', 'isDeleted'],
   },
   cases: {
     table: '"LegalCase"',
@@ -185,6 +191,7 @@ const TABLE_CONFIGS: Record<
       name: 'title',
     },
     requiredFields: [],
+    allowedColumns: ['caseNumber', 'clientName', 'caseType', 'status', 'openDate', 'description', 'title', 'tenantId', 'id', 'createdAt', 'updatedAt', 'isDeleted'],
   },
   appointments: {
     table: '"Appointment"',
@@ -197,6 +204,7 @@ const TABLE_CONFIGS: Record<
       status: 'status',
     },
     requiredFields: [],
+    allowedColumns: ['date', 'clientName', 'notes', 'duration', 'status', 'tenantId', 'id', 'createdAt', 'updatedAt', 'isDeleted'],
   },
   properties: {
     table: '"Property"',
@@ -209,6 +217,7 @@ const TABLE_CONFIGS: Record<
       status: 'status',
     },
     requiredFields: ['name'],
+    allowedColumns: ['name', 'address', 'type', 'units', 'totalArea', 'status', 'tenantId', 'id', 'createdAt', 'updatedAt', 'isDeleted'],
   },
   inventory: {
     table: '"RetailProduct"',
@@ -222,8 +231,14 @@ const TABLE_CONFIGS: Record<
       supplier: 'supplier',
     },
     requiredFields: ['name'],
+    allowedColumns: ['name', 'sku', 'quantity', 'cost', 'price', 'category', 'supplier', 'tenantId', 'id', 'createdAt', 'updatedAt', 'isDeleted'],
   },
 };
+
+/** Set of all allowed table names for extra safety */
+const ALLOWED_TABLE_NAMES = new Set(
+  Object.values(TABLE_CONFIGS).map((c) => c.table)
+);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -444,6 +459,12 @@ function parseExcel(buffer: ArrayBuffer): ParseResult {
 
 // ─── Import Execution ────────────────────────────────────────────────────────
 
+// ─── SQL Injection Guard ────────────────────────────────────────────────────
+/** Only allow safe alphanumeric + underscore column names */
+const SAFE_COLUMN_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+/** Only allow quoted table identifiers like "Client" */
+const SAFE_TABLE_REGEX = /^"[a-zA-Z_][a-zA-Z0-9_]*"$/;
+
 async function executeImport(
   tenantId: string,
   type: MappingType,
@@ -458,6 +479,26 @@ async function executeImport(
     errorCount: 0,
     errors: [],
   };
+
+  // ── Defence 1: Validate table name against hardcoded whitelist ──
+  if (!ALLOWED_TABLE_NAMES.has(config.table) || !SAFE_TABLE_REGEX.test(config.table)) {
+    throw new Error(`Invalid table name: ${config.table}`);
+  }
+
+  // ── Defence 2: Validate each target column against allowedColumns whitelist ──
+  const allowedColumns = new Set(config.allowedColumns);
+  for (const target of Object.values(columnMapping)) {
+    if (!allowedColumns.has(target)) {
+      throw new Error(`Invalid column: ${target}. Allowed columns: ${config.allowedColumns.join(', ')}`);
+    }
+  }
+
+  // ── Defence 3: Reject column names containing special characters ──
+  for (const target of Object.values(columnMapping)) {
+    if (!SAFE_COLUMN_REGEX.test(target)) {
+      throw new Error(`Invalid column name: ${target}. Column names must match ${SAFE_COLUMN_REGEX}`);
+    }
+  }
 
   // Collect unique target fields from the mapping
   const mappedTargetFields = new Set<string>();
@@ -474,6 +515,14 @@ async function executeImport(
   mappedTargetFields.add('isDeleted');
 
   const columns = [...mappedTargetFields];
+
+  // ── Defence 4: Also validate the final column list (includes injected standard fields) ──
+  for (const col of columns) {
+    if (!SAFE_COLUMN_REGEX.test(col)) {
+      throw new Error(`Invalid column name in final list: ${col}. Column names must match ${SAFE_COLUMN_REGEX}`);
+    }
+  }
+
   const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
   const columnList = columns.map((c) => `"${c}"`).join(', ');
   const insertSQL = `INSERT INTO ${config.table} (${columnList}) VALUES (${placeholders})`;
@@ -590,17 +639,20 @@ export async function POST(
         );
       }
 
-      // Validate all target fields exist in table config
+      // Validate all target fields against the hardcoded allowedColumns whitelist
       const config = TABLE_CONFIGS[type];
-      const validTargets = new Set(Object.values(config.fieldAliases));
-      // Allow standard fields
-      validTargets.add('tenantId');
-      validTargets.add('id');
-      validTargets.add('createdAt');
-      validTargets.add('updatedAt');
-      validTargets.add('isDeleted');
+      const validTargets = new Set(config.allowedColumns);
 
       for (const [src, tgt] of Object.entries(mapping)) {
+        // Reject column names containing special characters (SQL injection defence)
+        if (!SAFE_COLUMN_REGEX.test(tgt)) {
+          return NextResponse.json(
+            {
+              error: `Invalid target field "${tgt}" for column "${src}". Column names must be alphanumeric (underscores allowed).`,
+            },
+            { status: 400 }
+          );
+        }
         if (!validTargets.has(tgt)) {
           return NextResponse.json(
             {

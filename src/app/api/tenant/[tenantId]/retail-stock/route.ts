@@ -49,7 +49,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
     return NextResponse.json({ movements, sales });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+      console.error('[retail-stock] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -117,6 +118,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       productName: product[0].name,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+      console.error('[retail-stock] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

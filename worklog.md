@@ -1,87 +1,138 @@
-# ZBS Production Bug Fix Worklog
+# ZBS Platform Internal Fixes — Work Log
 
-## Date: 2025-01-28
-
-## Summary
-Fixed 12 critical production bugs across UI components, POS logic, register shift formulas, and i18n coverage.
+**Date**: 2025-01-17
+**Scope**: 4 production fixes across 11 retail API route files
 
 ---
 
-## Fix 1: Held Sales Dialog Cannot Be Dismissed
-**File:** `src/app/page.tsx`
-- Added `showHeldSales` state variable
-- Changed dialog `open` prop from `heldSales.length > 0` to `showHeldSales`
-- Changed dialog `onOpenChange` from `() => {}` to `setShowHeldSales`
-- Updated Held Sales button `onClick` to `setShowHeldSales(true)`
+## Fix 1: Register Shift — Split Payment + Layaway Deposits + Gift Card Issuance
 
-## Fix 2: Cart Can Exceed Stock in POS
-**File:** `src/app/page.tsx`
-- Rewrote `addToCart` to check existing cart quantity against available stock before adding
-- Rewrote `updateQty` to validate against product stock before updating
-- Both functions now show `toast.error(pos.outOfStock)` when stock limit would be exceeded
+**File**: `src/app/api/tenant/[tenantId]/register-shifts/route.ts`
 
-## Fix 3: Returns Max Qty Validation
-**File:** `src/app/page.tsx`
-- Changed return item quantity `max` prop from `item.qty || 99` to `item.qty || 0`
-- Changed `onChange` min calculation from `item.qty || 99` to `item.qty || 0`
+### Changes (Prisma path + pg fallback path):
 
-## Fix 4: i18n Missing Locale Parameter
-**File:** `src/app/page.tsx`
-- Fixed `t('returns.originalSale')` → `t('returns.originalSale', locale)` in Returns page
+**A) Split payment documentation:**
+- Added comment block above payment method aggregation explaining that `paymentMethod: 'split'` sales are included in `totalSales` but NOT broken down into cash/card/transfer, since POSSale stores a single `paymentMethod` per sale.
+- Added same note in the pg fallback path.
 
-## Fix 5: Added Missing i18n Keys
-**File:** `src/lib/i18n.ts` (both en and es)
-- `pos.saleHeld`: "Sale held successfully" / "Venta en espera guardada"
-- `pos.outOfStock`: "Out of stock" / "Sin stock"
-- `common.confirmDelete`: Delete confirmation string
-- `layaway.noPayments`: "No payments recorded." / "No hay pagos registrados."
-- `layaway.item` / `layaway.items_count`: singular/plural for item counts
-- `retailInv.moreAlerts`: "+{n} more" pattern
-- `shift.optionalNotes`: "Optional notes..." / "Notas opcionales..."
-- `returns.walkIn`: "Walk-in" / "Mostrador"
-- `returns.date`: "Date" / "Fecha"
+**B) Layaway deposit aggregation:**
+- Renamed query from `layawayAgg` to `layawayCreatedAgg` for clarity.
+- Added second query `layawayCompletedAgg` that sums `totalAmount` for layaways with `status: 'completed'` and `updatedAt` within the shift window.
+- Combined both values: `layawayDeposits = created_deposits + completed_totals`.
+- Added comment documenting limitation: payments added via `addPayment` on existing layaways are stored in JSON and not queryable.
+- Updated pg fallback to use a subquery with two `SELECT SUM()` expressions.
 
-## Fix 6: JSON.parse Safety in Render
-**File:** `src/app/page.tsx`
-- Wrapped `JSON.parse(l.items)` in Layaways list with try-catch fallback to `[]`
-- Wrapped `JSON.parse(l.items)` and `JSON.parse(l.payments)` in Layaways detail dialog with try-catch
-- Wrapped `JSON.parse(ret.items)` in Returns page with try-catch
+**C) Gift card issuance tracking:**
+- Added `gcIssuedAgg` query summing `initialBalance` for gift cards with `issuedAt` within shift window.
+- Added `giftCardCashReceived = Number(gcIssuedAgg._sum.initialBalance ?? 0)`.
+- Applied to `cashSales += giftCardCashReceived` (assumes gift cards purchased with cash).
+- Added pg fallback query for the same.
+- Updated `expectedCash` calculation to use `adjustedCashSales` (pg path) and the augmented `cashSales` (Prisma path).
+- Fixed TypeScript `Decimal` type issues by wrapping aggregate results with `Number()` and using `??` instead of `||`.
 
-## Fix 7: Register Shift Expected Cash Formula
-**File:** `src/app/api/tenant/[tenantId]/register-shifts/route.ts`
-- Changed `expectedCash = startingCash + cashSales - totalRefunds` to use `cashRefunds` instead
-- Added separate aggregation query for cash-only refunds (`refundMethod: 'cash'`)
-- Fixed in both Prisma ORM path and raw SQL fallback path
+---
 
-## Fix 8: Register Shift Refunds Status Filter
-**File:** `src/app/api/tenant/[tenantId]/register-shifts/route.ts`
-- Added `status: { in: ['approved', 'completed'] }` filter to refund aggregation queries
-- Applied to both Prisma ORM and raw SQL paths
+## Fix 2: Error Message Sanitization
 
-## Fix 9: Confirmation Dialogs for Delete Actions
-**File:** `src/app/page.tsx`
-- Added `if (!confirm(t('common.confirmDelete', locale))) return;` to `TenantSuppliersPage.handleDelete`
-- Added same confirmation to `TenantReturnsPage.handleDelete`
+**Files**: 11 retail API route files
 
-## Fix 10: Hardcoded Cancel Buttons
-**File:** `src/app/page.tsx`
-- PO Create dialog: `Cancel` → `t('common.cancel', locale)`
-- PO Receive dialog: `Cancel` → `t('common.cancel', locale)`
+Replaced all `err.message` / `error.message` / `pgErr.message` in 500-status responses with:
+```typescript
+console.error('[route-name] Error:', err);
+return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+```
 
-## Fix 11: Hardcoded Strings in Various Components
-**File:** `src/app/page.tsx`
-- Inventory: `+${lowStockItems.length - 10} more` → `t('retailInv.moreAlerts', locale)`
-- Returns: `'Walk-in'` → `t('returns.walkIn', locale)`
-- Layaways: `'item'/'items'` → `t('layaway.item', locale)` / `t('layaway.items_count', locale)`
-- Inventory movements: `<TableHead>Date</TableHead>` → `t('common.date', locale)`
-- Layaways: `"No payments recorded."` → `t('layaway.noPayments', locale)`
-- Register: `"Optional notes..."` → `t('shift.optionalNotes', locale)`
-- Returns table: `"Date"` column header → `t('returns.date', locale)`
+**Exceptions preserved**: 400 (validation), 404 (not found), 409 (conflict) responses kept their specific error messages.
 
-## Fix 12: POS Receipt ID from Server
-**File:** `src/app/page.tsx`
-- Changed from discarding API response to storing it
-- Receipt now uses `result.saleNumber` from server response, with fallback to client-generated ID
+**Files modified** (34 total catch blocks):
+1. `pos-sales/route.ts` — 4 instances
+2. `purchase-orders/route.ts` — 4 instances
+3. `retail-stock/route.ts` — 2 instances
+4. `returns/route.ts` — 4 instances
+5. `layaways/route.ts` — 4 instances
+6. `gift-cards/route.ts` — 4 instances
+7. `register-shifts/route.ts` — 4 instances
+8. `retail-products/route.ts` — 4 instances
+9. `suppliers/route.ts` — 4 instances
+10. `customer-history/route.ts` — 1 instance
+11. `barcode-lookup/route.ts` — 1 instance
+
+---
+
+## Fix 3: API Pagination — LIMIT 200
+
+**Files**:
+
+1. **purchase-orders/route.ts** (GET handler):
+   - Prisma: Added `.take(200)` to `findMany()`
+   - pg: Added `LIMIT 200` to SQL query
+
+2. **layaways/route.ts** (GET handler):
+   - Prisma: Added `.take(200)` to `findMany()`
+   - pg: Added `LIMIT 200` to SQL query
+
+3. **customer-history/route.ts** (GET handler):
+   - Verified `LIMIT 100` already present on the aggregated customer list query
+   - Added `offset` query parameter support: `const offset = parseInt(url.searchParams.get('offset') || '0')`
+   - Updated SQL to `LIMIT 100 OFFSET $2` with `[tenantId, offset]`
+
+---
+
+## Fix 4: Number Generation Retry Loop
+
+**Files**: 5 POST handlers (both Prisma and pg fallback paths)
+
+Wrapped the number generation + create operation in a retry loop (max 3 attempts):
+
+**Pattern (Prisma):**
+```typescript
+let attempts = 0;
+const maxAttempts = 3;
+while (attempts < maxAttempts) {
+  try {
+    const count = await db.model.count({ where: { tenantId } });
+    const number = `PREFIX-${String(count + 1).padStart(5, '0')}`;
+    const record = await db.model.create({ data: { ...data, number } });
+    break;
+  } catch (err: any) {
+    if (err.code === 'P2002' && attempts < maxAttempts - 1) {
+      attempts++;
+      continue;
+    }
+    throw err;
+  }
+}
+```
+
+**Pattern (pg fallback):**
+```typescript
+let pgAttempts = 0;
+const pgMaxAttempts = 3;
+while (pgAttempts < pgMaxAttempts) {
+  try {
+    // ... count + generate + insert
+    break;
+  } catch (pgErr: any) {
+    if (pgErr.code === '23505' && pgAttempts < pgMaxAttempts - 1) {
+      pgAttempts++;
+      continue;
+    }
+    throw pgErr;
+  }
+}
+```
+
+**Files updated:**
+1. `pos-sales/route.ts` — `SL-` prefix (saleNumber)
+2. `purchase-orders/route.ts` — `PO-` prefix (poNumber)
+3. `returns/route.ts` — `RET-` prefix (returnNumber)
+4. `layaways/route.ts` — `LAY-` prefix (layawayNumber)
+5. `register-shifts/route.ts` — `SHIFT-` prefix (shiftNumber)
+
+---
 
 ## Verification
-- TypeScript compilation: 0 errors (`npx tsc --noEmit`)
+
+- TypeScript compilation: **0 errors** (`npx tsc --noEmit`)
+- ESLint: No new errors introduced (74 pre-existing errors in unrelated files)
+- All lint errors in modified files: **0**

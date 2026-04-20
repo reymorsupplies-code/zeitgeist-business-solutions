@@ -13,6 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
   const url = new URL(req.url);
   const customerName = url.searchParams.get('customerName');
+  const offset = parseInt(url.searchParams.get('offset') || '0');
 
   try {
     // ─── Customer Detail ───
@@ -57,12 +58,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       WHERE "tenantId" = $1 AND "customerName" IS NOT NULL AND "customerName" != '' AND "status" = 'completed' AND "isDeleted" = false
       GROUP BY "customerName"
       ORDER BY "totalSpent" DESC
-      LIMIT 100`,
-      [tenantId]
+      LIMIT 100 OFFSET $2`,
+      [tenantId, offset]
     );
 
     return NextResponse.json(customers);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+      console.error('[customer-history] Error:', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
