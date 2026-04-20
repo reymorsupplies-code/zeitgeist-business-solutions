@@ -63,6 +63,7 @@ export async function middleware(request: NextRequest) {
       "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in",
       "connect-src 'self' https://*.supabase.co https://api.resend.com https://api.stripe.com wss://*.supabase.co",
       "frame-src https://js.stripe.com",
+      "media-src 'self' blob:",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -87,7 +88,7 @@ export async function middleware(request: NextRequest) {
   // Permissions Policy — restrict browser features
   responseHeaders.set(
     'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=(), interest-cohort=()'
+    'camera=(self), microphone=(), geolocation=(), interest-cohort=()'
   );
 
   // ─── Non-API routes: just add security headers ───

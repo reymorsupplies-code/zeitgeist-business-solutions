@@ -26,7 +26,8 @@ import {
   RotateCcw, ArrowRightLeft, BadgeDollarSign, Percent, EyeOff, CalendarDays,
   Twitter, Linkedin, Instagram, Facebook,
   KeyRound, LogIn, Languages,
-  Table as TableIcon, Save, Cake, Pencil
+  Table as TableIcon, Save, Cake, Pencil,
+  CalendarHeart, ScanLine
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +45,7 @@ import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
+import BarcodeScanner from '@/components/barcode-scanner';
 
 // ============ LANG TOGGLE ============
 function LangToggle({ className = '' }: { className?: string }) {
@@ -168,6 +170,8 @@ function getBakeryNav(locale: string) {
     { label: t('tenant.pos', locale), icon: CardIcon, page: 'pos' as const, available: true },
     { label: t('tenant.kds', locale), icon: Utensils, page: 'kds' as const, available: true, tier: 'Growth+' },
     { label: t('tenant.productionPlans', locale), icon: ClipboardList, page: 'production_plans' as const, available: true, tier: 'Growth+' },
+    { label: t('production.title', locale), icon: ClipboardList, page: 'production_sheets' as const, available: true, tier: 'Growth+' },
+    { label: t('scanner.title', locale), icon: ScanLine, page: 'barcode_scanner' as const, available: true },
   ]},
   { section: t('tenant.section.catalog', locale), items: [
     { label: t('tenant.catalog', locale), icon: Package, page: 'catalog' as const, available: true },
@@ -177,6 +181,8 @@ function getBakeryNav(locale: string) {
     { label: t('tenant.ingredients', locale), icon: Package, page: 'ingredients' as const, available: true },
     { label: t('tenant.rawMaterials', locale), icon: Package, page: 'raw_materials' as const, available: true, tier: 'Growth+' },
     { label: t('tenant.designGallery', locale), icon: Image, page: 'design_gallery' as const, available: true },
+    { label: t('tastings.title', locale), icon: CalendarHeart, page: 'tastings' as const, available: true, tier: 'Growth+' },
+    { label: t('design.title', locale), icon: Palette, page: 'design_approvals' as const, available: true, tier: 'Growth+' },
   ]},
   { section: t('tenant.section.clients', locale), items: [
     { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
@@ -16398,6 +16404,656 @@ function TenantGuestListsPage() {
   );
 }
 
+// ============ TENANT PRODUCTION SHEETS PAGE ============
+function TenantProductionSheetsPage() {
+  const { currentTenant, locale } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale }));
+  const tenantId = currentTenant?.id;
+  const [sheets, setSheets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
+  const [formItems, setFormItems] = useState([{ productName: '', qty: '', unit: 'units', notes: '' }]);
+  const [formNotes, setFormNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const loadSheets = useCallback(() => {
+    if (!tenantId) return;
+    setLoading(true);
+    authFetch(`/api/tenant/${tenantId}/production-sheets`)
+      .then(r => r.json())
+      .then(data => { setSheets(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [tenantId]);
+
+  useEffect(() => { loadSheets(); }, [loadSheets]);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todaySheets = sheets.filter(s => s.date?.slice(0, 10) === todayStr).length;
+  const pendingSheets = sheets.filter(s => s.status === 'pending').length;
+  const inProgressSheets = sheets.filter(s => s.status === 'in_progress').length;
+  const completedSheets = sheets.filter(s => s.status === 'completed').length;
+
+  const handleCreate = async () => {
+    if (!tenantId) return;
+    setSaving(true);
+    try {
+      const items = formItems.filter(i => i.productName.trim()).map(i => ({
+        productName: i.productName.trim(),
+        qty: parseFloat(i.qty) || 0,
+        unit: i.unit,
+        notes: i.notes.trim(),
+        completed: false,
+      }));
+      if (items.length === 0) { toast.error(t('common.error', locale)); setSaving(false); return; }
+      await authFetch(`/api/tenant/${tenantId}/production-sheets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: formDate, items, notes: formNotes.trim() }),
+      });
+      toast.success(t('production.toast.created', locale));
+      setShowCreate(false);
+      setFormItems([{ productName: '', qty: '', unit: 'units', notes: '' }]);
+      setFormNotes('');
+      loadSheets();
+    } catch {
+      toast.error(t('common.error', locale));
+    }
+    setSaving(false);
+  };
+
+  const handleToggleItem = async (sheetId: string, itemIdx: number, currentItems: any[]) => {
+    if (!tenantId) return;
+    const updated = currentItems.map((it: any, i: number) =>
+      i === itemIdx ? { ...it, completed: !it.completed } : it
+    );
+    try {
+      await authFetch(`/api/tenant/${tenantId}/production-sheets`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: sheetId, items: updated }),
+      });
+      toast.success(t('production.toast.updated', locale));
+      loadSheets();
+    } catch {
+      toast.error(t('common.error', locale));
+    }
+  };
+
+  const handleStatusChange = async (sheetId: string, newStatus: string) => {
+    if (!tenantId) return;
+    try {
+      await authFetch(`/api/tenant/${tenantId}/production-sheets`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: sheetId, status: newStatus }),
+      });
+      toast.success(t('production.toast.updated', locale));
+      loadSheets();
+    } catch {
+      toast.error(t('common.error', locale));
+    }
+  };
+
+  const handleDelete = async (sheetId: string) => {
+    if (!tenantId) return;
+    try {
+      await authFetch(`/api/tenant/${tenantId}/production-sheets`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: sheetId }),
+      });
+      toast.success(t('production.toast.deleted', locale));
+      loadSheets();
+    } catch {
+      toast.error(t('common.error', locale));
+    }
+  };
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+      in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+      completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+    };
+    const labelMap: Record<string, string> = {
+      pending: t('production.status.pending', locale),
+      in_progress: t('production.status.inProgress', locale),
+      completed: t('production.status.completed', locale),
+    };
+    return <Badge className={map[status] || ''}>{labelMap[status] || status}</Badge>;
+  };
+
+  if (loading) return <PageSkeleton type="cards" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg"><ClipboardList className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">{t('production.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('production.subtitle', locale)}</p></div>
+        </div>
+        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-pink-600 to-rose-600"><Plus className="w-4 h-4 mr-2" />{t('production.btn.newSheet', locale)}</Button>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: t('production.card.today', locale), value: todaySheets, color: 'from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30', icon: Calendar },
+          { label: t('production.card.pending', locale), value: pendingSheets, color: 'from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30', icon: Clock },
+          { label: t('production.card.inProgress', locale), value: inProgressSheets, color: 'from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30', icon: Loader2 },
+          { label: t('production.card.completed', locale), value: completedSheets, color: 'from-emerald-50 to-green-50 dark:from-emerald-950/30 dark:to-green-950/30', icon: Check },
+        ].map(card => (
+          <motion.div key={card.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className={`bg-gradient-to-br ${card.color}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div><p className="text-sm text-muted-foreground">{card.label}</p><p className="text-2xl font-bold mt-1">{card.value}</p></div>
+                  <card.icon className="w-8 h-8 text-muted-foreground/40" />
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Sheets list */}
+      {sheets.length === 0 ? (
+        <Card className="p-8 text-center text-muted-foreground">{t('production.empty', locale)}</Card>
+      ) : (
+        <div className="space-y-4">
+          {sheets.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((sheet: any) => (
+            <motion.div key={sheet.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <Card className="bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      <span className="font-medium">{sheet.date ? new Date(sheet.date).toLocaleDateString() : '-'}</span>
+                      {statusBadge(sheet.status)}
+                    </div>
+                    <div className="flex gap-2">
+                      {sheet.status === 'pending' && (
+                        <Button size="sm" variant="outline" onClick={() => handleStatusChange(sheet.id, 'in_progress')}><Play className="w-3.5 h-3.5 mr-1" />{t('production.action.start', locale)}</Button>
+                      )}
+                      {sheet.status === 'in_progress' && (
+                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => handleStatusChange(sheet.id, 'completed')}><Check className="w-3.5 h-3.5 mr-1" />{t('production.action.complete', locale)}</Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={() => handleDelete(sheet.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                    </div>
+                  </div>
+                  {/* Item checklist */}
+                  <div className="space-y-2">
+                    {(sheet.items || []).map((item: any, idx: number) => (
+                      <div key={idx} className="flex items-center gap-3 text-sm">
+                        <Checkbox checked={item.completed} onCheckedChange={() => handleToggleItem(sheet.id, idx, sheet.items)} disabled={sheet.status === 'completed'} />
+                        <span className={item.completed ? 'line-through text-muted-foreground' : ''}>{item.productName}</span>
+                        <span className="text-muted-foreground">× {item.qty} {item.unit}</span>
+                        {item.notes && <span className="text-xs text-muted-foreground">({item.notes})</span>}
+                      </div>
+                    ))}
+                  </div>
+                  {sheet.notes && <p className="text-xs text-muted-foreground mt-3">{sheet.notes}</p>}
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Create dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{t('production.btn.newSheet', locale)}</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div><Label>{t('production.form.date', locale)}</Label><Input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} /></div>
+            <div className="space-y-2">
+              <Label>{t('common.notes', locale)}</Label>
+              <Textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder={t('production.form.notes', locale)} rows={2} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('production.form.addItem', locale)}</Label>
+              {formItems.map((item, idx) => (
+                <div key={idx} className="flex gap-2 items-start">
+                  <div className="flex-1"><Input placeholder={t('production.form.productName', locale)} value={item.productName} onChange={e => { const ni = [...formItems]; ni[idx] = { ...ni[idx], productName: e.target.value }; setFormItems(ni); }} /></div>
+                  <Input className="w-20" type="number" placeholder={t('production.form.quantity', locale)} value={item.qty} onChange={e => { const ni = [...formItems]; ni[idx] = { ...ni[idx], qty: e.target.value }; setFormItems(ni); }} />
+                  <Input className="w-24" placeholder={t('production.form.unit', locale)} value={item.unit} onChange={e => { const ni = [...formItems]; ni[idx] = { ...ni[idx], unit: e.target.value }; setFormItems(ni); }} />
+                  <Input className="w-28" placeholder={t('production.form.notes', locale)} value={item.notes} onChange={e => { const ni = [...formItems]; ni[idx] = { ...ni[idx], notes: e.target.value }; setFormItems(ni); }} />
+                  {formItems.length > 1 && <Button variant="ghost" size="sm" className="text-red-500" onClick={() => setFormItems(formItems.filter((_, i) => i !== idx))}><Trash2 className="w-4 h-4" /></Button>}
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={() => setFormItems([...formItems, { productName: '', qty: '', unit: 'units', notes: '' }])}><Plus className="w-3.5 h-3.5 mr-1" />{t('production.form.addItem', locale)}</Button>
+            </div>
+            <Button onClick={handleCreate} disabled={saving || formItems.filter(i => i.productName.trim()).length === 0} className="w-full bg-gradient-to-r from-pink-600 to-rose-600">
+              {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('common.loading', locale)}</> : t('production.form.create', locale)}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ TENANT TASTINGS PAGE ============
+function TenantTastingsPage() {
+  const { currentTenant, locale } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale }));
+  const tenantId = currentTenant?.id;
+  const [tastings, setTastings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ clientName: '', phone: '', email: '', date: new Date().toISOString().slice(0, 10), time: '10:00', guests: 2, flavors: [''], notes: '' });
+
+  const loadTastings = useCallback(() => {
+    if (!tenantId) return;
+    setLoading(true);
+    authFetch(`/api/tenant/${tenantId}/tastings`)
+      .then(r => r.json())
+      .then(data => { setTastings(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [tenantId]);
+
+  useEffect(() => { loadTastings(); }, [loadTastings]);
+
+  const upcomingCount = tastings.filter(t => t.status === 'requested' || t.status === 'confirmed').length;
+  const requestedCount = tastings.filter(t => t.status === 'requested').length;
+  const confirmedCount = tastings.filter(t => t.status === 'confirmed').length;
+
+  const handleCreate = async () => {
+    if (!tenantId || !form.clientName.trim()) return;
+    setSaving(true);
+    try {
+      await authFetch(`/api/tenant/${tenantId}/tastings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, flavors: form.flavors.filter(f => f.trim()), guests: parseInt(String(form.guests)) || 2 }),
+      });
+      toast.success(t('tastings.toast.created', locale));
+      setShowCreate(false);
+      setForm({ clientName: '', phone: '', email: '', date: new Date().toISOString().slice(0, 10), time: '10:00', guests: 2, flavors: [''], notes: '' });
+      loadTastings();
+    } catch {
+      toast.error(t('common.error', locale));
+    }
+    setSaving(false);
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    if (!tenantId) return;
+    try {
+      await authFetch(`/api/tenant/${tenantId}/tastings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+      toast.success(t('tastings.toast.updated', locale));
+      loadTastings();
+    } catch {
+      toast.error(t('common.error', locale));
+    }
+  };
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      requested: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+      confirmed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+      completed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+      cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    };
+    const labelMap: Record<string, string> = {
+      requested: t('tastings.status.requested', locale),
+      confirmed: t('tastings.status.confirmed', locale),
+      completed: t('tastings.status.completed', locale),
+      cancelled: t('tastings.status.cancelled', locale),
+    };
+    return <Badge className={map[status] || ''}>{labelMap[status] || status}</Badge>;
+  };
+
+  if (loading) return <PageSkeleton type="cards" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg"><CalendarHeart className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">{t('tastings.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('tastings.subtitle', locale)}</p></div>
+        </div>
+        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-pink-600 to-rose-600"><Plus className="w-4 h-4 mr-2" />{t('tastings.btn.newBooking', locale)}</Button>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: t('production.card.upcoming', locale), value: upcomingCount, color: 'from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30', icon: CalendarDays },
+          { label: t('tastings.status.requested', locale), value: requestedCount, color: 'from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30', icon: Clock },
+          { label: t('tastings.status.confirmed', locale), value: confirmedCount, color: 'from-emerald-50 to-green-50 dark:from-emerald-950/30 dark:to-green-950/30', icon: Check },
+        ].map(card => (
+          <motion.div key={card.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className={`bg-gradient-to-br ${card.color}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div><p className="text-sm text-muted-foreground">{card.label}</p><p className="text-2xl font-bold mt-1">{card.value}</p></div>
+                  <card.icon className="w-8 h-8 text-muted-foreground/40" />
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Tastings list */}
+      {tastings.length === 0 ? (
+        <Card className="p-8 text-center text-muted-foreground">{t('tastings.empty', locale)}</Card>
+      ) : (
+        <div className="space-y-4">
+          {tastings.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((tasting: any) => (
+            <motion.div key={tasting.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <Card className="bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+                    <div>
+                      <h3 className="font-semibold text-lg">{tasting.clientName}</h3>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{tasting.date ? new Date(tasting.date).toLocaleDateString() : '-'}</span>
+                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{tasting.time || '-'}</span>
+                        <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{t('tastings.guests', locale).replace('{count}', tasting.guests || 0)}</span>
+                      </div>
+                    </div>
+                    {statusBadge(tasting.status)}
+                  </div>
+                  {/* Flavor badges */}
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {(tasting.flavors || []).map((fl: string, i: number) => (
+                      <Badge key={i} variant="secondary" className="text-xs bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400"><ChefHat className="w-3 h-3 mr-1" />{fl}</Badge>
+                    ))}
+                  </div>
+                  {tasting.notes && <p className="text-sm text-muted-foreground">{tasting.notes}</p>}
+                  {/* Action buttons */}
+                  <div className="flex gap-2 mt-3 pt-3 border-t border-pink-200/50 dark:border-pink-800/50">
+                    {tasting.status === 'requested' && (
+                      <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => handleStatusChange(tasting.id, 'confirmed')}><Check className="w-3.5 h-3.5 mr-1" />{t('tastings.action.confirm', locale)}</Button>
+                    )}
+                    {tasting.status === 'confirmed' && (
+                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleStatusChange(tasting.id, 'completed')}><Check className="w-3.5 h-3.5 mr-1" />{t('tastings.action.complete', locale)}</Button>
+                    )}
+                    {(tasting.status === 'requested' || tasting.status === 'confirmed') && (
+                      <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={() => handleStatusChange(tasting.id, 'cancelled')}><X className="w-3.5 h-3.5 mr-1" />{t('tastings.action.cancel', locale)}</Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Create dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{t('tastings.btn.newBooking', locale)}</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div><Label>{t('tastings.form.clientName', locale)}</Label><Input value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>{t('tastings.form.phone', locale)}</Label><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+              <div><Label>{t('tastings.form.email', locale)}</Label><Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div><Label>{t('tastings.form.date', locale)}</Label><Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
+              <div><Label>{t('tastings.form.time', locale)}</Label><Input type="time" value={form.time} onChange={e => setForm({ ...form, time: e.target.value })} /></div>
+              <div><Label>{t('tastings.form.guests', locale)}</Label><Input type="number" min={1} value={form.guests} onChange={e => setForm({ ...form, guests: parseInt(e.target.value) || 1 })} /></div>
+            </div>
+            <div className="space-y-2">
+              <Label>{t('tastings.form.flavors', locale)}</Label>
+              {form.flavors.map((fl, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <Input placeholder={t('tastings.form.flavorPlaceholder', locale)} value={fl} onChange={e => { const nf = [...form.flavors]; nf[idx] = e.target.value; setForm({ ...form, flavors: nf }); }} />
+                  {form.flavors.length > 1 && <Button variant="ghost" size="sm" className="text-red-500" onClick={() => setForm({ ...form, flavors: form.flavors.filter((_, i) => i !== idx) })}><Trash2 className="w-4 h-4" /></Button>}
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={() => setForm({ ...form, flavors: [...form.flavors, ''] })}><Plus className="w-3.5 h-3.5 mr-1" />{t('tastings.form.addFlavor', locale)}</Button>
+            </div>
+            <div><Label>{t('tastings.form.notes', locale)}</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
+            <Button onClick={handleCreate} disabled={saving || !form.clientName.trim()} className="w-full bg-gradient-to-r from-pink-600 to-rose-600">
+              {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('common.loading', locale)}</> : t('tastings.form.create', locale)}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ TENANT DESIGN APPROVALS PAGE ============
+function TenantDesignApprovalsPage() {
+  const { currentTenant, locale } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale }));
+  const tenantId = currentTenant?.id;
+  const [designs, setDesigns] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [showRevision, setShowRevision] = useState(false);
+  const [revisionTarget, setRevisionTarget] = useState<string | null>(null);
+  const [revisionNotes, setRevisionNotes] = useState('');
+  const [form, setForm] = useState({ clientName: '', description: '', imageUrl: '', refImages: [''], notes: '' });
+
+  const loadDesigns = useCallback(() => {
+    if (!tenantId) return;
+    setLoading(true);
+    authFetch(`/api/tenant/${tenantId}/design-approvals`)
+      .then(r => r.json())
+      .then(data => { setDesigns(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [tenantId]);
+
+  useEffect(() => { loadDesigns(); }, [loadDesigns]);
+
+  const handleCreate = async () => {
+    if (!tenantId || !form.clientName.trim()) return;
+    setSaving(true);
+    try {
+      await authFetch(`/api/tenant/${tenantId}/design-approvals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, refImages: form.refImages.filter(r => r.trim()) }),
+      });
+      toast.success(t('design.toast.created', locale));
+      setShowCreate(false);
+      setForm({ clientName: '', description: '', imageUrl: '', refImages: [''], notes: '' });
+      loadDesigns();
+    } catch {
+      toast.error(t('common.error', locale));
+    }
+    setSaving(false);
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string, extra?: Record<string, any>) => {
+    if (!tenantId) return;
+    try {
+      const body: Record<string, any> = { id, status: newStatus };
+      if (extra) Object.assign(body, extra);
+      await authFetch(`/api/tenant/${tenantId}/design-approvals`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      toast.success(t('design.toast.updated', locale));
+      loadDesigns();
+    } catch {
+      toast.error(t('common.error', locale));
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!tenantId) return;
+    try {
+      await authFetch(`/api/tenant/${tenantId}/design-approvals`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      toast.success(t('design.toast.deleted', locale));
+      loadDesigns();
+    } catch {
+      toast.error(t('common.error', locale));
+    }
+  };
+
+  const handleRevisionSubmit = async () => {
+    if (revisionTarget) {
+      await handleStatusChange(revisionTarget, 'revision', { revisionNotes: revisionNotes.trim() });
+      setShowRevision(false);
+      setRevisionNotes('');
+      setRevisionTarget(null);
+    }
+  };
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      draft: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
+      sent: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+      approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+      revision: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+      rejected: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    };
+    const labelMap: Record<string, string> = {
+      draft: t('design.status.draft', locale),
+      sent: t('design.status.sent', locale),
+      approved: t('design.status.approved', locale),
+      revision: t('design.status.revision', locale),
+      rejected: t('design.status.rejected', locale),
+    };
+    return <Badge className={map[status] || ''}>{labelMap[status] || status}</Badge>;
+  };
+
+  if (loading) return <PageSkeleton type="cards" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg"><Palette className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">{t('design.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('design.subtitle', locale)}</p></div>
+        </div>
+        <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-pink-600 to-rose-600"><Plus className="w-4 h-4 mr-2" />{t('design.btn.newDesign', locale)}</Button>
+      </div>
+
+      {/* Designs list */}
+      {designs.length === 0 ? (
+        <Card className="p-8 text-center text-muted-foreground">{t('design.empty', locale)}</Card>
+      ) : (
+        <div className="space-y-4">
+          {designs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((design: any) => (
+            <motion.div key={design.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <Card className="bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-start gap-4">
+                    {/* Image thumbnail */}
+                    {design.imageUrl && (
+                      <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+                        <img src={design.imageUrl} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                        <h3 className="font-semibold text-lg">{design.clientName}</h3>
+                        <div className="flex items-center gap-2">
+                          {statusBadge(design.status)}
+                          <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={() => handleDelete(design.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{design.description || t('design.noDescription', locale)}</p>
+                      {design.approvedAt && (
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1"><Check className="w-3 h-3" />{t('design.approvedAt', locale)} {new Date(design.approvedAt).toLocaleDateString()}</p>
+                      )}
+                      {design.status === 'revision' && design.revisionNotes && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{t('design.action.requestRevision', locale)}: {design.revisionNotes}</p>
+                      )}
+                      {/* Action buttons per status */}
+                      <div className="flex gap-2 mt-3 pt-3 border-t border-pink-200/50 dark:border-pink-800/50">
+                        {design.status === 'draft' && (
+                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleStatusChange(design.id, 'sent')}><Send className="w-3.5 h-3.5 mr-1" />{t('design.action.send', locale)}</Button>
+                        )}
+                        {design.status === 'sent' && (
+                          <>
+                            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => handleStatusChange(design.id, 'approved', { approvedAt: new Date().toISOString() })}><Check className="w-3.5 h-3.5 mr-1" />{t('design.action.approve', locale)}</Button>
+                            <Button size="sm" variant="outline" onClick={() => { setRevisionTarget(design.id); setShowRevision(true); }}><RefreshCw className="w-3.5 h-3.5 mr-1" />{t('design.action.requestRevision', locale)}</Button>
+                            <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={() => handleStatusChange(design.id, 'rejected')}><X className="w-3.5 h-3.5 mr-1" />{t('design.action.reject', locale)}</Button>
+                          </>
+                        )}
+                        {design.status === 'revision' && (
+                          <>
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleStatusChange(design.id, 'sent')}><Send className="w-3.5 h-3.5 mr-1" />{t('design.action.send', locale)}</Button>
+                            <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={() => handleStatusChange(design.id, 'rejected')}><X className="w-3.5 h-3.5 mr-1" />{t('design.action.reject', locale)}</Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Create dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{t('design.btn.newDesign', locale)}</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div><Label>{t('design.form.clientName', locale)}</Label><Input value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} /></div>
+            <div><Label>{t('design.form.description', locale)}</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} /></div>
+            <div><Label>{t('design.form.image', locale)}</Label><Input value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://..." /></div>
+            <div className="space-y-2">
+              <Label>{t('design.form.refImages', locale)}</Label>
+              {form.refImages.map((ref, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <Input placeholder="https://..." value={ref} onChange={e => { const nr = [...form.refImages]; nr[idx] = e.target.value; setForm({ ...form, refImages: nr }); }} />
+                  {form.refImages.length > 1 && <Button variant="ghost" size="sm" className="text-red-500" onClick={() => setForm({ ...form, refImages: form.refImages.filter((_, i) => i !== idx) })}><Trash2 className="w-4 h-4" /></Button>}
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={() => setForm({ ...form, refImages: [...form.refImages, ''] })}><Plus className="w-3.5 h-3.5 mr-1" />{t('design.form.addRef', locale)}</Button>
+            </div>
+            <div><Label>{t('design.form.notes', locale)}</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
+            <Button onClick={handleCreate} disabled={saving || !form.clientName.trim()} className="w-full bg-gradient-to-r from-pink-600 to-rose-600">
+              {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('common.loading', locale)}</> : t('design.form.create', locale)}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revision notes dialog */}
+      <Dialog open={showRevision} onOpenChange={setShowRevision}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t('design.action.requestRevision', locale)}</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div><Label>{t('design.form.revisionNotes', locale)}</Label><Textarea value={revisionNotes} onChange={e => setRevisionNotes(e.target.value)} rows={3} /></div>
+            <Button onClick={handleRevisionSubmit} disabled={!revisionNotes.trim()} className="w-full bg-gradient-to-r from-amber-600 to-orange-600">{t('design.action.requestRevision', locale)}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ TENANT BARCODE SCANNER PAGE ============
+function TenantBarcodeScannerPage() {
+  const { currentTenant, locale } = useAppStore(s => ({ currentTenant: s.currentTenant, locale: s.locale }));
+
+  const handleAddToOrder = (product: any) => {
+    toast.success(`${product.name} ${t('scanner.addToOrder', locale).toLowerCase()}`);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg"><ScanLine className="w-5 h-5 text-white" /></div>
+        <div><h1 className="text-2xl font-bold">{t('scanner.title', locale)}</h1><p className="text-sm text-muted-foreground">{t('scanner.subtitle', locale)}</p></div>
+      </div>
+      <BarcodeScanner onAddToOrder={handleAddToOrder} />
+    </div>
+  );
+}
+
 // ============ TENANT APP VIEW ============
 function TenantAppView() {
   const { tenantPage, sidebarCollapsed, currentTenant, viewAsTenant, clearViewAsTenant } = useAppStore();
@@ -16458,6 +17114,10 @@ function TenantAppView() {
       case 'stealth_finance': return <TenantStealthFinancePage />;
       case 'raw_materials': return <TenantRawMaterialsPage />;
       case 'cost_analysis': return <TenantCostAnalysisPage />;
+      case 'production_sheets': return <TenantProductionSheetsPage />;
+      case 'tastings': return <TenantTastingsPage />;
+      case 'design_approvals': return <TenantDesignApprovalsPage />;
+      case 'barcode_scanner': return <TenantBarcodeScannerPage />;
       default: return <TenantDashboardPage />;
     }
   };
