@@ -79,3 +79,43 @@ Stage Summary:
 - PWA infrastructure ready (manifest, service worker, icons)
 - Camera unlocked for barcode scanning
 - 0 new TypeScript errors
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fase 3 — Online Orders, Automatic Markdown, Loyalty Program
+
+Work Log:
+- Built online-orders API (public POST for clients, authenticated GET/PUT/DELETE for staff)
+- Built markdown-rules API (5 rule types, 3 discount types, evaluate endpoint)
+- Built loyalty API (member registration, points earn/redeem, auto-tier, transaction history)
+- Added 120+ i18n keys EN/ES
+- Integrated 3 components into page.tsx sidebar + router
+- Updated TenantPage type with 3 new pages
+- Commit: ed66014
+
+Stage Summary:
+- ~3,200 lines across 7 files
+- 3 new APIs with auth + tenant isolation
+- Replaced placeholder Loyalty Program with real implementation
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fase 4 — WhatsApp Integration, Smart Notifications, Pastelería Analytics
+
+Work Log:
+- Built WhatsApp API (templates CRUD, message queue, webhook handler, 5 pre-seeded templates)
+- Built Notifications API (in-app system, type/priority filtering, system triggers, auto-expiry)
+- Built Pastelería Analytics API (5 sections: revenue/orders/products/tastings/loyalty, period filtering)
+- Added 100+ i18n keys EN/ES
+- Integrated 3 components with recharts charts (AreaChart, BarChart, PieChart)
+- Fixed PieChart import conflict (lucide-react icon vs recharts component)
+- Updated TenantPage type with 3 new pages
+- Commit: 5278fec
+
+Stage Summary:
+- ~2,400 lines across 6 files
+- 3 new APIs (whatsapp 764 lines, analytics 565 lines, notifications 447 lines)
+- Full analytics dashboard with 6 recharts visualizations
+- All phases (1-4) complete with 14 new API routes and 14 UI components
