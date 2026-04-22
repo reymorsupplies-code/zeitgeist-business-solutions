@@ -26,7 +26,7 @@ const PLATFORM_ROUTES = [
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
-  process.env.NEXT_PUBLIC_APP_URL || 'https://zbs-app.vercel.app',
+  process.env.NEXT_PUBLIC_APP_URL || 'https://zbs-psi.vercel.app',
   'https://zeitgeist.business',
 ];
 

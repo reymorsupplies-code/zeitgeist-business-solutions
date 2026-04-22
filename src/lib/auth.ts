@@ -11,11 +11,17 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('[AUTH] FATAL: JWT_SECRET environment variable is not configured. The application cannot start securely.');
-}
 const JWT_EXPIRES_IN = '7d';
 const BCRYPT_ROUNDS = 12;
+
+/** Get JWT secret — throws only at runtime, not during build */
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('[AUTH] FATAL: JWT_SECRET environment variable is not configured.');
+  }
+  return secret;
+}
 
 // ─── Password Hashing ───
 
@@ -39,12 +45,12 @@ export interface JWTPayload {
 }
 
 export function signToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET!, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
 }
 
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET!) as JWTPayload;
+    return jwt.verify(token, getJwtSecret()) as JWTPayload;
   } catch {
     return null;
   }

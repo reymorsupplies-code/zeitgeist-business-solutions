@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     icon: "/logo.svg",
     apple: "/logo.svg",
   },
-  metadataBase: new URL('https://zbs-jet.vercel.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://zbs-psi.vercel.app'),
   openGraph: {
     title: "Zeitgeist Business Solutions - 8 Industries, One Platform",
     description: "The Caribbean's most complete multi-industry business management platform. Orders, invoices, inventory, appointments, and analytics — all in one place.",
