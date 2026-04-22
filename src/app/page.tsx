@@ -106,7 +106,7 @@ const INDUSTRIES_DATA: { name: string; slug: string; icon: any; color: string; d
 const PLANS_DATA = [
   {
     name: 'Starter Suite', slug: 'starter', tier: 'starter',
-    priceUSD: 75, priceTTD: 500,
+    priceUSD: 0, // resolved per-industry via INDUSTRY_PRICES
     tagline: 'Essential tools for small businesses',
     desc: 'Perfect for small businesses getting started with digital operations.',
     features: ['Client Management', 'Basic Invoicing', 'Appointment Scheduling', 'Contact Directory', 'Email Notifications', 'Single Branch', 'Up to 3 Users', 'Basic Reports', 'Bookkeeping'],
@@ -115,7 +115,7 @@ const PLANS_DATA = [
   },
   {
     name: 'Growth Engine', slug: 'growth', tier: 'growth',
-    priceUSD: 180, priceTTD: 1200,
+    priceUSD: 0,
     tagline: 'Scale your operations with confidence',
     desc: 'Built for growing businesses that need more power and flexibility.',
     features: ['Everything in Starter', 'Advanced Analytics', 'Inventory Management', 'Multi-Branch (up to 3)', 'Custom Templates', 'Up to 10 Users', 'Priority Email Support', 'Quotation System', 'Recipe Costing', 'Cake Matrix', 'Kitchen Display', 'Smart Import'],
@@ -124,7 +124,7 @@ const PLANS_DATA = [
   },
   {
     name: 'Premium Elite', slug: 'premium', tier: 'premium',
-    priceUSD: 375, priceTTD: 2500,
+    priceUSD: 0,
     tagline: 'Enterprise-grade power for serious operations',
     desc: 'The complete digital suite with every module and dedicated support.',
     features: ['Everything in Growth', 'Unlimited Templates', 'Enterprise Security', 'Audit Trail', 'Compliance Tools', 'Multi-Branch (up to 10)', 'Up to 50 Users', 'Dedicated Email Support', 'API Access', 'Custom Branding', 'Loyalty Program', 'Full Bookkeeping & P&L'],
@@ -132,6 +132,32 @@ const PLANS_DATA = [
     maxUsers: 50, isPopular: false,
   },
 ];
+
+// ============ PER-INDUSTRY PRICING (USD) ============
+const INDUSTRY_PRICES: Record<string, { starter: number; growth: number; premium: number; annualDiscount: number }> = {
+  'bakery':              { starter: 29,  growth: 69,  premium: 149, annualDiscount: 0.20 },
+  'salon-spa':           { starter: 39,  growth: 89,  premium: 179, annualDiscount: 0.20 },
+  'clinics':             { starter: 79,  growth: 199, premium: 399, annualDiscount: 0.20 },
+  'legal':               { starter: 69,  growth: 179, premium: 349, annualDiscount: 0.20 },
+  'insurance':           { starter: 89,  growth: 229, premium: 449, annualDiscount: 0.20 },
+  'retail':              { starter: 35,  growth: 79,  premium: 169, annualDiscount: 0.20 },
+  'events':              { starter: 49,  growth: 119, premium: 249, annualDiscount: 0.20 },
+  'property-management': { starter: 59,  growth: 149, premium: 299, annualDiscount: 0.20 },
+};
+
+function getPlansForIndustry(industrySlug?: string | null) {
+  const pricing = industrySlug ? INDUSTRY_PRICES[industrySlug] : null;
+  return PLANS_DATA.map(plan => ({
+    ...plan,
+    priceUSD: pricing ? pricing[plan.tier as 'starter' | 'growth' | 'premium'] : 0,
+    annualDiscount: pricing?.annualDiscount ?? 0.20,
+  }));
+}
+
+function getPriceRange(tier: 'starter' | 'growth' | 'premium') {
+  const prices = Object.values(INDUSTRY_PRICES).map(p => p[tier]);
+  return { min: Math.min(...prices), max: Math.max(...prices) };
+}
 
 function getCTNav(locale: string) {
   return [
@@ -833,72 +859,102 @@ function PortalTestimonials() {
 }
 
 function PortalPricing() {
-  const { billingCycle, setBillingCycle, currency, setCurrency, setView, setSelectedPlan } = useAppStore();
-  const isTTD = currency === 'TTD';
+  const { billingCycle, setBillingCycle, setSelectedPlan, selectedIndustrySlug, setSelectedIndustrySlug } = useAppStore();
+  const [activeIndustry, setActiveIndustry] = useState<string | null>(selectedIndustrySlug);
+  const displayPlans = getPlansForIndustry(activeIndustry);
+  const hasIndustry = !!activeIndustry;
   
   return (
     <section className="py-20 bg-background" id="pricing">
       <div className="max-w-6xl mx-auto px-4">
-        <div className="text-center mb-12">
+        <div className="text-center mb-10">
           <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20 mb-4">Pricing</Badge>
-          <h2 className="text-3xl sm:text-4xl font-bold">Simple, Transparent Pricing</h2>
-          <p className="text-muted-foreground mt-4">Choose the plan that fits your business. Start with a 7-day free trial.</p>
-          
-          <div className="flex items-center justify-center gap-4 mt-8">
+          <h2 className="text-3xl sm:text-4xl font-bold">Industry-Specific Pricing</h2>
+          <p className="text-muted-foreground mt-4">Every industry is different. Pick yours to see tailored pricing in USD.</p>
+          <div className="flex items-center justify-center gap-3 mt-6">
             <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
               <button onClick={() => setBillingCycle('monthly')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${billingCycle === 'monthly' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}>Monthly</button>
               <button onClick={() => setBillingCycle('annual')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${billingCycle === 'annual' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}>Annual <span className="text-xs text-blue-500">Save 20%</span></button>
             </div>
-            <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
-              <button onClick={() => setCurrency(isTTD ? 'USD' : 'TTD')} className={`px-3 py-2 rounded-md text-xs font-medium transition-all ${isTTD ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}>TTD</button>
-              <button onClick={() => setCurrency(isTTD ? 'USD' : 'TTD')} className={`px-3 py-2 rounded-md text-xs font-medium transition-all ${!isTTD ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}>USD</button>
-            </div>
+            <span className="text-xs text-muted-foreground bg-muted px-3 py-2 rounded-lg font-medium">USD</span>
           </div>
         </div>
-        
+        {/* Industry Selector */}
+        <div className="flex flex-wrap justify-center gap-2 mb-10">
+          <button onClick={() => setActiveIndustry(null)}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${!activeIndustry ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20' : 'bg-background text-muted-foreground border-border hover:border-blue-300 hover:text-foreground'}`}>
+            All Industries
+          </button>
+          {INDUSTRIES_DATA.map(ind => (
+            <button key={ind.slug} onClick={() => setActiveIndustry(ind.slug)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all border ${activeIndustry === ind.slug ? 'text-white border-transparent shadow-lg' : 'bg-background text-muted-foreground border-border hover:border-blue-300 hover:text-foreground'}`}
+              style={activeIndustry === ind.slug ? { background: ind.color, boxShadow: `0 4px 14px ${ind.color}33` } : {}}>
+              <ind.icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{ind.name}</span>
+            </button>
+          ))}
+        </div>
+        {/* Active Industry Banner */}
+        {activeIndustry && (() => {
+          const ind = INDUSTRIES_DATA.find(i => i.slug === activeIndustry);
+          if (!ind) return null;
+          return (
+            <div className="mb-8 p-4 rounded-xl border border-border bg-muted/30 text-center">
+              <div className="flex items-center justify-center gap-2">
+                <ind.icon className="w-5 h-5" style={{ color: ind.color }} />
+                <span className="font-semibold">{ind.name}</span>
+                <span className="text-muted-foreground">—</span>
+                <span className="text-sm text-muted-foreground">{ind.desc}</span>
+              </div>
+            </div>
+          );
+        })()}
         <div className="grid md:grid-cols-3 gap-6">
-          {PLANS_DATA.map((plan) => {
-            const price = isTTD ? plan.priceTTD : plan.priceUSD;
-            const annualPrice = billingCycle === 'annual' ? price * 0.8 : price;
-            const symbol = isTTD ? 'TT$' : '$';
+          {displayPlans.map((plan) => {
+            const price = plan.priceUSD;
+            const isAnnual = billingCycle === 'annual';
+            const displayPrice = isAnnual ? Math.round(price * 0.8) : price;
             const features = plan.features;
             const excluded = plan.excluded;
-            
+            const range = !hasIndustry ? getPriceRange(plan.tier as 'starter' | 'growth' | 'premium') : null;
             return (
               <Card key={plan.slug} className={`relative flex flex-col ${plan.isPopular ? 'border-2 border-blue-500 shadow-xl shadow-blue-500/10' : 'border hover:border-blue-500/30'} transition-all duration-300 hover:-translate-y-1`}>
                 {plan.isPopular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-gradient-to-r from-blue-700 to-blue-500 text-white border-0">
-                      <Star className="w-3 h-3 mr-1" /> Most Popular
-                    </Badge>
+                    <Badge className="bg-gradient-to-r from-blue-700 to-blue-500 text-white border-0"><Star className="w-3 h-3 mr-1" /> Most Popular</Badge>
                   </div>
                 )}
                 <CardContent className="p-6 flex-1 flex flex-col">
                   <h3 className="text-xl font-bold">{plan.name}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{plan.tagline}</p>
                   <div className="mt-4 mb-2">
-                    <span className="text-4xl font-bold">{symbol}{annualPrice.toLocaleString()}</span>
-                    <span className="text-muted-foreground">/{billingCycle === 'annual' ? 'yr' : 'mo'}</span>
+                    {hasIndustry ? (
+                      <>
+                        <span className="text-4xl font-bold">${displayPrice.toLocaleString()}</span>
+                        <span className="text-muted-foreground">/mo</span>
+                        {isAnnual && price > 0 && <p className="text-xs text-blue-600 mt-1">Billed ${Math.round(displayPrice * 12).toLocaleString()}/year (Save ${Math.round(price * 12 - displayPrice * 12)}/yr)</p>}
+                      </>
+                    ) : range ? (
+                      <>
+                        <span className="text-4xl font-bold">${range.min.toLocaleString()}</span>
+                        <span className="text-2xl text-muted-foreground"> – ${range.max.toLocaleString()}</span>
+                        <span className="text-muted-foreground">/mo</span>
+                        <p className="text-xs text-muted-foreground mt-1">Select your industry above for exact pricing</p>
+                      </>
+                    ) : (
+                      <span className="text-4xl font-bold">--</span>
+                    )}
                   </div>
-                  {billingCycle === 'annual' && <p className="text-xs text-blue-600 mb-4">Save {symbol}{(price * 12 - annualPrice * 12).toLocaleString()}/year</p>}
-                  
                   <div className="space-y-2 mb-4 flex-1">
                     {features.map((f, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm">
-                        <Check className="w-4 h-4 text-blue-500 shrink-0" />
-                        <span>{f}</span>
-                      </div>
+                      <div key={i} className="flex items-center gap-2 text-sm"><Check className="w-4 h-4 text-blue-500 shrink-0" /><span>{f}</span></div>
                     ))}
                     {excluded.map((f, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <X className="w-4 h-4 opacity-40 shrink-0" />
-                        <span className="line-through">{f}</span>
-                      </div>
+                      <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground"><X className="w-4 h-4 opacity-40 shrink-0" /><span className="line-through">{f}</span></div>
                     ))}
                   </div>
-                  
                   <Button className="w-full mt-auto" variant={plan.isPopular ? 'default' : 'outline'}
-                    onClick={() => { setSelectedPlan(plan.slug); setView('onboarding'); }}
+                    onClick={() => { setSelectedPlan(plan.slug); if (activeIndustry) setSelectedIndustrySlug(activeIndustry); setView('onboarding'); }}
                     style={plan.isPopular ? { background: 'linear-gradient(to right, #1D4ED8, #2563EB)' } : {}}>
                     Get Started <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -907,6 +963,34 @@ function PortalPricing() {
               </Card>
             );
           })}
+        </div>
+        {/* Pricing Comparison Table */}
+        <div className="mt-16 overflow-x-auto">
+          <h3 className="text-xl font-bold text-center mb-6">Pricing by Industry (Monthly, USD)</h3>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="font-semibold">Industry</TableHead>
+                <TableHead className="text-center font-semibold">Starter</TableHead>
+                <TableHead className="text-center font-semibold">Growth</TableHead>
+                <TableHead className="text-center font-semibold">Premium</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {INDUSTRIES_DATA.map(ind => {
+                const p = INDUSTRY_PRICES[ind.slug];
+                if (!p) return null;
+                return (
+                  <TableRow key={ind.slug} className={activeIndustry === ind.slug ? 'bg-blue-50 dark:bg-blue-950/20' : ''}>
+                    <TableCell className="font-medium"><div className="flex items-center gap-2"><ind.icon className="w-4 h-4" style={{ color: ind.color }} />{ind.name}</div></TableCell>
+                    <TableCell className="text-center font-semibold">${p.starter}</TableCell>
+                    <TableCell className="text-center font-semibold">${p.growth}</TableCell>
+                    <TableCell className="text-center font-semibold">${p.premium}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </section>
@@ -1167,7 +1251,7 @@ function IndustryDetailPage() {
   }
 
   const Icon = industry.icon;
-  const displayPlans = plans.length > 0 ? plans : PLANS_DATA;
+  const displayPlans = plans.length > 0 ? plans : getPlansForIndustry(industry.slug);
   const color = industry.color;
 
   const sidebarNavItems: Record<string, string[]> = {
@@ -1523,7 +1607,7 @@ function IndustryDetailPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {displayPlans.map((plan: any) => {
-              const price = plan.priceTTD || plan.priceTTD === 0 ? plan.priceTTD : (plan.priceUSD ? plan.priceUSD * 7 : 0);
+              const price = plan.priceUSD || 0;
               const features = typeof plan.features === 'string' ? JSON.parse(plan.features) : (plan.features || []);
               const isPopular = plan.isPopular || plan.tier === 'growth';
               return (
@@ -1540,7 +1624,7 @@ function IndustryDetailPage() {
                     <h3 className="text-xl font-bold">{plan.name}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{plan.tagline}</p>
                     <div className="mt-4 mb-4">
-                      <span className="text-4xl font-bold">TT${price.toLocaleString()}</span>
+                      <span className="text-4xl font-bold">${price.toLocaleString()}</span>
                       <span className="text-muted-foreground">/mo</span>
                     </div>
                     <div className="space-y-2 mb-6 flex-1">
@@ -2077,8 +2161,8 @@ function OnboardingView() {
                           <p className="text-xs text-gray-400">{plan.tagline}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-blue-400">TT${plan.priceTTD}/mo</p>
-                          <p className="text-xs text-gray-400">${plan.priceUSD} USD</p>
+                          <p className="font-bold text-blue-400">${plan.priceUSD}/mo</p>
+                          <p className="text-xs text-gray-400">USD</p>
                         </div>
                       </div>
                     </button>

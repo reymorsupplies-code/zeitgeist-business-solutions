@@ -110,7 +110,7 @@ export const useAppStore = create<AppState>((set) => ({
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
   
-  currency: (typeof window !== 'undefined' && localStorage.getItem('zbs-currency')) || 'TTD',
+  currency: (typeof window !== 'undefined' && localStorage.getItem('zbs-currency')) || 'USD',
   setCurrency: (currency) => {
     if (typeof window !== 'undefined') localStorage.setItem('zbs-currency', currency);
     set({ currency });
