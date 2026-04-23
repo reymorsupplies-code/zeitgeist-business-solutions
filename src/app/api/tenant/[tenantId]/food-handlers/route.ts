@@ -72,9 +72,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       const validCount = validCerts?.count || 0;
       const expiredCount = expiredCerts?.count || 0;
 
+      // Get total employee count from Tenant for compliance percentage
+      const tenantData = await pgQueryOne<any>(
+        `SELECT "maxUsers" FROM "Tenant" WHERE id = $1`,
+        [tenantId]
+      );
+      const totalEmployees = tenantData?.maxUsers || totalCount || 1;
+
       return NextResponse.json({
         totalRegistered: totalCount,
-        percentageRegistered: totalCount > 0 ? Math.round((totalCount / Math.max(totalCount, 1)) * 100) : 0,
+        totalEmployees,
+        percentageRegistered: totalCount > 0 ? Math.round((totalCount / Math.max(totalEmployees, 1)) * 100) : 0,
         activeCount,
         percentageActive: totalCount > 0 ? Math.round((activeCount / totalCount) * 100) : 0,
         validCertificates: validCount,

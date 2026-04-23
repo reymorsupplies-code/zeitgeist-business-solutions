@@ -11,20 +11,20 @@ datasource db {
 // ============ PLATFORM MODELS ============
 
 model PlatformUser {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  password      String
-  fullName      String?
-  role          String   @default("tenant_admin")
-  avatarUrl     String?
-  isActive      Boolean  @default(true)
-  hasUsedTrial  Boolean  @default(false)
-  lastActiveAt  DateTime?
-  country       String?
-  timezone      String?
-  lastLogin     DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String    @id @default(cuid())
+  email        String    @unique
+  password     String
+  fullName     String?
+  role         String    @default("tenant_admin")
+  avatarUrl    String?
+  isActive     Boolean   @default(true)
+  hasUsedTrial Boolean   @default(false)
+  lastActiveAt DateTime?
+  country      String?
+  timezone     String?
+  lastLogin    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   tenantMemberships TenantMembership[]
   auditLogs         AuditLog[]
@@ -46,123 +46,124 @@ model Industry {
 }
 
 model Plan {
-  id                 String   @id @default(cuid())
-  name               String
-  slug               String   @unique
-  tier               String   @default("starter")
-  priceUSD           Float    @default(0)
-  priceTTD           Float    @default(0)
-  currency           String   @default("TTD")
-  billingCycle       String   @default("monthly")
-  tagline            String?
-  description        String?
-  idealFor           String?
-  maxUsers           Int      @default(3)
-  maxBranches        Int      @default(1)
-  features           String   @default("[]")
-  excludedFeatures   String   @default("[]")
-  isPopular          Boolean  @default(false)
-  status             String   @default("active")
-  sortOrder          Int      @default(0)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  tier             String   @default("starter")
+  priceUSD         Float    @default(0)
+  priceTTD         Float    @default(0)
+  currency         String   @default("TTD")
+  billingCycle     String   @default("monthly")
+  tagline          String?
+  description      String?
+  idealFor         String?
+  maxUsers         Int      @default(3)
+  maxBranches      Int      @default(1)
+  features         String   @default("[]")
+  excludedFeatures String   @default("[]")
+  isPopular        Boolean  @default(false)
+  status           String   @default("active")
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  tenants      Tenant[]
+  tenants       Tenant[]
   subscriptions TenantSubscription[]
 }
 
 model Tenant {
-  id            String   @id @default(cuid())
-  name          String
-  slug          String   @unique
-  logoUrl       String?
-  industryId    String?
-  planId        String?
-  planName      String?
-  status        String   @default("trial")
-  trialStartsAt DateTime?
-  trialEndsAt   DateTime?
-  hasUsedTrial       Boolean  @default(false)
-  trialDurationDays  Int      @default(7)
-  approvedBy         String?
-  approvedAt         DateTime?
-  paymentVerified    Boolean  @default(false)
-  lastActivityAt     DateTime?
-  registrationIp     String?
-  primaryColor  String   @default("#1D4ED8")
-  accentColor   String   @default("#2563EB")
-  currency      String   @default("TTD")
-  timezone      String   @default("America/Port_of_Spain")
-  locale        String   @default("en")
-  taxRate       Float    @default(0.125)
-  country       String   @default("TT")
-  address       String?
-  phone         String?
-  email         String?
-  website       String?
-  settings      String   @default("{}")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                String    @id @default(cuid())
+  name              String
+  slug              String    @unique
+  logoUrl           String?
+  industryId        String?
+  planId            String?
+  planName          String?
+  status            String    @default("trial")
+  trialStartsAt     DateTime?
+  trialEndsAt       DateTime?
+  hasUsedTrial      Boolean   @default(false)
+  trialDurationDays Int       @default(7)
+  approvedBy        String?
+  approvedAt        DateTime?
+  paymentVerified   Boolean   @default(false)
+  lastActivityAt    DateTime?
+  registrationIp    String?
+  primaryColor      String    @default("#1D4ED8")
+  accentColor       String    @default("#2563EB")
+  currency          String    @default("TTD")
+  timezone          String    @default("America/Port_of_Spain")
+  locale            String    @default("en")
+  taxRate           Float     @default(0.125)
+  country           String    @default("TT")
+  address           String?
+  phone             String?
+  email             String?
+  website           String?
+  settings          String    @default("{}")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  industry       Industry?         @relation(fields: [industryId], references: [id])
-  plan           Plan?             @relation(fields: [planId], references: [id])
-  memberships    TenantMembership[]
-  orders         Order[]
-  catalogItems   CatalogItem[]
-  clients        Client[]
-  invoices       Invoice[]
-  quotations     Quotation[]
-  payments       Payment[]
-  expenses       Expense[]
-  recipes        Recipe[]
-  ingredients    Ingredient[]
-  designGallery  DesignItem[]
-  appointments   Appointment[]
-  stylists       Stylist[]
-  salonServices  SalonServiceItem[]
-  subscriptions  TenantSubscription[]
-  featureFlags   TenantFeatureFlag[]
-  documents      TenantDocument[]
-  bookkeepingEntries BookkeepingEntry[]
-  auditLogs      AuditLog[]
-  patients       Patient[]
-  medicalAppointments MedicalAppointment[]
-  legalCases     LegalCase[]
-  timeEntries    TimeEntry[]
-  policies       Policy[]
-  claims         Claim[]
-  retailProducts      RetailProduct[]
-  purchaseOrders      PurchaseOrder[]
-  posSales            POSSale[]
-  suppliers           Supplier[]
-  stockMovements      StockMovement[]
-  layaways            Layaway[]
-  events         Event[]
-  venues         Venue[]
-  vendors        Vendor[]
-  projects       Project[]
-  contracts      Contract[]
-  propertyUnits  PropertyUnit[]
-  leases         Lease[]
-  maintenanceRequests MaintenanceRequest[]
-  rentPayments   RentPayment[]
-  propertyDocuments PropertyDocument[]
-  loyaltyMembers       LoyaltyMember[]
-  loyaltyTransactions  LoyaltyTransaction[] @relation("LoyaltyTransactionTenant")
-  giftCards            GiftCard[]
-  productReturns       ProductReturn[]
-  registerShifts       RegisterShift[]
-  securityDeposits SecurityDeposit[]
-  propertyInspections PropertyInspection[]
-  legalNotices LegalNotice[]
-  vatReturns VATReturn[]
-  haccpPlans HACCPPlan[]
-  haccpRiskLogs HACCPRiskLog[]
-  allergenDeclarations AllergenDeclaration[]
+  industry                 Industry?                 @relation(fields: [industryId], references: [id])
+  plan                     Plan?                     @relation(fields: [planId], references: [id])
+  memberships              TenantMembership[]
+  orders                   Order[]
+  catalogItems             CatalogItem[]
+  clients                  Client[]
+  invoices                 Invoice[]
+  quotations               Quotation[]
+  payments                 Payment[]
+  expenses                 Expense[]
+  recipes                  Recipe[]
+  ingredients              Ingredient[]
+  designGallery            DesignItem[]
+  appointments             Appointment[]
+  stylists                 Stylist[]
+  salonServices            SalonServiceItem[]
+  subscriptions            TenantSubscription[]
+  featureFlags             TenantFeatureFlag[]
+  documents                TenantDocument[]
+  bookkeepingEntries       BookkeepingEntry[]
+  auditLogs                AuditLog[]
+  patients                 Patient[]
+  medicalAppointments      MedicalAppointment[]
+  legalCases               LegalCase[]
+  timeEntries              TimeEntry[]
+  policies                 Policy[]
+  claims                   Claim[]
+  retailProducts           RetailProduct[]
+  purchaseOrders           PurchaseOrder[]
+  posSales                 POSSale[]
+  suppliers                Supplier[]
+  stockMovements           StockMovement[]
+  layaways                 Layaway[]
+  events                   Event[]
+  venues                   Venue[]
+  vendors                  Vendor[]
+  projects                 Project[]
+  contracts                Contract[]
+  propertyUnits            PropertyUnit[]
+  leases                   Lease[]
+  maintenanceRequests      MaintenanceRequest[]
+  rentPayments             RentPayment[]
+  propertyDocuments        PropertyDocument[]
+  loyaltyMembers           LoyaltyMember[]
+  loyaltyTransactions      LoyaltyTransaction[]      @relation("LoyaltyTransactionTenant")
+  giftCards                GiftCard[]
+  productReturns           ProductReturn[]
+  registerShifts           RegisterShift[]
+  securityDeposits         SecurityDeposit[]
+  propertyInspections      PropertyInspection[]
+  legalNotices             LegalNotice[]
+  vatReturns               VATReturn[]
+  haccpPlans               HACCPPlan[]
+  haccpRiskLogs            HACCPRiskLog[]
+  allergenDeclarations     AllergenDeclaration[]
   foodHandlerRegistrations FoodHandlerRegistration[]
-  healthInspections HealthInspection[]
-  temperatureLogs TemperatureLog[]
-  cleaningLogs CleaningSanitationLog[]
+  healthInspections        HealthInspection[]
+  temperatureLogs          TemperatureLog[]
+  cleaningLogs             CleaningSanitationLog[]
+  properties               Property[]
 }
 
 model TenantMembership {
@@ -194,19 +195,19 @@ model TenantFeatureFlag {
 }
 
 model TenantSubscription {
-  id              String   @id @default(cuid())
-  tenantId        String
-  planId          String?
-  planName        String?
-  status          String   @default("active")
-  billingCycle    String   @default("monthly")
-  priceUSD        Float    @default(0)
-  priceTTD        Float    @default(0)
+  id                 String    @id @default(cuid())
+  tenantId           String
+  planId             String?
+  planName           String?
+  status             String    @default("active")
+  billingCycle       String    @default("monthly")
+  priceUSD           Float     @default(0)
+  priceTTD           Float     @default(0)
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
-  paymentBehavior String   @default("always_on_time")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  paymentBehavior    String    @default("always_on_time")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   plan   Plan?  @relation(fields: [planId], references: [id])
@@ -215,24 +216,24 @@ model TenantSubscription {
 // ============ BAKERY MODELS ============
 
 model Order {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   tenantId        String
   orderNumber     String?
   clientName      String?
   clientEmail     String?
   clientPhone     String?
-  items           String   @default("[]")
-  subtotal        Float    @default(0)
-  taxAmount       Float    @default(0)
-  totalAmount     Float    @default(0)
-  status          String   @default("pending")
-  orderType       String   @default("custom")
+  items           String    @default("[]")
+  subtotal        Float     @default(0)
+  taxAmount       Float     @default(0)
+  totalAmount     Float     @default(0)
+  status          String    @default("pending")
+  orderType       String    @default("custom")
   deliveryDate    DateTime?
   deliveryAddress String?
   notes           String?
-  isDeleted       Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  isDeleted       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }
@@ -256,119 +257,119 @@ model CatalogItem {
 }
 
 model Client {
-  id          String   @id @default(cuid())
-  tenantId    String
-  name        String
-  email       String?
-  phone       String?
-  address     String?
-  notes       String?
-  tags        String   @default("[]")
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  notes     String?
+  tags      String   @default("[]")
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }
 
 model Invoice {
-  id              String   @id @default(cuid())
-  tenantId        String
-  invoiceNumber   String?
-  clientName      String?
-  clientEmail     String?
-  items           String   @default("[]")
-  subtotal        Float    @default(0)
-  taxRate         Float    @default(0)
-  taxAmount       Float    @default(0)
-  totalAmount     Float    @default(0)
-  balanceDue      Float    @default(0)
-  status          String   @default("draft")
-  issueDate       DateTime?
-  dueDate         DateTime?
-  notes           String?
-  isDeleted       Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String    @id @default(cuid())
+  tenantId      String
+  invoiceNumber String?
+  clientName    String?
+  clientEmail   String?
+  items         String    @default("[]")
+  subtotal      Float     @default(0)
+  taxRate       Float     @default(0)
+  taxAmount     Float     @default(0)
+  totalAmount   Float     @default(0)
+  balanceDue    Float     @default(0)
+  status        String    @default("draft")
+  issueDate     DateTime?
+  dueDate       DateTime?
+  notes         String?
+  isDeleted     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }
 
 model Quotation {
-  id              String   @id @default(cuid())
-  tenantId        String
-  quoteNumber     String?
-  clientName      String?
-  clientEmail     String?
-  clientPhone     String?
-  items           String   @default("[]")
-  subtotal        Float    @default(0)
-  discount        Float    @default(0)
-  taxRate         Float    @default(0)
-  taxAmount       Float    @default(0)
-  totalAmount     Float    @default(0)
-  status          String   @default("draft")
-  validUntil      DateTime?
-  notes           String?
-  isDeleted       Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id          String    @id @default(cuid())
+  tenantId    String
+  quoteNumber String?
+  clientName  String?
+  clientEmail String?
+  clientPhone String?
+  items       String    @default("[]")
+  subtotal    Float     @default(0)
+  discount    Float     @default(0)
+  taxRate     Float     @default(0)
+  taxAmount   Float     @default(0)
+  totalAmount Float     @default(0)
+  status      String    @default("draft")
+  validUntil  DateTime?
+  notes       String?
+  isDeleted   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }
 
 model Payment {
-  id            String   @id @default(cuid())
-  tenantId      String
-  invoiceId     String?
-  amount        Float    @default(0)
-  currency      String   @default("TTD")
-  method        String   @default("cash")
-  reference     String?
-  status        String   @default("completed")
-  notes         String?
-  isDeleted     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(cuid())
+  tenantId  String
+  invoiceId String?
+  amount    Float    @default(0)
+  currency  String   @default("TTD")
+  method    String   @default("cash")
+  reference String?
+  status    String   @default("completed")
+  notes     String?
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }
 
 model Expense {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   tenantId    String
   category    String?
   description String?
-  amount      Float    @default(0)
-  currency    String   @default("TTD")
+  amount      Float     @default(0)
+  currency    String    @default("TTD")
   date        DateTime?
   receiptUrl  String?
   vendor      String?
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isDeleted   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }
 
 model Recipe {
-  id            String   @id @default(cuid())
-  tenantId      String
-  name          String
-  description   String?
-  category      String?
-  servings      Int?
-  prepTime      Int?
-  cookTime      Int?
-  ingredients   String   @default("[]")
-  instructions  String   @default("[]")
-  costPerServing Float  @default(0)
-  sellingPrice  Float   @default(0)
-  imageUrl      String?
-  isPublic      Boolean  @default(false)
-  isDeleted     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(cuid())
+  tenantId       String
+  name           String
+  description    String?
+  category       String?
+  servings       Int?
+  prepTime       Int?
+  cookTime       Int?
+  ingredients    String   @default("[]")
+  instructions   String   @default("[]")
+  costPerServing Float    @default(0)
+  sellingPrice   Float    @default(0)
+  imageUrl       String?
+  isPublic       Boolean  @default(false)
+  isDeleted      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }
@@ -406,15 +407,15 @@ model DesignItem {
 }
 
 model TenantDocument {
-  id          String   @id @default(cuid())
-  tenantId    String
-  name        String
-  type        String   @default("general")
-  content     String?
-  fileUrl     String?
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  type      String   @default("general")
+  content   String?
+  fileUrl   String?
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }
@@ -422,36 +423,36 @@ model TenantDocument {
 // ============ SALON MODELS ============
 
 model Appointment {
-  id          String   @id @default(cuid())
-  tenantId    String
-  clientName  String?
-  stylistId   String?
-  serviceId   String?
-  date        DateTime?
-  duration    Int      @default(60)
-  status      String   @default("scheduled")
-  notes       String?
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String    @id @default(cuid())
+  tenantId   String
+  clientName String?
+  stylistId  String?
+  serviceId  String?
+  date       DateTime?
+  duration   Int       @default(60)
+  status     String    @default("scheduled")
+  notes      String?
+  isDeleted  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id])
-  stylist  Stylist?  @relation(fields: [stylistId], references: [id])
-  service  SalonServiceItem? @relation(fields: [serviceId], references: [id])
+  tenant  Tenant            @relation(fields: [tenantId], references: [id])
+  stylist Stylist?          @relation(fields: [stylistId], references: [id])
+  service SalonServiceItem? @relation(fields: [serviceId], references: [id])
 }
 
 model Stylist {
-  id          String   @id @default(cuid())
-  tenantId    String
-  name        String
-  specialty   String?
-  phone       String?
-  email       String?
-  imageUrl    String?
-  isActive    Boolean  @default(true)
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  specialty String?
+  phone     String?
+  email     String?
+  imageUrl  String?
+  isActive  Boolean  @default(true)
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   tenant       Tenant        @relation(fields: [tenantId], references: [id])
   appointments Appointment[]
@@ -477,142 +478,143 @@ model SalonServiceItem {
 // ============ CLINIC MODELS ============
 
 model Patient {
-  id            String   @id @default(cuid())
-  tenantId      String
-  firstName     String
-  lastName      String
-  dateOfBirth   DateTime?
-  gender        String?
-  email         String?
-  phone         String?
-  address       String?
-  bloodType     String?
-  allergies     String   @default("[]")
-  medicalNotes  String?
+  id                String    @id @default(cuid())
+  tenantId          String
+  firstName         String
+  lastName          String
+  dateOfBirth       DateTime?
+  gender            String?
+  email             String?
+  phone             String?
+  address           String?
+  bloodType         String?
+  allergies         String    @default("[]")
+  medicalNotes      String?
   insuranceProvider String?
   insuranceNumber   String?
-  emergencyContact String?
-  emergencyPhone   String?
-  isDeleted     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  emergencyContact  String?
+  emergencyPhone    String?
+  isDeleted         Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  tenant            Tenant    @relation(fields: [tenantId], references: [id])
 }
 
 model MedicalAppointment {
-  id          String   @id @default(cuid())
-  tenantId    String
-  patientId   String?
-  doctorName  String?
-  specialty   String?
-  date        DateTime?
-  duration    Int      @default(30)
-  status      String   @default("scheduled")
-  notes       String?
-  diagnosis   String?
+  id           String    @id @default(cuid())
+  tenantId     String
+  patientId    String?
+  doctorName   String?
+  specialty    String?
+  date         DateTime?
+  duration     Int       @default(30)
+  status       String    @default("scheduled")
+  notes        String?
+  diagnosis    String?
   prescription String?
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  isDeleted    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
 }
 
 // ============ LEGAL MODELS ============
 
 model LegalCase {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   tenantId    String
   caseNumber  String?
   title       String
   clientName  String?
   caseType    String?
-  status      String   @default("open")
+  status      String    @default("open")
   court       String?
   judge       String?
   openDate    DateTime?
   closeDate   DateTime?
   description String?
-  billingRate Float    @default(0)
-  hoursBilled Float    @default(0)
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  billingRate Float     @default(0)
+  hoursBilled Float     @default(0)
+  isDeleted   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
 }
 
 model TimeEntry {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   tenantId    String
   caseId      String?
   description String
-  duration    Int      @default(0)
-  billingRate Float    @default(0)
-  billable    Boolean  @default(true)
+  duration    Int       @default(0)
+  billingRate Float     @default(0)
+  billable    Boolean   @default(true)
   date        DateTime?
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  isDeleted   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
 }
 
 // ============ INSURANCE MODELS ============
 
 model Policy {
-  id              String   @id @default(cuid())
-  tenantId        String
-  policyNumber    String?
-  clientName      String?
-  type            String?
-  premium         Float    @default(0)
-  coverage        Float    @default(0)
-  startDate       DateTime?
-  endDate         DateTime?
-  status          String   @default("active")
-  beneficiaries   String   @default("[]")
-  isDeleted       Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  id            String    @id @default(cuid())
+  tenantId      String
+  policyNumber  String?
+  clientName    String?
+  type          String?
+  premium       Float     @default(0)
+  coverage      Float     @default(0)
+  startDate     DateTime?
+  endDate       DateTime?
+  status        String    @default("active")
+  beneficiaries String    @default("[]")
+  isDeleted     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
 }
 
 model Claim {
-  id            String   @id @default(cuid())
-  tenantId      String
-  policyId      String?
-  claimNumber   String?
-  claimantName  String?
-  type          String?
-  amount        Float    @default(0)
-  status        String   @default("submitted")
-  incidentDate  DateTime?
-  description   String?
-  isDeleted     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  id           String    @id @default(cuid())
+  tenantId     String
+  policyId     String?
+  claimNumber  String?
+  claimantName String?
+  type         String?
+  amount       Float     @default(0)
+  status       String    @default("submitted")
+  incidentDate DateTime?
+  description  String?
+  isDeleted    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
 }
 
 // ============ RETAIL MODELS ============
 
 model RetailProduct {
-  id          String   @id @default(cuid())
-  tenantId    String
-  name        String
-  sku         String?
-  category    String?
-  price       Decimal  @default(0) @db.Decimal(12,2)
-  cost        Decimal  @default(0) @db.Decimal(12,2)
-  quantity    Int      @default(0)
-  minStock    Int      @default(0)
-  supplier    String?
-  barcode     String?
-  imageUrl    String?
-  settings    String   @default("{}")
-  isActive    Boolean  @default(true)
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  sku       String?
+  category  String?
+  price     Decimal  @default(0) @db.Decimal(12, 2)
+  cost      Decimal  @default(0) @db.Decimal(12, 2)
+  quantity  Int      @default(0)
+  minStock  Int      @default(0)
+  supplier  String?
+  barcode   String?
+  imageUrl  String?
+  taxCategory String @default("standard") // standard (12.5%), exempt, zero_rated — T&T VAT
+  settings  String   @default("{}")
+  isActive  Boolean  @default(true)
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 // ============ LAYAWAY (APARTADOS) ============
@@ -624,15 +626,15 @@ model Layaway {
   customerName      String
   customerPhone     String
   customerEmail     String?
-  items             String    @default("[]")     // JSON: [{productId, name, sku, barcode, quantity, unitPrice, lineTotal}]
-  totalAmount       Decimal   @default(0) @db.Decimal(12,2)
-  depositAmount     Decimal   @default(0) @db.Decimal(12,2)
-  balanceRemaining  Decimal   @default(0) @db.Decimal(12,2)
-  payments          String    @default("[]")     // JSON: [{date, amount, method, reference}]
+  items             String    @default("[]") // JSON: [{productId, name, sku, barcode, quantity, unitPrice, lineTotal}]
+  totalAmount       Decimal   @default(0) @db.Decimal(12, 2)
+  depositAmount     Decimal   @default(0) @db.Decimal(12, 2)
+  balanceRemaining  Decimal   @default(0) @db.Decimal(12, 2)
+  payments          String    @default("[]") // JSON: [{date, amount, method, reference}]
   status            String    @default("active") // active, completed, cancelled, expired
   dueDate           DateTime?
   expiryDate        DateTime
-  depositPercentage Decimal  @default(20) @db.Decimal(12,2)
+  depositPercentage Decimal   @default(20) @db.Decimal(12, 2)
   notes             String?
   isDeleted         Boolean   @default(false)
   createdAt         DateTime  @default(now())
@@ -650,10 +652,10 @@ model StockMovement {
   tenantId      String
   ingredientId  String?
   type          String
-  quantity      Decimal   @default(0) @db.Decimal(12,2)
-  previousStock Decimal   @default(0) @db.Decimal(12,2)
-  newStock      Decimal   @default(0) @db.Decimal(12,2)
-  unitCost      Decimal   @default(0) @db.Decimal(12,2)
+  quantity      Decimal   @default(0) @db.Decimal(12, 2)
+  previousStock Decimal   @default(0) @db.Decimal(12, 2)
+  newStock      Decimal   @default(0) @db.Decimal(12, 2)
+  unitCost      Decimal   @default(0) @db.Decimal(12, 2)
   reason        String?
   reference     String?
   batchNumber   String?
@@ -670,23 +672,23 @@ model StockMovement {
 // ============ PURCHASE ORDER ============
 
 model PurchaseOrder {
-  id              String    @id @default(cuid())
-  tenantId        String
-  poNumber        String
-  supplierId      String?
-  supplierName    String
-  status          String    @default("draft") // draft, sent, partial, received, cancelled
-  items           String    @default("[]")     // JSON: [{productId, name, sku, qty, unitCost, receivedQty}]
-  totalAmount     Decimal   @default(0) @db.Decimal(12,2)
-  receivedAmount  Decimal   @default(0) @db.Decimal(12,2)
-  notes           String?
-  expectedDate    DateTime?
-  receivedAt      DateTime?
-  isDeleted       Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+  id             String    @id @default(cuid())
+  tenantId       String
+  poNumber       String
+  supplierId     String?
+  supplierName   String
+  status         String    @default("draft") // draft, sent, partial, received, cancelled
+  items          String    @default("[]") // JSON: [{productId, name, sku, qty, unitCost, receivedQty}]
+  totalAmount    Decimal   @default(0) @db.Decimal(12, 2)
+  receivedAmount Decimal   @default(0) @db.Decimal(12, 2)
+  notes          String?
+  expectedDate   DateTime?
+  receivedAt     DateTime?
+  isDeleted      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier       Supplier? @relation(fields: [supplierId], references: [id])
 
   @@unique([tenantId, poNumber])
 }
@@ -694,27 +696,30 @@ model PurchaseOrder {
 // ============ POS SALE ============
 
 model POSSale {
-  id              String    @id @default(cuid())
-  tenantId        String
-  saleNumber      String
-  items           String    @default("[]")     // JSON: [{productId, name, sku, qty, price, cost}]
-  subtotal        Decimal   @default(0) @db.Decimal(12,2)
-  discountPct     Decimal   @default(0) @db.Decimal(12,2)
-  discountAmount  Decimal   @default(0) @db.Decimal(12,2)
-  taxAmount       Decimal   @default(0) @db.Decimal(12,2)
-  totalAmount     Decimal   @default(0) @db.Decimal(12,2)
-  paymentMethod   String    @default("cash")    // cash, card, transfer, split
-  cashReceived    Decimal   @default(0) @db.Decimal(12,2)
-  changeAmount    Decimal   @default(0) @db.Decimal(12,2)
-  currency        String    @default("TTD")
-  customerName    String    @default("")
-  staffName       String?
-  status          String    @default("completed") // completed, held, voided
-  isDeleted       Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  productReturns  ProductReturn[]
+  id             String          @id @default(cuid())
+  tenantId       String
+  saleNumber     String
+  items          String          @default("[]") // JSON: [{productId, name, sku, qty, price, cost}]
+  subtotal       Decimal         @default(0) @db.Decimal(12, 2)
+  discountPct    Decimal         @default(0) @db.Decimal(12, 2)
+  discountAmount Decimal         @default(0) @db.Decimal(12, 2)
+  taxAmount      Decimal         @default(0) @db.Decimal(12, 2)
+  taxRate        Decimal         @default(0.125) @db.Decimal(5, 4) // VAT rate applied (default 12.5% T&T)
+  totalAmount    Decimal         @default(0) @db.Decimal(12, 2)
+  paymentMethod  String          @default("cash") // cash, card, transfer, gift_card, split
+  giftCardId     String?         // Reference to gift card used for payment
+  splitDetails   String?         @default("") // JSON: {cash, card, giftCard, transfer, giftCardId}
+  cashReceived   Decimal         @default(0) @db.Decimal(12, 2)
+  changeAmount   Decimal         @default(0) @db.Decimal(12, 2)
+  currency       String          @default("TTD")
+  customerName   String          @default("")
+  staffName      String?
+  status         String          @default("completed") // completed, held, voided
+  isDeleted      Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productReturns ProductReturn[]
 
   @@unique([tenantId, saleNumber])
 }
@@ -722,23 +727,23 @@ model POSSale {
 // ============ GIFT CARDS ============
 
 model GiftCard {
-  id              String    @id @default(cuid())
-  tenantId        String
-  cardNumber      String
-  cardCode        String
-  initialBalance  Decimal   @default(0) @db.Decimal(12,2)
-  currentBalance  Decimal   @default(0) @db.Decimal(12,2)
-  customerName    String?
-  purchaserName   String
-  status          String    @default("active")  // active, used, expired, voided
-  issuedAt        DateTime  @default(now())
-  expiresAt       DateTime?
-  lastUsedAt      DateTime?
-  transactions    String    @default("[]")       // JSON: [{date, type, amount, reference, saleId?}]
-  notes           String?
-  isDeleted       Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  tenantId       String
+  cardNumber     String
+  cardCode       String
+  initialBalance Decimal   @default(0) @db.Decimal(12, 2)
+  currentBalance Decimal   @default(0) @db.Decimal(12, 2)
+  customerName   String?
+  purchaserName  String
+  status         String    @default("active") // active, used, expired, voided
+  issuedAt       DateTime  @default(now())
+  expiresAt      DateTime?
+  lastUsedAt     DateTime?
+  transactions   String    @default("[]") // JSON: [{date, type, amount, reference, saleId?}]
+  notes          String?
+  isDeleted      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -749,23 +754,23 @@ model GiftCard {
 // ============ RETURNS & EXCHANGES ============
 
 model ProductReturn {
-  id            String   @id @default(cuid())
-  tenantId      String
-  saleId        String
-  returnNumber  String
-  items         String   @default("[]")     // JSON: [{productId, name, quantity, unitPrice, reason}]
-  totalRefund   Decimal  @default(0) @db.Decimal(12,2)
-  refundMethod  String   @default("cash")    // cash, card, storeCredit, transfer
-  reason        String   @default("other")    // defective, wrongItem, changedMind, damaged, other
-  status        String   @default("pending")  // pending, approved, rejected, completed
-  processedBy   String?
-  notes         String?
-  isDeleted     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  tenantId     String
+  saleId       String
+  returnNumber String
+  items        String   @default("[]") // JSON: [{productId, name, quantity, unitPrice, reason}]
+  totalRefund  Decimal  @default(0) @db.Decimal(12, 2)
+  refundMethod String   @default("cash") // cash, card, storeCredit, transfer
+  reason       String   @default("other") // defective, wrongItem, changedMind, damaged, other
+  status       String   @default("pending") // pending, approved, rejected, completed
+  processedBy  String?
+  notes        String?
+  isDeleted    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  tenant Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sale   POSSale  @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sale   POSSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, returnNumber])
   @@map("ProductReturn")
@@ -774,31 +779,31 @@ model ProductReturn {
 // ============ REGISTER SHIFT (CIERRE DE CAJA) ============
 
 model RegisterShift {
-  id                String    @id @default(cuid())
-  tenantId          String
-  shiftNumber       String
-  staffName         String
-  staffId           String?
-  openedAt          DateTime  @default(now())
-  closedAt          DateTime?
-  status            String    @default("open") // open, closed
-  startingCash      Decimal   @default(0) @db.Decimal(12,2)
-  closingCash       Decimal?  @db.Decimal(12,2)
-  expectedCash      Decimal?  @db.Decimal(12,2)
-  cashSales         Decimal   @default(0) @db.Decimal(12,2)
-  cardSales         Decimal   @default(0) @db.Decimal(12,2)
-  transferSales     Decimal   @default(0) @db.Decimal(12,2)
-  totalSales        Decimal   @default(0) @db.Decimal(12,2)
-  totalRefunds      Decimal   @default(0) @db.Decimal(12,2)
-  giftCardSales     Decimal   @default(0) @db.Decimal(12,2)
-  layawayDeposits   Decimal   @default(0) @db.Decimal(12,2)
-  transactionCount  Int       @default(0)
-  refundCount       Int       @default(0)
-  discrepancy       Decimal?  @db.Decimal(12,2)
-  notes             String?
-  isDeleted         Boolean   @default(false)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  tenantId         String
+  shiftNumber      String
+  staffName        String
+  staffId          String?
+  openedAt         DateTime  @default(now())
+  closedAt         DateTime?
+  status           String    @default("open") // open, closed
+  startingCash     Decimal   @default(0) @db.Decimal(12, 2)
+  closingCash      Decimal?  @db.Decimal(12, 2)
+  expectedCash     Decimal?  @db.Decimal(12, 2)
+  cashSales        Decimal   @default(0) @db.Decimal(12, 2)
+  cardSales        Decimal   @default(0) @db.Decimal(12, 2)
+  transferSales    Decimal   @default(0) @db.Decimal(12, 2)
+  totalSales       Decimal   @default(0) @db.Decimal(12, 2)
+  totalRefunds     Decimal   @default(0) @db.Decimal(12, 2)
+  giftCardSales    Decimal   @default(0) @db.Decimal(12, 2)
+  layawayDeposits  Decimal   @default(0) @db.Decimal(12, 2)
+  transactionCount Int       @default(0)
+  refundCount      Int       @default(0)
+  discrepancy      Decimal?  @db.Decimal(12, 2)
+  notes            String?
+  isDeleted        Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -808,117 +813,117 @@ model RegisterShift {
 // ============ EVENTS MODELS ============
 
 model Event {
-  id            String   @id @default(cuid())
-  tenantId      String
-  name          String
-  type          String?
-  clientName    String?
-  venue         String?
-  eventDate     DateTime?
-  setupDate     DateTime?
-  guestCount    Int      @default(0)
-  budget        Float    @default(0)
-  status        String   @default("planning")
-  notes         String?
-  isDeleted     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  id         String    @id @default(cuid())
+  tenantId   String
+  name       String
+  type       String?
+  clientName String?
+  venue      String?
+  eventDate  DateTime?
+  setupDate  DateTime?
+  guestCount Int       @default(0)
+  budget     Float     @default(0)
+  status     String    @default("planning")
+  notes      String?
+  isDeleted  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
 }
 
 // ============ RETAIL SUPPLIERS ============
 
 model Supplier {
-  id              String   @id @default(cuid())
-  tenantId        String
-  name            String
-  contact         String?
-  email           String?
-  phone           String?
-  address         String?
-  category        String?
-  rating          Int      @default(0)
-  notes           String?
-  isDeleted       Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  purchaseOrders  PurchaseOrder[]
+  id             String          @id @default(cuid())
+  tenantId       String
+  name           String
+  contact        String?
+  email          String?
+  phone          String?
+  address        String?
+  category       String?
+  rating         Int             @default(0)
+  notes          String?
+  isDeleted      Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purchaseOrders PurchaseOrder[]
 }
 
 // ============ EVENTS VENUES & VENDORS ============
 
 model Venue {
-  id          String   @id @default(cuid())
-  tenantId    String
-  name        String
-  location    String?
-  capacity    Int      @default(0)
-  contact     String?
-  email       String?
-  phone       String?
-  amenities   String   @default("[]")
-  pricePerHour Float   @default(0)
-  isActive    Boolean  @default(true)
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  id           String   @id @default(cuid())
+  tenantId     String
+  name         String
+  location     String?
+  capacity     Int      @default(0)
+  contact      String?
+  email        String?
+  phone        String?
+  amenities    String   @default("[]")
+  pricePerHour Float    @default(0)
+  isActive     Boolean  @default(true)
+  isDeleted    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
 }
 
 model Vendor {
-  id          String   @id @default(cuid())
-  tenantId    String
-  name        String
-  category    String?
-  contact     String?
-  email       String?
-  phone       String?
-  rating      Int      @default(0)
-  notes       String?
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  category  String?
+  contact   String?
+  email     String?
+  phone     String?
+  rating    Int      @default(0)
+  notes     String?
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
 }
 
 // ============ PROFESSIONAL CONTRACTS ============
 
 model Contract {
-  id            String   @id @default(cuid())
-  tenantId      String
-  clientName    String?
-  type          String?
-  value         Float    @default(0)
-  startDate     DateTime?
-  endDate       DateTime?
-  status        String   @default("active")
-  description   String?
-  notes         String?
-  isDeleted     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  id          String    @id @default(cuid())
+  tenantId    String
+  clientName  String?
+  type        String?
+  value       Float     @default(0)
+  startDate   DateTime?
+  endDate     DateTime?
+  status      String    @default("active")
+  description String?
+  notes       String?
+  isDeleted   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
 }
 
 // ============ PROFESSIONAL SERVICES MODELS ============
 
 model Project {
-  id            String   @id @default(cuid())
-  tenantId      String
-  name          String
-  clientName    String?
-  status        String   @default("active")
-  startDate     DateTime?
-  deadline      DateTime?
-  budget        Float    @default(0)
-  spent         Float    @default(0)
-  progress      Int      @default(0)
-  description   String?
-  isDeleted     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  id          String    @id @default(cuid())
+  tenantId    String
+  name        String
+  clientName  String?
+  status      String    @default("active")
+  startDate   DateTime?
+  deadline    DateTime?
+  budget      Float     @default(0)
+  spent       Float     @default(0)
+  progress    Int       @default(0)
+  description String?
+  isDeleted   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
 }
 
 // ============ LOYALTY PROGRAM ============
@@ -954,7 +959,7 @@ model LoyaltyTransaction {
   createdAt   DateTime @default(now())
 
   member LoyaltyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  tenant Tenant         @relation("LoyaltyTransactionTenant", fields: [tenantId], references: [id])
+  tenant Tenant        @relation("LoyaltyTransactionTenant", fields: [tenantId], references: [id])
 }
 
 // ============ BOOKKEEPING ============
@@ -973,22 +978,22 @@ model BookkeepingEntry {
   isDeleted   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
 }
 
 // ============ PLATFORM ADMIN ============
 
 model AuditLog {
-  id          String   @id @default(cuid())
-  userId      String?
-  tenantId    String?
-  action      String
-  details     String?
-  severity    String   @default("info")
-  ipAddress   String?
-  createdAt   DateTime @default(now())
-  user   PlatformUser? @relation(fields: [userId], references: [id])
-  tenant Tenant?       @relation(fields: [tenantId], references: [id])
+  id        String        @id @default(cuid())
+  userId    String?
+  tenantId  String?
+  action    String
+  details   String?
+  severity  String        @default("info")
+  ipAddress String?
+  createdAt DateTime      @default(now())
+  user      PlatformUser? @relation(fields: [userId], references: [id])
+  tenant    Tenant?       @relation(fields: [tenantId], references: [id])
 }
 
 model SystemEvent {
@@ -1003,16 +1008,16 @@ model SystemEvent {
 }
 
 model PlatformInvoice {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   tenantId      String?
   invoiceNumber String?
-  amountUSD     Float    @default(0)
-  amountTTD     Float    @default(0)
-  status        String   @default("draft")
+  amountUSD     Float     @default(0)
+  amountTTD     Float     @default(0)
+  status        String    @default("draft")
   issueDate     DateTime?
   dueDate       DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model PriceSetting {
@@ -1027,109 +1032,111 @@ model PriceSetting {
 // ============ LANDLORD / PROPERTY MANAGEMENT ============
 
 model Property {
-  id            String   @id @default(cuid())
-  name          String
-  address       String?
-  city          String?
-  country       String   @default("TT")
-  type          String   @default("commercial") // commercial, mixed_use, office
-  totalArea     Float?   // sq ft
-  units         Int      @default(1)
-  description   String?
-  imageUrl      String?
-  status        String   @default("active") // active, maintenance, inactive
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(cuid())
+  tenantId    String?  // Multi-tenant scoping - links property to owning tenant
+  name        String
+  address     String?
+  city        String?
+  country     String   @default("TT")
+  type        String   @default("commercial") // commercial, residential, mixed_use, office
+  totalArea   Float? // sq ft
+  units       Int      @default(1)
+  description String?
+  imageUrl    String?
+  status      String   @default("active") // active, maintenance, inactive
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  propertyUnits PropertyUnit[]
+  tenant              Tenant?              @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  propertyUnits       PropertyUnit[]
   maintenanceRequests MaintenanceRequest[]
-  rentPayments RentPayment[]
-  vendors PropertyVendor[]
-  documents PropertyDocument[]
-  deposits SecurityDeposit[]
-  inspections PropertyInspection[]
-  legalNotices LegalNotice[]
+  rentPayments        RentPayment[]
+  vendors             PropertyVendor[]
+  documents           PropertyDocument[]
+  deposits            SecurityDeposit[]
+  inspections         PropertyInspection[]
+  legalNotices        LegalNotice[]
 }
 
 model PropertyUnit {
-  id            String   @id @default(cuid())
-  propertyId    String
-  unitNumber    String   // e.g. "A1", "B2", "101"
-  floor         Int      @default(1)
-  area          Float?   // sq ft
-  baseRentTTD   Float    @default(0)
-  baseRentUSD   Float    @default(0)
-  tenantId      String?  // nullable - unit can be vacant
-  status        String   @default("vacant") // vacant, occupied, maintenance, reserved
-  amenities     String   @default("[]")
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(cuid())
+  propertyId  String
+  unitNumber  String // e.g. "A1", "B2", "101"
+  floor       Int      @default(1)
+  area        Float? // sq ft
+  baseRentTTD Float    @default(0)
+  baseRentUSD Float    @default(0)
+  tenantId    String? // nullable - unit can be vacant
+  status      String   @default("vacant") // vacant, occupied, maintenance, reserved
+  amenities   String   @default("[]")
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  property Property @relation(fields: [propertyId], references: [id])
-  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
-  leases   Lease[]
+  property            Property             @relation(fields: [propertyId], references: [id])
+  tenant              Tenant?              @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  leases              Lease[]
   maintenanceRequests MaintenanceRequest[]
-  rentPayments RentPayment[]
-  documents PropertyDocument[]
-  deposits SecurityDeposit[]
-  inspections PropertyInspection[]
-  legalNotices LegalNotice[]
+  rentPayments        RentPayment[]
+  documents           PropertyDocument[]
+  deposits            SecurityDeposit[]
+  inspections         PropertyInspection[]
+  legalNotices        LegalNotice[]
 
   @@unique([propertyId, unitNumber])
 }
 
 model Lease {
-  id                  String   @id @default(cuid())
+  id                  String    @id @default(cuid())
   unitId              String
   tenantId            String?
   startDate           DateTime
   endDate             DateTime
-  rentAmount          Float    @default(0)  // monthly
-  rentCurrency        String   @default("TTD")
-  depositAmount       Float    @default(0)
-  status              String   @default("active") // draft, active, expired, terminated, renewed
+  rentAmount          Float     @default(0) // monthly
+  rentCurrency        String    @default("TTD")
+  depositAmount       Float     @default(0)
+  status              String    @default("active") // draft, active, expired, terminated, renewed
   terms               String?
   notes               String?
   // Renewal fields
-  autoRenew           Boolean  @default(false)
-  renewalNoticeDays   Int      @default(30)       // days before end to send notice
-  rentIncreasePercent Float    @default(0)         // % increase on renewal
+  autoRenew           Boolean   @default(false)
+  renewalNoticeDays   Int       @default(30) // days before end to send notice
+  rentIncreasePercent Float     @default(0) // % increase on renewal
   lastRenewedAt       DateTime?
-  renewalCount        Int      @default(0)
+  renewalCount        Int       @default(0)
   originalStartDate   DateTime?
   originalEndDate     DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  unit   PropertyUnit @relation(fields: [unitId], references: [id])
-  tenant Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  unit         PropertyUnit         @relation(fields: [unitId], references: [id])
+  tenant       Tenant?              @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   rentPayments RentPayment[]
-  documents PropertyDocument[]
-  deposits SecurityDeposit[]
-  inspections PropertyInspection[]
+  documents    PropertyDocument[]
+  deposits     SecurityDeposit[]
+  inspections  PropertyInspection[]
   legalNotices LegalNotice[]
 }
 
 model MaintenanceRequest {
-  id            String   @id @default(cuid())
-  propertyId    String
-  unitId        String?
-  tenantId      String?
-  title         String
-  description   String?
-  category      String?  // plumbing, electrical, structural, hvac, general
-  priority      String   @default("medium") // low, medium, high, urgent
-  status        String   @default("open") // open, in_progress, resolved, closed
-  requestedAt   DateTime @default(now())
-  resolvedAt    DateTime?
-  cost          Float    @default(0)
-  vendor        String?
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String    @id @default(cuid())
+  propertyId  String
+  unitId      String?
+  tenantId    String?
+  title       String
+  description String?
+  category    String? // plumbing, electrical, structural, hvac, general
+  priority    String    @default("medium") // low, medium, high, urgent
+  status      String    @default("open") // open, in_progress, resolved, closed
+  requestedAt DateTime  @default(now())
+  resolvedAt  DateTime?
+  cost        Float     @default(0)
+  vendor      String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  property Property @relation(fields: [propertyId], references: [id])
+  property Property      @relation(fields: [propertyId], references: [id])
   unit     PropertyUnit? @relation(fields: [unitId], references: [id])
   tenant   Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   vendorId String?
@@ -1140,68 +1147,68 @@ model MaintenanceRequest {
 // ============ PREMIUM LANDLORD FEATURES ============
 
 model RentPayment {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   leaseId       String
   propertyId    String
   unitId        String
   tenantId      String?
-  periodStart   DateTime  // billing period start
-  periodEnd     DateTime  // billing period end
-  amountDue     Float    @default(0)
-  amountPaid    Float    @default(0)
-  lateFee       Float    @default(0)
-  currency      String   @default("TTD")
-  paymentMethod String?  // bank_transfer, cash, cheque, online
+  periodStart   DateTime // billing period start
+  periodEnd     DateTime // billing period end
+  amountDue     Float     @default(0)
+  amountPaid    Float     @default(0)
+  lateFee       Float     @default(0)
+  currency      String    @default("TTD")
+  paymentMethod String? // bank_transfer, cash, cheque, online
   paymentRef    String?
-  status        String   @default("pending") // pending, partial, paid, late, overdue
+  status        String    @default("pending") // pending, partial, paid, late, overdue
   paidAt        DateTime?
   dueDate       DateTime
   notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  lease     Lease        @relation(fields: [leaseId], references: [id])
-  property  Property     @relation(fields: [propertyId], references: [id])
-  unit      PropertyUnit @relation(fields: [unitId], references: [id])
-  tenant    Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  lease    Lease        @relation(fields: [leaseId], references: [id])
+  property Property     @relation(fields: [propertyId], references: [id])
+  unit     PropertyUnit @relation(fields: [unitId], references: [id])
+  tenant   Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 }
 
 model PropertyVendor {
-  id          String   @id @default(cuid())
-  propertyId  String?
-  name        String
-  category    String?  // plumbing, electrical, hvac, cleaning, landscaping, general, security, pest
-  contact     String?
-  email       String?
-  phone       String?
-  address     String?
-  rating      Int      @default(0) // 1-5
-  isActive    Boolean  @default(true)
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  propertyId String?
+  name       String
+  category   String? // plumbing, electrical, hvac, cleaning, landscaping, general, security, pest
+  contact    String?
+  email      String?
+  phone      String?
+  address    String?
+  rating     Int      @default(0) // 1-5
+  isActive   Boolean  @default(true)
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  property Property? @relation(fields: [propertyId], references: [id])
+  property            Property?            @relation(fields: [propertyId], references: [id])
   maintenanceRequests MaintenanceRequest[]
 }
 
 model PropertyDocument {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   propertyId  String?
   unitId      String?
   leaseId     String?
   tenantId    String?
   name        String
-  type        String   @default("other") // lease_agreement, insurance, inspection, invoice, receipt, tax_doc, certificate, other
+  type        String    @default("other") // lease_agreement, insurance, inspection, invoice, receipt, tax_doc, certificate, other
   category    String?
   fileUrl     String?
   description String?
   expiresAt   DateTime?
-  status      String   @default("active") // active, expired, archived
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      String    @default("active") // active, expired, archived
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  property Property?    @relation(fields: [propertyId], references: [id])
+  property Property?     @relation(fields: [propertyId], references: [id])
   unit     PropertyUnit? @relation(fields: [unitId], references: [id])
   lease    Lease?        @relation(fields: [leaseId], references: [id])
   tenant   Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
@@ -1220,14 +1227,14 @@ model JournalEntry {
 }
 
 model JournalEntryLine {
-  id               String   @id @default(cuid())
-  journalEntryId   String
-  accountCode      String
-  accountName      String
-  accountType      String   // Asset, Liability, Equity, Revenue, Expense
-  debit            Float    @default(0)
-  credit           Float    @default(0)
-  createdAt        DateTime @default(now())
+  id             String   @id @default(cuid())
+  journalEntryId String
+  accountCode    String
+  accountName    String
+  accountType    String // Asset, Liability, Equity, Revenue, Expense
+  debit          Float    @default(0)
+  credit         Float    @default(0)
+  createdAt      DateTime @default(now())
 
   journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
 }
@@ -1235,143 +1242,143 @@ model JournalEntryLine {
 // ============ OWNER / INVESTOR REPORTING ============
 
 model OwnerDisbursement {
-  id            String   @id @default(cuid())
-  propertyId    String?
-  periodStart   DateTime
-  periodEnd     DateTime
-  grossIncome   Float    @default(0)
-  totalExpenses Float    @default(0)
-  netIncome     Float    @default(0)
-  ownerShare    Float    @default(100) // percentage
-  disbursementAmount Float @default(0)
-  currency      String   @default("TTD")
-  status        String   @default("pending") // pending, approved, paid
-  paidAt        DateTime?
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String    @id @default(cuid())
+  propertyId         String?
+  periodStart        DateTime
+  periodEnd          DateTime
+  grossIncome        Float     @default(0)
+  totalExpenses      Float     @default(0)
+  netIncome          Float     @default(0)
+  ownerShare         Float     @default(100) // percentage
+  disbursementAmount Float     @default(0)
+  currency           String    @default("TTD")
+  status             String    @default("pending") // pending, approved, paid
+  paidAt             DateTime?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 }
 
 model LeaseRenewalLog {
-  id            String   @id @default(cuid())
-  leaseId       String
-  previousEnd   DateTime
-  newStart      DateTime
-  newEnd        DateTime
-  oldRent       Float    @default(0)
-  newRent       Float    @default(0)
-  increasePct   Float    @default(0)
-  renewedBy     String?  // userId or 'auto'
-  notes         String?
-  createdAt     DateTime @default(now())
+  id          String   @id @default(cuid())
+  leaseId     String
+  previousEnd DateTime
+  newStart    DateTime
+  newEnd      DateTime
+  oldRent     Float    @default(0)
+  newRent     Float    @default(0)
+  increasePct Float    @default(0)
+  renewedBy   String? // userId or 'auto'
+  notes       String?
+  createdAt   DateTime @default(now())
 }
 
 // ============ T&T PROPERTY RENTAL COMPLIANCE ============
 
 model SecurityDeposit {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   leaseId         String
   propertyId      String
   unitId          String
   tenantId        String?
-  amount          Float    @default(0)
-  currency        String   @default("TTD")
-  status          String   @default("held") // held, partially_returned, fully_returned, deducted
-  receivedDate    DateTime @default(now())
+  amount          Float     @default(0)
+  currency        String    @default("TTD")
+  status          String    @default("held") // held, partially_returned, fully_returned, deducted
+  receivedDate    DateTime  @default(now())
   returnDeadline  DateTime // T&T law: 14 days after vacate
-  returnedAmount  Float    @default(0)
+  returnedAmount  Float     @default(0)
   returnedDate    DateTime?
-  deductions      String   @default("[]") // JSON: [{description, amount, photoUrl, approvedAt}]
-  deductionTotal  Float    @default(0)
-  refundMethod    String?  // bank_transfer, cash, cheque
+  deductions      String    @default("[]") // JSON: [{description, amount, photoUrl, approvedAt}]
+  deductionTotal  Float     @default(0)
+  refundMethod    String? // bank_transfer, cash, cheque
   refundReference String?
   notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  lease     Lease        @relation(fields: [leaseId], references: [id])
-  property  Property     @relation(fields: [propertyId], references: [id])
-  unit      PropertyUnit @relation(fields: [unitId], references: [id])
-  tenant    Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  lease    Lease        @relation(fields: [leaseId], references: [id])
+  property Property     @relation(fields: [propertyId], references: [id])
+  unit     PropertyUnit @relation(fields: [unitId], references: [id])
+  tenant   Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 }
 
 model PropertyInspection {
-  id            String   @id @default(cuid())
-  propertyId    String
-  unitId        String?
-  leaseId       String?
-  tenantId      String?
-  type          String   @default("move_in") // move_in, move_out, routine, emergency
-  inspectorName String?
-  inspectorRole String?
-  inspectedAt   DateTime @default(now())
-  overallCondition String @default("good") // excellent, good, fair, poor, damaged
-  checklist     String   @default("[]") // JSON: [{area, item, condition, notes, photoUrl, score}]
-  notes         String?
-  scoreTotal    Int      @default(0)
-  scoreMax      Int      @default(100)
-  signedByTenant Boolean @default(false)
-  signedByLandlord Boolean @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String   @id @default(cuid())
+  propertyId       String
+  unitId           String?
+  leaseId          String?
+  tenantId         String?
+  type             String   @default("move_in") // move_in, move_out, routine, emergency
+  inspectorName    String?
+  inspectorRole    String?
+  inspectedAt      DateTime @default(now())
+  overallCondition String   @default("good") // excellent, good, fair, poor, damaged
+  checklist        String   @default("[]") // JSON: [{area, item, condition, notes, photoUrl, score}]
+  notes            String?
+  scoreTotal       Int      @default(0)
+  scoreMax         Int      @default(100)
+  signedByTenant   Boolean  @default(false)
+  signedByLandlord Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  property Property?    @relation(fields: [propertyId], references: [id])
+  property Property?     @relation(fields: [propertyId], references: [id])
   unit     PropertyUnit? @relation(fields: [unitId], references: [id])
   lease    Lease?        @relation(fields: [leaseId], references: [id])
   tenant   Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 }
 
 model LegalNotice {
-  id              String   @id @default(cuid())
-  leaseId         String
-  propertyId      String
-  unitId          String
-  tenantId        String?
-  type            String   // rent_increase, lease_renewal, lease_termination, eviction, late_payment, maintenance, vacate_notice
-  jurisdiction    String   @default("TT") // TT, JM, BB, etc.
-  templateSlug    String   // links to notice template
-  title           String
-  content         String   // full text of the legal notice
-  sentDate        DateTime?
-  sentMethod      String?  // email, mail, hand_delivered, posted
-  responseDate    DateTime?
-  responseNotes   String?
-  status          String   @default("draft") // draft, sent, acknowledged, disputed, resolved, expired
-  effectiveDate   DateTime?
-  expiresAt       DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String    @id @default(cuid())
+  leaseId       String
+  propertyId    String
+  unitId        String
+  tenantId      String?
+  type          String // rent_increase, lease_renewal, lease_termination, eviction, late_payment, maintenance, vacate_notice
+  jurisdiction  String    @default("TT") // TT, JM, BB, etc.
+  templateSlug  String // links to notice template
+  title         String
+  content       String // full text of the legal notice
+  sentDate      DateTime?
+  sentMethod    String? // email, mail, hand_delivered, posted
+  responseDate  DateTime?
+  responseNotes String?
+  status        String    @default("draft") // draft, sent, acknowledged, disputed, resolved, expired
+  effectiveDate DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  lease     Lease        @relation(fields: [leaseId], references: [id])
-  property  Property     @relation(fields: [propertyId], references: [id])
-  unit      PropertyUnit @relation(fields: [unitId], references: [id])
-  tenant    Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  lease    Lease        @relation(fields: [leaseId], references: [id])
+  property Property     @relation(fields: [propertyId], references: [id])
+  unit     PropertyUnit @relation(fields: [unitId], references: [id])
+  tenant   Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 }
 
 // ============ RETAIL VAT COMPLIANCE (T&T BIR) ============
 
 model VATReturn {
-  id              String   @id @default(cuid())
-  tenantId        String
-  periodStart     DateTime
-  periodEnd       DateTime
-  quarter         String   // Q1, Q2, Q3, Q4
-  year            Int
-  totalSalesExVAT Decimal  @default(0) @db.Decimal(14,2)
-  totalVATCollected Decimal @default(0) @db.Decimal(14,2)
-  totalVATPaid    Decimal  @default(0) @db.Decimal(14,2)
-  vatDue          Decimal  @default(0) @db.Decimal(14,2)
-  vatRefund       Decimal  @default(0) @db.Decimal(14,2)
-  birNumber       String?
-  tin             String?
-  vatRegNumber    String?
-  status          String   @default("draft") // draft, filed, submitted, amended
-  filedDate       DateTime?
-  filedBy         String?
-  receiptNumber   String?
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String    @id @default(cuid())
+  tenantId          String
+  periodStart       DateTime
+  periodEnd         DateTime
+  quarter           String // Q1, Q2, Q3, Q4
+  year              Int
+  totalSalesExVAT   Decimal   @default(0) @db.Decimal(14, 2)
+  totalVATCollected Decimal   @default(0) @db.Decimal(14, 2)
+  totalVATPaid      Decimal   @default(0) @db.Decimal(14, 2)
+  vatDue            Decimal   @default(0) @db.Decimal(14, 2)
+  vatRefund         Decimal   @default(0) @db.Decimal(14, 2)
+  birNumber         String?
+  tin               String?
+  vatRegNumber      String?
+  status            String    @default("draft") // draft, filed, submitted, amended
+  filedDate         DateTime?
+  filedBy           String?
+  receiptNumber     String?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
@@ -1379,138 +1386,138 @@ model VATReturn {
 // ============ BAKERY FOOD SAFETY (HACCP / T&T Public Health) ============
 
 model HACCPPlan {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   tenantId        String
   name            String
   description     String?
-  productCategory String?  // bread, cake, pastry, dessert, etc.
-  status          String   @default("draft") // draft, active, under_review, approved
+  productCategory String? // bread, cake, pastry, dessert, etc.
+  status          String    @default("draft") // draft, active, under_review, approved
   approvedBy      String?
   approvedAt      DateTime?
-  criticalLimits  String   @default("[]") // JSON: [{ccpId, hazard, criticalLimit, monitoringProcedure, correctiveAction, record}]
+  criticalLimits  String    @default("[]") // JSON: [{ccpId, hazard, criticalLimit, monitoringProcedure, correctiveAction, record}]
   lastReviewDate  DateTime?
   nextReviewDate  DateTime?
   notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   logs   HACCPRiskLog[]
 }
 
 model HACCPRiskLog {
-  id              String   @id @default(cuid())
-  planId          String
-  tenantId        String
-  ccpName         String   // Critical Control Point name
-  hazardType      String?  // biological, chemical, physical, allergen
-  monitoringValue String?
-  criticalLimit   String?
-  isWithinLimit   Boolean  @default(true)
+  id               String    @id @default(cuid())
+  planId           String
+  tenantId         String
+  ccpName          String // Critical Control Point name
+  hazardType       String? // biological, chemical, physical, allergen
+  monitoringValue  String?
+  criticalLimit    String?
+  isWithinLimit    Boolean   @default(true)
   correctiveAction String?
-  loggedBy        String?
-  loggedAt        DateTime @default(now())
-  verifiedBy      String?
-  verifiedAt      DateTime?
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  loggedBy         String?
+  loggedAt         DateTime  @default(now())
+  verifiedBy       String?
+  verifiedAt       DateTime?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   plan   HACCPPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
   tenant Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model AllergenDeclaration {
-  id            String   @id @default(cuid())
-  tenantId      String
-  recipeId      String?
-  ingredientId  String?
-  productName   String
-  allergens     String   @default("[]") // JSON: [{name, contains, level}] level: free, traces, contains
-  lastReviewAt  DateTime @default(now())
-  reviewedBy    String?
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  tenantId     String
+  recipeId     String?
+  ingredientId String?
+  productName  String
+  allergens    String   @default("[]") // JSON: [{name, contains, level}] level: free, traces, contains
+  lastReviewAt DateTime @default(now())
+  reviewedBy   String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model FoodHandlerRegistration {
-  id              String   @id @default(cuid())
-  tenantId        String
-  employeeName    String
-  employeeRole    String?
+  id                 String    @id @default(cuid())
+  tenantId           String
+  employeeName       String
+  employeeRole       String?
   registrationNumber String?
-  registeredDate  DateTime?
-  expiryDate      DateTime
-  healthStatus    String   @default("active") // active, suspended, expired
-  trainingDate    DateTime?
-  certificateUrl  String?
-  publicHealthDept String @default("County Medical Officer of Health")
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  registeredDate     DateTime?
+  expiryDate         DateTime
+  healthStatus       String    @default("active") // active, suspended, expired
+  trainingDate       DateTime?
+  certificateUrl     String?
+  publicHealthDept   String    @default("County Medical Officer of Health")
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model HealthInspection {
-  id              String   @id @default(cuid())
-  tenantId        String
-  inspectionDate  DateTime
-  inspectorName   String?
-  inspectorAgency String   @default("Public Health Department")
-  type            String   @default("routine") // routine, follow_up, complaint, pre_licensing
-  overallScore    Int?
-  scoreMax        Int      @default(100)
-  result          String   @default("pass") // pass, pass_with_conditions, fail, pending
-  violations      String   @default("[]") // JSON: [{code, description, severity, correctiveAction, dueDate, status}]
-  correctiveActions String @default("[]") // JSON: [{action, assignedTo, dueDate, completedAt, notes}]
+  id                 String    @id @default(cuid())
+  tenantId           String
+  inspectionDate     DateTime
+  inspectorName      String?
+  inspectorAgency    String    @default("Public Health Department")
+  type               String    @default("routine") // routine, follow_up, complaint, pre_licensing
+  overallScore       Int?
+  scoreMax           Int       @default(100)
+  result             String    @default("pass") // pass, pass_with_conditions, fail, pending
+  violations         String    @default("[]") // JSON: [{code, description, severity, correctiveAction, dueDate, status}]
+  correctiveActions  String    @default("[]") // JSON: [{action, assignedTo, dueDate, completedAt, notes}]
   nextInspectionDate DateTime?
-  certificateUrl  String?
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  certificateUrl     String?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model TemperatureLog {
-  id              String   @id @default(cuid())
-  tenantId        String
-  equipmentName   String
-  equipmentType   String   // oven, fridge, freezer, display_case, storage, delivery_vehicle
-  location        String?
-  temperature     Float
-  unit            String   @default("C") // C or F
-  isWithinRange   Boolean  @default(true)
-  minSafe         Float?
-  maxSafe         Float?
-  loggedBy        String?
-  loggedAt        DateTime @default(now())
-  correctiveNote  String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  tenantId       String
+  equipmentName  String
+  equipmentType  String // oven, fridge, freezer, display_case, storage, delivery_vehicle
+  location       String?
+  temperature    Float
+  unit           String   @default("C") // C or F
+  isWithinRange  Boolean  @default(true)
+  minSafe        Float?
+  maxSafe        Float?
+  loggedBy       String?
+  loggedAt       DateTime @default(now())
+  correctiveNote String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model CleaningSanitationLog {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   tenantId        String
-  area            String   // kitchen, storage, display, equipment, bathroom, general
+  area            String // kitchen, storage, display, equipment, bathroom, general
   task            String
   cleaningProduct String?
-  frequency       String   @default("daily") // after_each_use, daily, weekly, monthly
+  frequency       String    @default("daily") // after_each_use, daily, weekly, monthly
   completedBy     String?
-  completedAt     DateTime @default(now())
+  completedAt     DateTime  @default(now())
   verifiedBy      String?
   verifiedAt      DateTime?
-  status          String   @default("completed") // completed, missed, rescheduled
+  status          String    @default("completed") // completed, missed, rescheduled
   notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }

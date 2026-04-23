@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { pgQuery } from '@/lib/pg-query';
+import { authenticateRequest } from '@/lib/auth';
 
 // ─── T&T Compliance Constants ───
 const TANDT_DEPOSIT_RETURN_DAYS = 14; // Security deposit must be returned within 14 days of vacate
 
 // ─── GET: List deposits with filters + return deadline monitoring ───
 export async function GET(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const { searchParams } = new URL(req.url);
     const leaseId = searchParams.get('leaseId');
@@ -67,6 +70,8 @@ export async function GET(req: NextRequest) {
 
 // ─── POST: Create deposit with T&T compliance validation ───
 export async function POST(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const body = await req.json();
     const {
@@ -141,7 +146,6 @@ export async function POST(req: NextRequest) {
         deductionTotal: 0,
         deductionDetails: '[]',
         deductionReceipts: '[]',
-        pastReturnDeadline: false,
         notes: body.notes || null,
       },
       include: {
@@ -160,6 +164,8 @@ export async function POST(req: NextRequest) {
 
 // ─── PATCH: Process deposit return with deduction validation ───
 export async function PATCH(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
@@ -274,6 +280,8 @@ export async function PATCH(req: NextRequest) {
 
 // ─── DELETE: Delete deposit ───
 export async function DELETE(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');

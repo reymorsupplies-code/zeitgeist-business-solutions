@@ -458,24 +458,24 @@ function getPropertyMgmtNav(locale: string) {
   return [
   { section: t('tenant.section.portfolio', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: t('tenant.properties', locale), icon: Home, page: 'catalog' as const, available: true },
-    { label: t('tenant.units', locale), icon: MapPin, page: 'ingredients' as const, available: true },
-    { label: t('tenant.leases', locale), icon: FileText, page: 'orders' as const, available: true },
+    { label: t('tenant.properties', locale), icon: Home, page: 'pm-property' as const, available: true },
+    { label: t('tenant.units', locale), icon: MapPin, page: 'pm-property-units' as const, available: true },
+    { label: t('tenant.leases', locale), icon: FileText, page: 'pm-leases' as const, available: true },
   ]},
   { section: t('tenant.section.finance', locale), items: [
-    { label: t('tenant.rentCollection', locale), icon: Banknote, page: 'invoices' as const, available: true },
+    { label: t('tenant.rentCollection', locale), icon: Banknote, page: 'pm-rent-payments' as const, available: true },
     { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
-    { label: t('tenant.maintenance', locale), icon: Wrench, page: 'pos' as const, available: true },
+    { label: t('tenant.maintenance', locale), icon: Wrench, page: 'pm-maintenance' as const, available: true },
     { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
   { section: t('tenant.section.operations', locale), items: [
-    { label: t('tenant.maintenance', locale), icon: Wrench, page: 'kds' as const, available: true },
-    { label: t('tenant.vendors', locale), icon: Truck, page: 'salon_services' as const, available: true },
-    { label: t('tenant.documents', locale), icon: FileSpreadsheet, page: 'documents' as const, available: true },
+    { label: t('tenant.maintenance', locale), icon: Wrench, page: 'pm-maintenance' as const, available: true },
+    { label: t('tenant.vendors', locale), icon: Truck, page: 'pm-vendors' as const, available: true },
+    { label: t('tenant.documents', locale), icon: FileSpreadsheet, page: 'pm-property-documents' as const, available: true },
   ]},
   { section: t('tenant.section.insights', locale), items: [
     { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
-    { label: t('tenant.salonAnalytics', locale), icon: TrendingUp, page: 'pricing_assistant' as const, available: true },
+    { label: t('tenant.ownerReporting', locale), icon: TrendingUp, page: 'pm-owner-reporting' as const, available: true },
   ]},
   { section: t('tenant.section.tools', locale), items: [
     { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
@@ -19730,6 +19730,15 @@ function TenantAppView() {
       case 'whatsapp': return <TenantWhatsAppPage />;
       case 'notifications': return <TenantNotificationsPage />;
       case 'pasteleria_analytics': return <TenantPasteleriaAnalyticsPage />;
+      // Property Management pages (delegate to CT components)
+      case 'pm-property': return <CTProperties />;
+      case 'pm-property-units': return <CTPropertyUnits />;
+      case 'pm-leases': return <CTLeases />;
+      case 'pm-rent-payments': return <CTRentPayments />;
+      case 'pm-maintenance': return <CTMaintenance />;
+      case 'pm-vendors': return <CTVendors />;
+      case 'pm-property-documents': return <CTPropertyDocuments />;
+      case 'pm-owner-reporting': return <CTOwnerReporting />;
       default: return <TenantDashboardPage />;
     }
   };

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { pgQuery } from '@/lib/pg-query';
+import { authenticateRequest } from '@/lib/auth';
 
 // GET: List all maintenance requests with property, unit, and tenant
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     let requests: any[] = [];
     try {
@@ -80,6 +83,8 @@ export async function GET() {
 
 // POST: Create a new maintenance request
 export async function POST(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const data = await req.json();
     const request = await db.maintenanceRequest.create({
@@ -107,6 +112,8 @@ export async function POST(req: NextRequest) {
 
 // PUT: Update a maintenance request
 export async function PUT(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const data = await req.json();
     if (!data.id) {
@@ -164,6 +171,8 @@ export async function PUT(req: NextRequest) {
 
 // DELETE: Delete a maintenance request
 export async function DELETE(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const data = await req.json();
     if (!data.id) {

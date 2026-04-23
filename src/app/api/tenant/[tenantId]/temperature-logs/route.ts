@@ -10,7 +10,7 @@ const EQUIPMENT_RANGES: Record<string, { min: number; max: number; unit: string;
   fridge:          { min: 0,   max: 4,    unit: '°C', description: 'Cold storage - refrigeration units' },
   freezer:         { min: -25, max: -18,  unit: '°C', description: 'Frozen storage - freezer units' },
   oven:            { min: 63, max: 260,  unit: '°C', description: 'Cooking equipment (depends on product - minimum 63°C for hot holding)' },
-  display_case:    { min: 0,   max: 5,    unit: '°C', description: 'Display case - chilled display units' },
+  display_case:    { min: 0,   max: 4,    unit: '°C', description: 'Display case - chilled display units (max 4°C per T&T food safety)' },
   hot_hold:        { min: 63, max: 90,   unit: '°C', description: 'Hot holding equipment - minimum 63°C per food safety regulations' },
   proofer:         { min: 24, max: 38,   unit: '°C', description: 'Dough proofer / fermentation cabinet' },
   blast_chiller:   { min: -5, max: 3,    unit: '°C', description: 'Blast chiller - rapid cooling unit' },
@@ -31,6 +31,7 @@ async function ensureTable() {
       "isWithinRange" BOOLEAN DEFAULT true,
       "loggedBy" TEXT,
       "notes" TEXT,
+      "isDeleted" BOOLEAN DEFAULT false,
       "createdAt" TIMESTAMPTZ DEFAULT NOW(),
       "updatedAt" TIMESTAMPTZ DEFAULT NOW()
     );
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
       const logs = await pgQuery(
         `SELECT * FROM "TemperatureLog"
-         WHERE "tenantId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3
+         WHERE "tenantId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 AND COALESCE("isDeleted", false) = false
          ORDER BY "equipmentType", "createdAt"`,
         [tenantId, dayStart, dayEnd]
       );
@@ -125,7 +126,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
     // ── /alerts ──
     if (action === 'alerts') {
-      const conditions: string[] = [`"tenantId" = $1`, `"isWithinRange" = false`];
+      const conditions: string[] = [`"tenantId" = $1`, `"isWithinRange" = false`, `COALESCE("isDeleted", false) = false`];
       const params: any[] = [tenantId];
 
       if (equipmentType) {
@@ -165,7 +166,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     }
 
     // ── List logs (default) ──
-    const conditions: string[] = [`"tenantId" = $1`];
+    const conditions: string[] = [`"tenantId" = $1`, `COALESCE("isDeleted", false) = false`];
     const params: any[] = [tenantId];
     let pIdx = 2;
 
@@ -321,10 +322,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
     const data = await req.json();
     if (!data.id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
 
-    await pgQuery(
-      `DELETE FROM "TemperatureLog" WHERE id = $1 AND "tenantId" = $2`,
+    // Soft delete to preserve audit trail for food safety inspections
+    const result = await pgQuery(
+      `UPDATE "TemperatureLog" SET "isDeleted" = true, "updatedAt" = NOW() WHERE id = $1 AND "tenantId" = $2 RETURNING id`,
       [data.id, tenantId]
     );
+    if (!result.length) return NextResponse.json({ error: 'Log entry not found' }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

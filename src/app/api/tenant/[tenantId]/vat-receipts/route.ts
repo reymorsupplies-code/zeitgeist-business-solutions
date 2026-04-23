@@ -55,7 +55,7 @@ async function ensureVATReceiptTable(): Promise<void> {
         "customerName"        TEXT NOT NULL DEFAULT '',
         "paymentMethod"       TEXT NOT NULL DEFAULT 'cash',
         currency              TEXT NOT NULL DEFAULT 'TTD',
-        items                 TEXTBLOB NOT NULL DEFAULT '[]',
+        items                 TEXT NOT NULL DEFAULT '[]',
         "subtotal"            NUMERIC(14,2) NOT NULL DEFAULT 0,
         "totalVAT"            NUMERIC(14,2) NOT NULL DEFAULT 0,
         "grandTotal"          NUMERIC(14,2) NOT NULL DEFAULT 0,

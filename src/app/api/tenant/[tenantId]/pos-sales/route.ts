@@ -81,9 +81,39 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   try { data = await req.json(); } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }); }
 
   const paymentMethod = data.paymentMethod || 'cash';
-  const totalAmount = data.totalAmount || 0;
+  const subtotal = data.subtotal || 0;
+  const discountAmount = data.discountAmount || 0;
   const giftCardId = data.giftCardId || null;
   const splitDetails = data.splitDetails || null;
+
+  // ─── SERVER-SIDE VAT CALCULATION (T&T rate: 12.5%) ───
+  // Fetch tenant tax rate; default to 12.5% for T&T
+  let tenantTaxRate = 0.125;
+  try {
+    const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { taxRate: true } });
+    if (tenant && tenant.taxRate !== null && tenant.taxRate !== undefined) {
+      tenantTaxRate = Number(tenant.taxRate);
+    }
+  } catch { /* use default */ }
+
+  const taxableAmount = Math.max(0, subtotal - discountAmount);
+  const serverTaxAmount = Math.round(taxableAmount * tenantTaxRate * 100) / 100;
+  const serverTotalAmount = Math.round((taxableAmount + serverTaxAmount) * 100) / 100;
+
+  // Accept client tax if within tolerance (0.01), otherwise use server calculation
+  const clientTaxAmount = data.taxAmount || 0;
+  const clientTotalAmount = data.totalAmount || 0;
+  const taxDifference = Math.abs(clientTaxAmount - serverTaxAmount);
+  const totalDifference = Math.abs(clientTotalAmount - serverTotalAmount);
+
+  let taxAmount = clientTaxAmount;
+  let totalAmount = clientTotalAmount;
+
+  if (taxDifference > 0.02 || totalDifference > 0.02) {
+    // Client amounts don't match server calculation - use server values
+    taxAmount = serverTaxAmount;
+    totalAmount = serverTotalAmount;
+  }
 
   // ─── Validate gift card payment requirements ───
   if (paymentMethod === 'gift_card') {
@@ -146,9 +176,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
             subtotal: data.subtotal || 0,
             discountPct: data.discountPct || 0,
             discountAmount: data.discountAmount || 0,
-            taxAmount: data.taxAmount || 0,
+            taxAmount,
+            taxRate: tenantTaxRate,
             totalAmount,
             paymentMethod,
+            giftCardId: (paymentMethod === 'gift_card' || (paymentMethod === 'split' && splitDetails?.giftCardId)) ? (giftCardId || splitDetails?.giftCardId || null) : null,
+            splitDetails: paymentMethod === 'split' ? JSON.stringify(splitDetails) : null,
             cashReceived: data.cashReceived || 0,
             changeAmount: data.changeAmount || 0,
             currency: data.currency || 'TTD',

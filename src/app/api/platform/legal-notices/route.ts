@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { pgQuery } from '@/lib/pg-query';
+import { authenticateRequest } from '@/lib/auth';
 
 // ─── T&T Legal Notice Templates ───
 interface NoticeTemplate {
@@ -295,6 +296,8 @@ Sincerely,
 
 // ─── GET: List notices with filters ───
 export async function GET(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const { searchParams } = new URL(req.url);
     const leaseId = searchParams.get('leaseId');
@@ -329,6 +332,8 @@ export async function GET(req: NextRequest) {
 
 // ─── POST: Create notice from template or custom ───
 export async function POST(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const body = await req.json();
     const {
@@ -566,6 +571,8 @@ async function handleAutoGenerate(req: NextRequest) {
 
 // ─── PATCH: Update notice status, record response ───
 export async function PATCH(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
@@ -672,6 +679,8 @@ export async function PATCH(req: NextRequest) {
 
 // ─── DELETE: Delete notice ───
 export async function DELETE(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');

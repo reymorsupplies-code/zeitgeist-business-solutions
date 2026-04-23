@@ -110,12 +110,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const ownership = verifyTenantAccess(auth, tenantId);
   if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
+  // Parse body ONCE and reuse in both Prisma and pg paths
+  let data: any;
   try {
-    const data = await req.json();
-    if (!data.staffName || data.startingCash === undefined || data.startingCash === null) {
-      return NextResponse.json({ error: 'staffName and startingCash are required' }, { status: 400 });
-    }
+    data = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
 
+  if (!data.staffName || data.startingCash === undefined || data.startingCash === null) {
+    return NextResponse.json({ error: 'staffName and startingCash are required' }, { status: 400 });
+  }
+
+  try {
     // Check for existing open shift
     const existingOpen = await db.registerShift.findFirst({
       where: { tenantId, status: 'open', isDeleted: false },
@@ -154,13 +161,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
     return NextResponse.json(shift);
   } catch (error: any) {
+    // pg fallback — data is already parsed and available
     try {
-      const data = await req.json();
-      if (!data.staffName || data.startingCash === undefined || data.startingCash === null) {
-        return NextResponse.json({ error: 'staffName and startingCash are required' }, { status: 400 });
-      }
-
-      // Check for existing open shift
       const existing = await pgQueryOne<any>(
         `SELECT * FROM "RegisterShift" WHERE "tenantId" = $1 AND status = 'open' AND "isDeleted" = false`,
         [tenantId]
@@ -198,7 +200,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       }
       return NextResponse.json(created);
     } catch (err: any) {
-        console.error('[register-shifts] Error:', err);
+      console.error('[register-shifts] Error:', err);
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }

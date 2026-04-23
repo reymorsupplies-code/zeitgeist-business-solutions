@@ -6,8 +6,8 @@ import { pgQuery } from '@/lib/pg-query';
 // T&T Public Health (Food Safety) Regulations - Allergen Labelling
 
 const COMMON_ALLERGENS = [
-  'milk', 'eggs', 'fish', 'shellfish', 'tree nuts', 'peanuts',
-  'wheat', 'soybeans', 'sesame', 'sulfites', 'gluten',
+  'milk', 'eggs', 'fish', 'crustaceans', 'molluscs', 'tree nuts', 'peanuts',
+  'wheat', 'soybeans', 'sesame', 'celery', 'mustard', 'lupin', 'sulfites', 'gluten',
 ];
 
 // ── Helper: Ensure table exists ──

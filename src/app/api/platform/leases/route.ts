@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { pgQuery } from '@/lib/pg-query';
+import { authenticateRequest } from '@/lib/auth';
 
 // GET: List all leases with unit (with property) and tenant
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     let leases: any[] = [];
     try {
@@ -88,6 +91,8 @@ export async function GET() {
 
 // POST: Create a new lease
 export async function POST(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const data = await req.json();
     const lease = await db.lease.create({
@@ -124,6 +129,8 @@ export async function POST(req: NextRequest) {
 
 // PUT: Update a lease
 export async function PUT(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const data = await req.json();
     if (!data.id) {
@@ -182,6 +189,8 @@ export async function PUT(req: NextRequest) {
 
 // DELETE: Delete a lease
 export async function DELETE(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const data = await req.json();
     if (!data.id) {
