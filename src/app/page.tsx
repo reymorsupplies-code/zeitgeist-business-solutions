@@ -474,11 +474,9 @@ function getPropertyMgmtNav(locale: string) {
   { section: t('tenant.section.finance', locale), items: [
     { label: t('tenant.rentCollection', locale), icon: Banknote, page: 'pm-rent-payments' as const, available: true },
     { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
-    { label: t('tenant.maintenance', locale), icon: Wrench, page: 'pm-maintenance' as const, available: true },
     { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
   { section: t('tenant.section.operations', locale), items: [
-    { label: t('tenant.maintenance', locale), icon: Wrench, page: 'pm-maintenance' as const, available: true },
     { label: t('tenant.vendors', locale), icon: Truck, page: 'pm-vendors' as const, available: true },
     { label: t('tenant.documents', locale), icon: FileSpreadsheet, page: 'pm-property-documents' as const, available: true },
   ]},

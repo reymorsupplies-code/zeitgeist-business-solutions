@@ -119,7 +119,8 @@ export async function POST(req: NextRequest) {
     } catch {
       await pgQuery(
         `INSERT INTO "OwnerDisbursement" ("propertyId","periodStart","periodEnd","grossIncome","totalExpenses","netIncome","ownerShare","disbursementAmount","currency","status","notes","createdAt","updatedAt")
-         VALUES (${data.propertyId?`'${data.propertyId}'`:'NULL'},'${new Date(data.periodStart).toISOString()}','${new Date(data.periodEnd).toISOString()}',${data.grossIncome||0},${data.totalExpenses||0},${netIncome},${data.ownerShare||100},${disbursementAmount},'${data.currency||'TTD'}','${data.status||'pending'}',${data.notes?`'${data.notes.replace(/'/g,"''")}'`:'NULL'},NOW(),NOW())`
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())`,
+        [data.propertyId || null, new Date(data.periodStart).toISOString(), new Date(data.periodEnd).toISOString(), data.grossIncome || 0, data.totalExpenses || 0, netIncome, data.ownerShare || 100, disbursementAmount, data.currency || 'TTD', data.status || 'pending', data.notes || null]
       );
       return NextResponse.json({ success: true, disbursementAmount });
     }
@@ -140,8 +141,12 @@ export async function PATCH(req: NextRequest) {
         data: { status, ...(status === 'paid' && { paidAt: new Date() }), updatedAt: new Date() },
       });
     } catch {
-      const paidAt = status === 'paid' ? `"paidAt"=NOW(),` : '';
-      await pgQuery(`UPDATE "OwnerDisbursement" SET status='${status}',${paidAt}"updatedAt"=NOW() WHERE id='${id}'`);
+      await pgQuery(
+        status === 'paid'
+          ? `UPDATE "OwnerDisbursement" SET status=$1, "paidAt"=NOW(), "updatedAt"=NOW() WHERE id=$2`
+          : `UPDATE "OwnerDisbursement" SET status=$1, "updatedAt"=NOW() WHERE id=$2`,
+        [status, id]
+      );
     }
     return NextResponse.json({ success: true });
   } catch (error: any) {

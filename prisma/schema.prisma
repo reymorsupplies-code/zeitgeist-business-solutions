@@ -68,6 +68,7 @@ model Plan {
 
   tenants       Tenant[]
   subscriptions TenantSubscription[]
+  priceSettings PriceSetting[]
 }
 
 model Tenant {
@@ -166,6 +167,8 @@ model Tenant {
   ownerDisbursements       OwnerDisbursement[]
   leaseRenewalLogs         LeaseRenewalLog[]
   propertyVendors          PropertyVendor[]
+  systemEvents             SystemEvent[]
+  platformInvoices         PlatformInvoice[]
 }
 
 model TenantMembership {
@@ -258,6 +261,9 @@ model CatalogItem {
   updatedAt   DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+
 }
 
 model Client {
@@ -275,6 +281,9 @@ model Client {
 
   tenant         Tenant          @relation(fields: [tenantId], references: [id])
   loyaltyMembers LoyaltyMember[]
+
+  @@index([tenantId])
+
 }
 
 model Invoice {
@@ -299,6 +308,9 @@ model Invoice {
 
   tenant   Tenant    @relation(fields: [tenantId], references: [id])
   payments Payment[]
+
+  @@index([tenantId])
+
 }
 
 model Quotation {
@@ -322,6 +334,9 @@ model Quotation {
   updatedAt   DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+
 }
 
 model Payment {
@@ -340,6 +355,9 @@ model Payment {
 
   tenant  Tenant   @relation(fields: [tenantId], references: [id])
   invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+
 }
 
 model Expense {
@@ -357,6 +375,9 @@ model Expense {
   updatedAt   DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+
 }
 
 model Recipe {
@@ -401,6 +422,9 @@ model Ingredient {
   tenant              Tenant               @relation(fields: [tenantId], references: [id])
   allergenDeclarations AllergenDeclaration[]
   stockMovements      StockMovement[]
+
+  @@index([tenantId])
+
 }
 
 model DesignItem {
@@ -416,6 +440,9 @@ model DesignItem {
   updatedAt   DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+
 }
 
 model TenantDocument {
@@ -430,6 +457,9 @@ model TenantDocument {
   updatedAt DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+
 }
 
 // ============ SALON MODELS ============
@@ -451,6 +481,9 @@ model Appointment {
   tenant  Tenant            @relation(fields: [tenantId], references: [id])
   stylist Stylist?          @relation(fields: [stylistId], references: [id])
   service SalonServiceItem? @relation(fields: [serviceId], references: [id])
+
+  @@index([tenantId])
+
 }
 
 model Stylist {
@@ -468,6 +501,9 @@ model Stylist {
 
   tenant       Tenant        @relation(fields: [tenantId], references: [id])
   appointments Appointment[]
+
+  @@index([tenantId])
+
 }
 
 model SalonServiceItem {
@@ -485,6 +521,9 @@ model SalonServiceItem {
 
   tenant       Tenant        @relation(fields: [tenantId], references: [id])
   appointments Appointment[]
+
+  @@index([tenantId])
+
 }
 
 // ============ CLINIC MODELS ============
@@ -511,6 +550,9 @@ model Patient {
   updatedAt         DateTime  @updatedAt
   tenant               Tenant               @relation(fields: [tenantId], references: [id])
   medicalAppointments MedicalAppointment[]
+
+  @@index([tenantId])
+
 }
 
 model MedicalAppointment {
@@ -530,6 +572,9 @@ model MedicalAppointment {
   updatedAt    DateTime  @updatedAt
   tenant               Tenant               @relation(fields: [tenantId], references: [id])
   patient              Patient?              @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+
 }
 
 // ============ LEGAL MODELS ============
@@ -554,6 +599,9 @@ model LegalCase {
   updatedAt   DateTime  @updatedAt
   tenant      Tenant      @relation(fields: [tenantId], references: [id])
   timeEntries TimeEntry[]
+
+  @@index([tenantId])
+
 }
 
 model TimeEntry {
@@ -570,6 +618,9 @@ model TimeEntry {
   updatedAt   DateTime  @updatedAt
   tenant    Tenant    @relation(fields: [tenantId], references: [id])
   legalCase LegalCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+
 }
 
 // ============ INSURANCE MODELS ============
@@ -591,6 +642,9 @@ model Policy {
   updatedAt     DateTime  @updatedAt
   tenant        Tenant    @relation(fields: [tenantId], references: [id])
   claims        Claim[]
+
+  @@index([tenantId])
+
 }
 
 model Claim {
@@ -609,6 +663,9 @@ model Claim {
   updatedAt    DateTime  @updatedAt
   tenant       Tenant    @relation(fields: [tenantId], references: [id])
   policy       Policy?  @relation(fields: [policyId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+
 }
 
 // ============ RETAIL MODELS ============
@@ -742,6 +799,7 @@ model POSSale {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  giftCard       GiftCard?       @relation(fields: [giftCardId], references: [id])
   productReturns ProductReturn[]
 
   @@unique([tenantId, saleNumber])
@@ -770,7 +828,8 @@ model GiftCard {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  posSales POSSale[]
 
   @@unique([tenantId, cardNumber])
   @@unique([tenantId, cardCode])
@@ -855,6 +914,9 @@ model Event {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   tenant     Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+
 }
 
 // ============ RETAIL SUPPLIERS ============
@@ -895,6 +957,9 @@ model Venue {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   tenant       Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+
 }
 
 model Vendor {
@@ -911,6 +976,9 @@ model Vendor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+
 }
 
 // ============ PROFESSIONAL CONTRACTS ============
@@ -930,6 +998,9 @@ model Contract {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   tenant      Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+
 }
 
 // ============ PROFESSIONAL SERVICES MODELS ============
@@ -950,6 +1021,9 @@ model Project {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   tenant      Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+
 }
 
 // ============ LOYALTY PROGRAM ============
@@ -987,6 +1061,9 @@ model LoyaltyTransaction {
 
   member LoyaltyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
   tenant Tenant        @relation("LoyaltyTransactionTenant", fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+
 }
 
 // ============ BOOKKEEPING ============
@@ -1006,6 +1083,9 @@ model BookkeepingEntry {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+
 }
 
 // ============ PLATFORM ADMIN ============
@@ -1032,6 +1112,8 @@ model SystemEvent {
   tenantId    String?
   metadata    String   @default("{}")
   createdAt   DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
 }
 
 model PlatformInvoice {
@@ -1045,7 +1127,9 @@ model PlatformInvoice {
   dueDate       DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
 }
+
 
 model PriceSetting {
   id        String   @id @default(cuid())
@@ -1054,6 +1138,8 @@ model PriceSetting {
   valueUSD  Decimal   @default(0) @db.Decimal(14,2)
   valueTTD  Decimal   @default(0) @db.Decimal(14,2)
   updatedAt DateTime @updatedAt
+
+  plan Plan? @relation(fields: [planId], references: [id])
 }
 
 // ============ LANDLORD / PROPERTY MANAGEMENT ============
@@ -1321,6 +1407,9 @@ model LeaseRenewalLog {
 
   lease  Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
   tenant Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([leaseId])
+
 }
 
 // ============ T&T PROPERTY RENTAL COMPLIANCE ============

@@ -33,13 +33,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const ownership = verifyTenantAccess(auth, tenantId);
   if (!ownership.success) return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
 
+  let body: any;
   try {
-    const data = await req.json();
-    const item = await db.supplier.create({ data: { ...data, tenantId } });
+    body = await req.json();
+    const item = await db.supplier.create({ data: { ...body, tenantId } });
     return NextResponse.json(item);
   } catch {
     try {
-      const data = await req.json();
+      const data = body;
       const now = new Date().toISOString();
       await pgQuery(
         `INSERT INTO "Supplier" ("tenantId","name","contact","email","phone","address","category","rating","notes","isDeleted","createdAt","updatedAt")
@@ -71,10 +72,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
     return NextResponse.json(updated);
   } catch {
     try {
+      const ALLOWED_SUPPLIER_COLUMNS = ['name','contact','email','phone','address','category','rating','notes'];
       const setParts: string[] = [];
       const paramValues: any[] = [];
       let pIdx = 1;
       for (const [k, v] of Object.entries(fields)) {
+        if (!ALLOWED_SUPPLIER_COLUMNS.includes(k)) continue;
         setParts.push(`"${k}" = $${pIdx++}`);
         paramValues.push(v);
       }

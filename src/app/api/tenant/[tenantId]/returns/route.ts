@@ -72,8 +72,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }
 
+  let body: any;
   try {
-    const data = await req.json();
+    body = await req.json();
+    const data = body;
 
     // Check for existing non-cancelled/non-rejected return for this sale
     const existingReturn = await db.productReturn.findFirst({
@@ -139,7 +141,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     return NextResponse.json(ret);
   } catch (error: any) {
     try {
-      const data = await req.json();
+      const data = body;
 
       // Validate sale (pg fallback)
       const sale = await pgQueryOne<any>(`SELECT id, status, items FROM "POSSale" WHERE id = $1 AND "tenantId" = $2 AND "isDeleted" = false`, [data.saleId, tenantId]);
