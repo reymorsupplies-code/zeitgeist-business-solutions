@@ -51,6 +51,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import BarcodeScanner from '@/components/barcode-scanner';
+import InsurancePoliciesPage from '@/components/pages/InsurancePoliciesPage';
+import InsuranceClaimsPage from '@/components/pages/InsuranceClaimsPage';
+import ClinicPatientsPage from '@/components/pages/ClinicPatientsPage';
+import ClinicAppointmentsPage from '@/components/pages/ClinicAppointmentsPage';
+import LegalCasesPage from '@/components/pages/LegalCasesPage';
+import LegalTimeEntriesPage from '@/components/pages/LegalTimeEntriesPage';
 
 // ============ LANG TOGGLE ============
 function LangToggle({ className = '' }: { className?: string }) {
@@ -380,9 +386,8 @@ function getLegalNav(locale: string) {
   return [
   { section: t('tenant.section.practice', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: t('tenant.cases', locale), icon: Briefcase, page: 'projects' as const, available: true },
-    { label: t('tenant.calendar', locale), icon: Calendar, page: 'time-tracking' as const, available: true },
-    { label: t('tenant.timeTracking', locale), icon: Clock, page: 'time-tracking' as const, available: true },
+    { label: t('tenant.cases', locale), icon: Briefcase, page: 'legal-cases' as const, available: true },
+    { label: t('tenant.timeTracking', locale), icon: Clock, page: 'legal-time-entries' as const, available: true },
   ]},
   { section: t('tenant.section.clients', locale), items: [
     { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
@@ -411,8 +416,8 @@ function getInsuranceNav(locale: string) {
   return [
   { section: t('tenant.section.operations', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: t('tenant.policies', locale), icon: Shield, page: 'catalog' as const, available: true },
-    { label: t('tenant.claims', locale), icon: ClipboardList, page: 'orders' as const, available: true },
+    { label: t('tenant.policies', locale), icon: Shield, page: 'insurance-policies' as const, available: true },
+    { label: t('tenant.claims', locale), icon: ClipboardList, page: 'insurance-claims' as const, available: true },
     { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
   ]},
   { section: t('tenant.section.finance', locale), items: [
@@ -437,12 +442,12 @@ function getClinicsNav(locale: string) {
   return [
   { section: t('tenant.section.clinic', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: t('tenant.appointments', locale), icon: Calendar, page: 'appointments' as const, available: true },
+    { label: t('tenant.appointments', locale), icon: Calendar, page: 'clinic-appointments' as const, available: true },
     { label: t('tenant.doctors', locale), icon: UsersIcon, page: 'stylists' as const, available: true },
     { label: t('tenant.salonServices', locale), icon: Stethoscope, page: 'salon_services' as const, available: true },
   ]},
   { section: t('tenant.section.patients', locale), items: [
-    { label: t('tenant.patientRecords', locale), icon: Users, page: 'clients' as const, available: true },
+    { label: t('tenant.patientRecords', locale), icon: Users, page: 'clinic-patients' as const, available: true },
     { label: t('tenant.medicalHistory', locale), icon: FileText, page: 'documents' as const, available: true },
     { label: t('tenant.prescriptions', locale), icon: FileSpreadsheet, page: 'design_gallery' as const, available: true },
   ]},
@@ -20707,6 +20712,15 @@ function TenantAppView() {
       case 'health-inspections': return <TenantHealthInspectionsPage />;
       case 'temperature-logs': return <TenantTemperatureLogsPage />;
       case 'cleaning-logs': return <TenantCleaningLogsPage />;
+      // Insurance pages
+      case 'insurance-policies': return <InsurancePoliciesPage />;
+      case 'insurance-claims': return <InsuranceClaimsPage />;
+      // Clinics pages
+      case 'clinic-patients': return <ClinicPatientsPage />;
+      case 'clinic-appointments': return <ClinicAppointmentsPage />;
+      // Legal pages
+      case 'legal-cases': return <LegalCasesPage />;
+      case 'legal-time-entries': return <LegalTimeEntriesPage />;
       // Property Management pages (delegate to CT components)
       case 'pm-property': return <CTProperties />;
       case 'pm-property-units': return <CTPropertyUnits />;
