@@ -29,7 +29,8 @@ import {
   Server,
   Table as TableIcon, Save, Cake, Pencil,
   CalendarHeart, ScanLine, MessageCircle,
-  Printer, Ban,
+  Printer, Ban, Thermometer, Bug, ClipboardCheck,
+  SprayCan, HandMetal, FileWarning,
 } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Button } from '@/components/ui/button';
@@ -234,6 +235,14 @@ function getBakeryNav(locale: string) {
   { section: t('tenant.section.insights', locale), items: [
     { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
     { label: t('tenant.pricingAssistant', locale), icon: DollarSign, page: 'pricing_assistant' as const, available: true, tier: 'Growth+' },
+  ]},
+  { section: t('tenant.section.foodSafety', locale), items: [
+    { label: t('tenant.haccp', locale), icon: Shield, page: 'haccp' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.allergens', locale), icon: Bug, page: 'allergens' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.foodHandlers', locale), icon: UserCheck, page: 'food-handlers' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.healthInspections', locale), icon: ClipboardCheck, page: 'health-inspections' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.temperatureLogs', locale), icon: Thermometer, page: 'temperature-logs' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.cleaningLogs', locale), icon: SprayCan, page: 'cleaning-logs' as const, available: true, tier: 'Growth+' },
   ]},
   { section: t('tenant.section.tools', locale), items: [
     { label: t('tenant.team', locale), icon: Users, page: 'team' as const, available: true },
@@ -9042,6 +9051,14 @@ function getPanaderiaNav(locale: string) {
     { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
     { label: t('tenant.costAnalysis', locale), icon: Percent, page: 'cost_analysis' as const, available: true, tier: 'Growth+' },
   ]},
+  { section: t('tenant.section.seguridadAlimentaria', locale), items: [
+    { label: t('tenant.haccp', locale), icon: Shield, page: 'haccp' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.allergens', locale), icon: Bug, page: 'allergens' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.foodHandlers', locale), icon: UserCheck, page: 'food-handlers' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.healthInspections', locale), icon: ClipboardCheck, page: 'health-inspections' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.temperatureLogs', locale), icon: Thermometer, page: 'temperature-logs' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.cleaningLogs', locale), icon: SprayCan, page: 'cleaning-logs' as const, available: true, tier: 'Growth+' },
+  ]},
   { section: t('tenant.section.herramientas', locale), items: [
     { label: t('tenant.team', locale), icon: Users, page: 'team' as const, available: true },
     { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
@@ -9085,6 +9102,14 @@ function getPasteleriaNav(locale: string) {
     { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
     { label: t('tenant.pricingAssistant', locale), icon: DollarSign, page: 'pricing_assistant' as const, available: true, tier: 'Growth+' },
     { label: t('tenant.stealthFinance', locale), icon: EyeOff, page: 'stealth_finance' as const, available: true, tier: 'Owner' },
+  ]},
+  { section: t('tenant.section.seguridadAlimentaria', locale), items: [
+    { label: t('tenant.haccp', locale), icon: Shield, page: 'haccp' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.allergens', locale), icon: Bug, page: 'allergens' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.foodHandlers', locale), icon: UserCheck, page: 'food-handlers' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.healthInspections', locale), icon: ClipboardCheck, page: 'health-inspections' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.temperatureLogs', locale), icon: Thermometer, page: 'temperature-logs' as const, available: true, tier: 'Growth+' },
+    { label: t('tenant.cleaningLogs', locale), icon: SprayCan, page: 'cleaning-logs' as const, available: true, tier: 'Growth+' },
   ]},
   { section: t('tenant.section.herramientas', locale), items: [
     { label: t('tenant.team', locale), icon: Users, page: 'team' as const, available: true },
@@ -19656,6 +19681,953 @@ function TenantPasteleriaAnalyticsPage() {
   );
 }
 
+// ============ FOOD SAFETY - HACCP PLANS PAGE ============
+function TenantHACCPPage() {
+  const { currentTenant, locale } = useAppStore() as any;
+  const [plans, setPlans] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState({ planName: '', processStep: '', hazardType: 'biological', hazardDescription: '', criticalLimit: '', monitoringProcedure: '', correctiveAction: '', responsiblePerson: '', reviewFrequency: 'monthly' });
+  const tid = currentTenant?.id;
+
+  const defaultForm = { planName: '', processStep: '', hazardType: 'biological', hazardDescription: '', criticalLimit: '', monitoringProcedure: '', correctiveAction: '', responsiblePerson: '', reviewFrequency: 'monthly' };
+
+  const load = useCallback(() => {
+    if (!tid) return;
+    setLoading(true);
+    Promise.all([
+      authFetch(`/api/tenant/${tid}/haccp`).then(r => r.json()).catch(() => []),
+      authFetch(`/api/tenant/${tid}/haccp?action=summary`).then(r => r.json()).catch(() => null),
+    ]).then(([plansData, summaryData]) => {
+      setPlans(Array.isArray(plansData) ? plansData : []);
+      setSummary(summaryData);
+      setLoading(false);
+    });
+  }, [tid]);
+  useEffect(() => { load(); }, [load]);
+
+  const openCreate = () => { setEditing(null); setForm({ ...defaultForm }); setShowForm(true); };
+  const openEdit = (row: any) => {
+    setEditing(row);
+    setForm({ planName: row.planName || '', processStep: row.processStep || '', hazardType: row.hazardType || 'biological', hazardDescription: row.hazardDescription || '', criticalLimit: row.criticalLimit || '', monitoringProcedure: row.monitoringProcedure || '', correctiveAction: row.correctiveAction || '', responsiblePerson: row.responsiblePerson || '', reviewFrequency: row.reviewFrequency || 'monthly' });
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.planName) return;
+    try {
+      await authFetch(`/api/tenant/${tid}/haccp`, { method: editing?.id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editing?.id ? { id: editing.id, ...form } : form) });
+      setShowForm(false); setEditing(null); load();
+      toast.success(editing?.id ? 'Plan actualizado' : 'Plan creado');
+    } catch { toast.error('Error al guardar'); }
+  };
+
+  const handleDelete = async (row: any) => {
+    if (!confirm('¿Eliminar este plan HACCP?')) return;
+    try {
+      await authFetch(`/api/tenant/${tid}/haccp`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: row.id }) });
+      load(); toast.success('Plan eliminado');
+    } catch { toast.error('Error al eliminar'); }
+  };
+
+  const filtered = plans.filter((p: any) => !search || p.planName?.toLowerCase().includes(search.toLowerCase()) || p.processStep?.toLowerCase().includes(search.toLowerCase()) || p.hazardType?.toLowerCase().includes(search.toLowerCase()));
+
+  const hazardColors: Record<string, string> = { biological: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', chemical: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400', physical: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' };
+
+  if (loading) return <PageSkeleton type="table" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 shadow-lg"><Shield className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Planes HACCP</h1><p className="text-sm text-muted-foreground">Análisis de Peligros y Puntos Críticos de Control</p></div>
+        </div>
+        <Button onClick={openCreate} className="bg-gradient-to-r from-emerald-600 to-teal-500"><Plus className="w-4 h-4 mr-2" />Nuevo Plan</Button>
+      </div>
+
+      {summary && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="p-4"><div className="text-2xl font-bold text-emerald-600">{summary.totalPlans || 0}</div><div className="text-xs text-muted-foreground">Total Planes</div></Card>
+          <Card className="p-4"><div className="text-2xl font-bold text-amber-600">{summary.pendingReviews || 0}</div><div className="text-xs text-muted-foreground">Revisiones Pendientes</div></Card>
+          <Card className="p-4"><div className="text-2xl font-bold text-red-600">{summary.openRisks || 0}</div><div className="text-xs text-muted-foreground">Riesgos Abiertos</div></Card>
+          <Card className="p-4"><div className="text-2xl font-bold text-blue-600">{summary.complianceRate != null ? `${summary.complianceRate}%` : '—'}</div><div className="text-xs text-muted-foreground">Tasa Cumplimiento</div></Card>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3">
+        <div className="relative max-w-xs flex-1"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar plan..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" /></div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card className="p-12 text-center"><Shield className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">No hay planes HACCP registrados.</p><Button className="mt-4" variant="outline" onClick={openCreate}><Plus className="w-4 h-4 mr-2" />Crear Primer Plan</Button></Card>
+      ) : (
+        <div className="grid gap-4">
+          {filtered.map((p: any) => (
+            <Card key={p.id} className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <h3 className="font-semibold">{p.planName}</h3>
+                    <Badge className={hazardColors[p.hazardType] || ''}>{p.hazardType}</Badge>
+                    {p.status && <Badge variant={p.status === 'active' ? 'default' : 'secondary'}>{p.status === 'active' ? 'Activo' : p.status}</Badge>}
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">{p.processStep}</p>
+                  <p className="text-sm">{p.hazardDescription}</p>
+                  {p.criticalLimit && <p className="text-sm mt-1"><span className="font-medium">Límite Crítico:</span> {p.criticalLimit}</p>}
+                  {p.responsiblePerson && <p className="text-xs text-muted-foreground mt-1">Responsable: {p.responsiblePerson}</p>}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(p)}><Edit className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(p)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editing ? 'Editar Plan HACCP' : 'Nuevo Plan HACCP'}</DialogTitle><DialogDescription>{editing ? 'Modifica los detalles del plan de control.' : 'Crea un nuevo plan de análisis de peligros.'}</DialogDescription></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div><Label>Nombre del Plan *</Label><Input value={form.planName} onChange={e => setForm(f => ({ ...f, planName: e.target.value }))} className="mt-1" /></div>
+            <div><Label>Paso del Proceso *</Label><Input value={form.processStep} onChange={e => setForm(f => ({ ...f, processStep: e.target.value }))} className="mt-1" /></div>
+            <div><Label>Tipo de Peligro</Label>
+              <Select value={form.hazardType} onValueChange={v => setForm(f => ({ ...f, hazardType: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="biological">Biológico</SelectItem>
+                  <SelectItem value="chemical">Químico</SelectItem>
+                  <SelectItem value="physical">Físico</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Descripción del Peligro</Label><Textarea value={form.hazardDescription} onChange={e => setForm(f => ({ ...f, hazardDescription: e.target.value }))} rows={2} className="mt-1" /></div>
+            <div><Label>Límite Crítico</Label><Input value={form.criticalLimit} onChange={e => setForm(f => ({ ...f, criticalLimit: e.target.value }))} className="mt-1" /></div>
+            <div><Label>Procedimiento de Monitoreo</Label><Textarea value={form.monitoringProcedure} onChange={e => setForm(f => ({ ...f, monitoringProcedure: e.target.value }))} rows={2} className="mt-1" /></div>
+            <div><Label>Acción Correctiva</Label><Textarea value={form.correctiveAction} onChange={e => setForm(f => ({ ...f, correctiveAction: e.target.value }))} rows={2} className="mt-1" /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Responsable</Label><Input value={form.responsiblePerson} onChange={e => setForm(f => ({ ...f, responsiblePerson: e.target.value }))} className="mt-1" /></div>
+              <div><Label>Frecuencia Revisión</Label>
+                <Select value={form.reviewFrequency} onValueChange={v => setForm(f => ({ ...f, reviewFrequency: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Diaria</SelectItem>
+                    <SelectItem value="weekly">Semanal</SelectItem>
+                    <SelectItem value="monthly">Mensual</SelectItem>
+                    <SelectItem value="quarterly">Trimestral</SelectItem>
+                    <SelectItem value="annually">Anual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={!form.planName} className="bg-gradient-to-r from-emerald-600 to-teal-500">{editing ? 'Actualizar' : 'Crear Plan'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ FOOD SAFETY - ALLERGEN DECLARATIONS PAGE ============
+function TenantAllergensPage() {
+  const { currentTenant, locale } = useAppStore() as any;
+  const [allergens, setAllergens] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [form, setForm] = useState({ ingredientName: '', allergenType: 'gluten', severity: 'medium', declaration: '' });
+  const tid = currentTenant?.id;
+
+  const COMMON_ALLERGENS = ['gluten', 'dairy', 'eggs', 'nuts', 'peanuts', 'soy', 'fish', 'shellfish', 'sesame', 'sulfites'];
+  const severityColors: Record<string, string> = { low: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', medium: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400', high: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' };
+  const severityLabels: Record<string, string> = { low: 'Bajo', medium: 'Medio', high: 'Alto' };
+  const allergenLabels: Record<string, string> = { gluten: 'Gluten', dairy: 'Lácteos', eggs: 'Huevos', nuts: 'Frutos Secos', peanuts: 'Cacahuetes', soy: 'Soja', fish: 'Pescado', shellfish: 'Mariscos', sesame: 'Sésamo', sulfites: 'Sulfitos' };
+
+  const defaultForm = { ingredientName: '', allergenType: 'gluten', severity: 'medium', declaration: '' };
+
+  const load = useCallback(() => {
+    if (!tid) return;
+    setLoading(true);
+    authFetch(`/api/tenant/${tid}/allergens`).then(r => r.json()).then(d => { setAllergens(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, [tid]);
+  useEffect(() => { load(); }, [load]);
+
+  const openCreate = () => { setEditing(null); setForm({ ...defaultForm }); setShowForm(true); };
+  const openEdit = (row: any) => {
+    setEditing(row);
+    setForm({ ingredientName: row.ingredientName || '', allergenType: row.allergenType || 'gluten', severity: row.severity || 'medium', declaration: row.declaration || '' });
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.ingredientName) return;
+    try {
+      await authFetch(`/api/tenant/${tid}/allergens`, { method: editing?.id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editing?.id ? { id: editing.id, ...form } : form) });
+      setShowForm(false); setEditing(null); load();
+      toast.success(editing?.id ? 'Declaración actualizada' : 'Declaración creada');
+    } catch { toast.error('Error al guardar'); }
+  };
+
+  const handleDelete = async (row: any) => {
+    if (!confirm('¿Eliminar esta declaración de alérgeno?')) return;
+    try {
+      await authFetch(`/api/tenant/${tid}/allergens`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: row.id }) });
+      load(); toast.success('Declaración eliminada');
+    } catch { toast.error('Error al eliminar'); }
+  };
+
+  const filtered = allergens.filter((a: any) => {
+    const matchSearch = !search || a.ingredientName?.toLowerCase().includes(search.toLowerCase()) || a.allergenType?.toLowerCase().includes(search.toLowerCase());
+    const matchType = typeFilter === 'all' || a.allergenType === typeFilter;
+    return matchSearch && matchType;
+  });
+
+  if (loading) return <PageSkeleton type="table" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg"><Bug className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Declaraciones de Alérgenos</h1><p className="text-sm text-muted-foreground">Gestión y control de alérgenos en productos</p></div>
+        </div>
+        <Button onClick={openCreate} className="bg-gradient-to-r from-orange-500 to-amber-500"><Plus className="w-4 h-4 mr-2" />Nueva Declaración</Button>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        {COMMON_ALLERGENS.map(a => {
+          const count = allergens.filter((al: any) => al.allergenType === a).length;
+          return count > 0 ? <Badge key={a} variant="outline" className="cursor-pointer hover:bg-muted" onClick={() => setTypeFilter(typeFilter === a ? 'all' : a)}>{allergenLabels[a] || a}: {count}</Badge> : null;
+        })}
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="relative max-w-xs flex-1"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar ingrediente o alérgeno..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" /></div>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Tipo de alérgeno" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            {COMMON_ALLERGENS.map(a => <SelectItem key={a} value={a}>{allergenLabels[a] || a}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card className="p-12 text-center"><Bug className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">No hay declaraciones de alérgenos registradas.</p><Button className="mt-4" variant="outline" onClick={openCreate}><Plus className="w-4 h-4 mr-2" />Agregar Primera</Button></Card>
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Ingrediente</TableHead><TableHead>Alérgeno</TableHead><TableHead>Severidad</TableHead><TableHead>Declaración</TableHead><TableHead className="text-center">Acciones</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {filtered.map((a: any) => (
+                  <TableRow key={a.id}>
+                    <TableCell className="font-medium">{a.ingredientName}</TableCell>
+                    <TableCell><Badge variant="secondary">{allergenLabels[a.allergenType] || a.allergenType}</Badge></TableCell>
+                    <TableCell><Badge className={severityColors[a.severity] || ''}>{severityLabels[a.severity] || a.severity}</Badge></TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{a.declaration || '—'}</TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(a)}><Edit className="w-3.5 h-3.5" /></Button>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(a)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
+
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{editing ? 'Editar Declaración' : 'Nueva Declaración de Alérgeno'}</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div><Label>Ingrediente *</Label><Input value={form.ingredientName} onChange={e => setForm(f => ({ ...f, ingredientName: e.target.value }))} className="mt-1" /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Tipo de Alérgeno</Label>
+                <Select value={form.allergenType} onValueChange={v => setForm(f => ({ ...f, allergenType: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>{COMMON_ALLERGENS.map(a => <SelectItem key={a} value={a}>{allergenLabels[a] || a}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Severidad</Label>
+                <Select value={form.severity} onValueChange={v => setForm(f => ({ ...f, severity: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Bajo</SelectItem>
+                    <SelectItem value="medium">Medio</SelectItem>
+                    <SelectItem value="high">Alto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><Label>Declaración</Label><Textarea value={form.declaration} onChange={e => setForm(f => ({ ...f, declaration: e.target.value }))} rows={3} className="mt-1" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={!form.ingredientName} className="bg-gradient-to-r from-orange-500 to-amber-500">{editing ? 'Actualizar' : 'Crear'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ FOOD SAFETY - FOOD HANDLERS PAGE ============
+function TenantFoodHandlersPage() {
+  const { currentTenant, locale } = useAppStore() as any;
+  const [handlers, setHandlers] = useState<any[]>([]);
+  const [compliance, setCompliance] = useState<any>(null);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState({ fullName: '', position: '', registrationNumber: '', trainingDate: '', certificateUrl: '', expiryDate: '', healthStatus: 'active' });
+  const tid = currentTenant?.id;
+
+  const defaultForm = { fullName: '', position: '', registrationNumber: '', trainingDate: '', certificateUrl: '', expiryDate: '', healthStatus: 'active' };
+
+  const load = useCallback(() => {
+    if (!tid) return;
+    setLoading(true);
+    Promise.all([
+      authFetch(`/api/tenant/${tid}/food-handlers`).then(r => r.json()).catch(() => []),
+      authFetch(`/api/tenant/${tid}/food-handlers?action=compliance-summary`).then(r => r.json()).catch(() => null),
+      authFetch(`/api/tenant/${tid}/food-handlers?action=expiry-alerts`).then(r => r.json()).catch(() => []),
+    ]).then(([handlersData, complianceData, alertsData]) => {
+      setHandlers(Array.isArray(handlersData) ? handlersData : []);
+      setCompliance(complianceData);
+      setAlerts(Array.isArray(alertsData) ? alertsData : []);
+      setLoading(false);
+    });
+  }, [tid]);
+  useEffect(() => { load(); }, [load]);
+
+  const openCreate = () => { setEditing(null); setForm({ ...defaultForm }); setShowForm(true); };
+  const openEdit = (row: any) => {
+    setEditing(row);
+    setForm({ fullName: row.fullName || '', position: row.position || '', registrationNumber: row.registrationNumber || '', trainingDate: row.trainingDate?.slice(0, 10) || '', certificateUrl: row.certificateUrl || '', expiryDate: row.expiryDate?.slice(0, 10) || '', healthStatus: row.healthStatus || 'active' });
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.fullName) return;
+    try {
+      await authFetch(`/api/tenant/${tid}/food-handlers`, { method: editing?.id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editing?.id ? { id: editing.id, ...form } : form) });
+      setShowForm(false); setEditing(null); load();
+      toast.success(editing?.id ? 'Registro actualizado' : 'Manipulador registrado');
+    } catch { toast.error('Error al guardar'); }
+  };
+
+  const handleDelete = async (row: any) => {
+    if (!confirm('¿Eliminar este registro?')) return;
+    try {
+      await authFetch(`/api/tenant/${tid}/food-handlers`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: row.id }) });
+      load(); toast.success('Registro eliminado');
+    } catch { toast.error('Error al eliminar'); }
+  };
+
+  const isExpiringSoon = (dateStr: string) => {
+    if (!dateStr) return false;
+    const exp = new Date(dateStr);
+    const now = new Date();
+    const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    return diff >= 0 && diff <= 30;
+  };
+
+  const isExpired = (dateStr: string) => {
+    if (!dateStr) return false;
+    return new Date(dateStr) < new Date();
+  };
+
+  const filtered = handlers.filter((h: any) => !search || h.fullName?.toLowerCase().includes(search.toLowerCase()) || h.position?.toLowerCase().includes(search.toLowerCase()) || h.registrationNumber?.toLowerCase().includes(search.toLowerCase()));
+
+  if (loading) return <PageSkeleton type="table" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-500 shadow-lg"><UserCheck className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Manipuladores de Alimentos</h1><p className="text-sm text-muted-foreground">Registro de certificados y estado de salud</p></div>
+        </div>
+        <Button onClick={openCreate} className="bg-gradient-to-r from-blue-600 to-indigo-500"><Plus className="w-4 h-4 mr-2" />Nuevo Registro</Button>
+      </div>
+
+      {compliance && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="p-4"><div className="text-2xl font-bold text-blue-600">{handlers.length}</div><div className="text-xs text-muted-foreground">Total Registrados</div></Card>
+          <Card className="p-4"><div className="text-2xl font-bold text-emerald-600">{compliance.complianceRate != null ? `${compliance.complianceRate}%` : '—'}</div><div className="text-xs text-muted-foreground">Tasa Cumplimiento</div></Card>
+          <Card className="p-4"><div className="text-2xl font-bold text-amber-600">{compliance.pendingCertificates || 0}</div><div className="text-xs text-muted-foreground">Certificados Pendientes</div></Card>
+          <Card className="p-4"><div className="text-2xl font-bold text-red-600">{alerts.length}</div><div className="text-xs text-muted-foreground">Vencimientos Próximos</div></Card>
+        </div>
+      )}
+
+      {alerts.length > 0 && (
+        <Card className="p-4 border-red-200 bg-red-50 dark:bg-red-900/20">
+          <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-medium mb-2"><AlertTriangle className="w-4 h-4" />Alertas de Vencimiento ({alerts.length})</div>
+          <div className="flex gap-2 flex-wrap">{alerts.slice(0, 5).map((a: any) => <Badge key={a.id} variant="outline" className="bg-red-100 border-red-300 dark:bg-red-900/30">{a.fullName}: {a.expiryDate?.slice(0, 10)}</Badge>)}</div>
+        </Card>
+      )}
+
+      <div className="relative max-w-xs"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar manipulador..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" /></div>
+
+      {filtered.length === 0 ? (
+        <Card className="p-12 text-center"><UserCheck className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">No hay manipuladores registrados.</p><Button className="mt-4" variant="outline" onClick={openCreate}><Plus className="w-4 h-4 mr-2" />Registrar Primero</Button></Card>
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Nombre</TableHead><TableHead>Puesto</TableHead><TableHead>No. Registro</TableHead><TableHead>Capacitación</TableHead><TableHead>Vencimiento</TableHead><TableHead>Estado</TableHead><TableHead className="text-center">Acciones</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {filtered.map((h: any) => (
+                  <TableRow key={h.id}>
+                    <TableCell className="font-medium">{h.fullName}</TableCell>
+                    <TableCell className="text-muted-foreground">{h.position || '—'}</TableCell>
+                    <TableCell><Badge variant="outline">{h.registrationNumber || '—'}</Badge></TableCell>
+                    <TableCell className="text-sm">{h.trainingDate?.slice(0, 10) || '—'}</TableCell>
+                    <TableCell>
+                      {h.expiryDate ? (
+                        isExpired(h.expiryDate) ? <Badge className="bg-red-100 text-red-800">{h.expiryDate.slice(0, 10)}</Badge> :
+                        isExpiringSoon(h.expiryDate) ? <Badge className="bg-amber-100 text-amber-800">{h.expiryDate.slice(0, 10)}</Badge> :
+                        <span className="text-sm">{h.expiryDate.slice(0, 10)}</span>
+                      ) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={h.healthStatus === 'active' ? 'default' : 'secondary'} className={h.healthStatus === 'active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' : ''}>
+                        {h.healthStatus === 'active' ? 'Activo' : h.healthStatus === 'expired' ? 'Vencido' : h.healthStatus === 'suspended' ? 'Suspendido' : h.healthStatus}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(h)}><Edit className="w-3.5 h-3.5" /></Button>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(h)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
+
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editing ? 'Editar Registro' : 'Nuevo Manipulador de Alimentos'}</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Nombre Completo *</Label><Input value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} className="mt-1" /></div>
+              <div><Label>Puesto</Label><Input value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} className="mt-1" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>No. Registro</Label><Input value={form.registrationNumber} onChange={e => setForm(f => ({ ...f, registrationNumber: e.target.value }))} className="mt-1" /></div>
+              <div><Label>Estado de Salud</Label>
+                <Select value={form.healthStatus} onValueChange={v => setForm(f => ({ ...f, healthStatus: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Activo</SelectItem>
+                    <SelectItem value="expired">Vencido</SelectItem>
+                    <SelectItem value="suspended">Suspendido</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Fecha Capacitación</Label><Input type="date" value={form.trainingDate} onChange={e => setForm(f => ({ ...f, trainingDate: e.target.value }))} className="mt-1" /></div>
+              <div><Label>Fecha Vencimiento</Label><Input type="date" value={form.expiryDate} onChange={e => setForm(f => ({ ...f, expiryDate: e.target.value }))} className="mt-1" /></div>
+            </div>
+            <div><Label>URL Certificado</Label><Input value={form.certificateUrl} onChange={e => setForm(f => ({ ...f, certificateUrl: e.target.value }))} className="mt-1" placeholder="https://..." /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={!form.fullName} className="bg-gradient-to-r from-blue-600 to-indigo-500">{editing ? 'Actualizar' : 'Registrar'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ FOOD SAFETY - HEALTH INSPECTIONS PAGE ============
+function TenantHealthInspectionsPage() {
+  const { currentTenant, locale } = useAppStore() as any;
+  const [inspections, setInspections] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState({ inspectionNumber: '', inspectorName: '', inspectorAgency: '', overallScore: '', scoreMax: '100', result: 'pass', violations: '', nextInspectionDate: '' });
+  const tid = currentTenant?.id;
+
+  const defaultForm = { inspectionNumber: '', inspectorName: '', inspectorAgency: '', overallScore: '', scoreMax: '100', result: 'pass', violations: '', nextInspectionDate: '' };
+
+  const load = useCallback(() => {
+    if (!tid) return;
+    setLoading(true);
+    authFetch(`/api/tenant/${tid}/health-inspections`).then(r => r.json()).then(d => { setInspections(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, [tid]);
+  useEffect(() => { load(); }, [load]);
+
+  const openCreate = () => { setEditing(null); setForm({ ...defaultForm }); setShowForm(true); };
+  const openEdit = (row: any) => {
+    setEditing(row);
+    setForm({ inspectionNumber: row.inspectionNumber || '', inspectorName: row.inspectorName || '', inspectorAgency: row.inspectorAgency || '', overallScore: String(row.overallScore || ''), scoreMax: String(row.scoreMax || '100'), result: row.result || 'pass', violations: typeof row.violations === 'string' ? row.violations : JSON.stringify(row.violations || [], null, 2), nextInspectionDate: row.nextInspectionDate?.slice(0, 10) || '' });
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.inspectionNumber) return;
+    try {
+      let violationsParsed: any = form.violations;
+      try { violationsParsed = JSON.parse(form.violations); } catch { violationsParsed = form.violations; }
+      const payload = { ...form, overallScore: Number(form.overallScore), scoreMax: Number(form.scoreMax), violations: violationsParsed };
+      await authFetch(`/api/tenant/${tid}/health-inspections`, { method: editing?.id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editing?.id ? { id: editing.id, ...payload } : payload) });
+      setShowForm(false); setEditing(null); load();
+      toast.success(editing?.id ? 'Inspección actualizada' : 'Inspección registrada');
+    } catch { toast.error('Error al guardar'); }
+  };
+
+  const handleDelete = async (row: any) => {
+    if (!confirm('¿Eliminar esta inspección?')) return;
+    try {
+      await authFetch(`/api/tenant/${tid}/health-inspections`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: row.id }) });
+      load(); toast.success('Inspección eliminada');
+    } catch { toast.error('Error al eliminar'); }
+  };
+
+  const resultConfig: Record<string, { label: string; color: string }> = { pass: { label: 'Aprobada', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' }, fail: { label: 'Reprobada', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' }, conditional: { label: 'Condicional', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' } };
+
+  const filtered = inspections.filter((i: any) => !search || i.inspectionNumber?.toLowerCase().includes(search.toLowerCase()) || i.inspectorName?.toLowerCase().includes(search.toLowerCase()) || i.inspectorAgency?.toLowerCase().includes(search.toLowerCase()));
+
+  const totalInspections = inspections.length;
+  const passCount = inspections.filter((i: any) => i.result === 'pass').length;
+  const avgScore = totalInspections > 0 ? Math.round(inspections.reduce((s: number, i: any) => s + (i.overallScore || 0), 0) / totalInspections) : 0;
+
+  if (loading) return <PageSkeleton type="table" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-600 to-purple-500 shadow-lg"><ClipboardCheck className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Inspecciones Sanitarias</h1><p className="text-sm text-muted-foreground">Registro de inspecciones del departamento de salud</p></div>
+        </div>
+        <Button onClick={openCreate} className="bg-gradient-to-r from-violet-600 to-purple-500"><Plus className="w-4 h-4 mr-2" />Nueva Inspección</Button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="p-4"><div className="text-2xl font-bold text-violet-600">{totalInspections}</div><div className="text-xs text-muted-foreground">Total Inspecciones</div></Card>
+        <Card className="p-4"><div className="text-2xl font-bold text-emerald-600">{passCount}</div><div className="text-xs text-muted-foreground">Aprobadas</div></Card>
+        <Card className="p-4"><div className="text-2xl font-bold text-amber-600">{avgScore}%</div><div className="text-xs text-muted-foreground">Puntaje Promedio</div></Card>
+        <Card className="p-4"><div className="text-2xl font-bold text-blue-600">{totalInspections > 0 ? Math.round((passCount / totalInspections) * 100) : 0}%</div><div className="text-xs text-muted-foreground">Tasa Aprobación</div></Card>
+      </div>
+
+      <div className="relative max-w-xs"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar inspección..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" /></div>
+
+      {filtered.length === 0 ? (
+        <Card className="p-12 text-center"><ClipboardCheck className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">No hay inspecciones registradas.</p><Button className="mt-4" variant="outline" onClick={openCreate}><Plus className="w-4 h-4 mr-2" />Registrar Primera</Button></Card>
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>No. Inspección</TableHead><TableHead>Inspector</TableHead><TableHead>Agencia</TableHead><TableHead>Puntaje</TableHead><TableHead>Resultado</TableHead><TableHead>Violaciones</TableHead><TableHead className="text-center">Acciones</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {filtered.map((i: any) => {
+                  const rc = resultConfig[i.result] || resultConfig.conditional;
+                  const violationsCount = Array.isArray(i.violations) ? i.violations.length : (typeof i.violations === 'string' && i.violations ? 1 : 0);
+                  return (
+                    <TableRow key={i.id}>
+                      <TableCell className="font-medium">{i.inspectionNumber}</TableCell>
+                      <TableCell className="text-muted-foreground">{i.inspectorName || '—'}</TableCell>
+                      <TableCell className="text-sm">{i.inspectorAgency || '—'}</TableCell>
+                      <TableCell><span className="font-semibold">{i.overallScore ?? '—'}</span><span className="text-muted-foreground">/{i.scoreMax || 100}</span></TableCell>
+                      <TableCell><Badge className={rc.color}>{rc.label}</Badge></TableCell>
+                      <TableCell>{violationsCount > 0 ? <Badge variant="destructive" className="text-xs">{violationsCount}</Badge> : <span className="text-emerald-600 text-xs">Ninguna</span>}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(i)}><Edit className="w-3.5 h-3.5" /></Button>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(i)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
+
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editing ? 'Editar Inspección' : 'Nueva Inspección Sanitaria'}</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>No. Inspección *</Label><Input value={form.inspectionNumber} onChange={e => setForm(f => ({ ...f, inspectionNumber: e.target.value }))} className="mt-1" /></div>
+              <div><Label>Resultado</Label>
+                <Select value={form.result} onValueChange={v => setForm(f => ({ ...f, result: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pass">Aprobada</SelectItem>
+                    <SelectItem value="fail">Reprobada</SelectItem>
+                    <SelectItem value="conditional">Condicional</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Inspector</Label><Input value={form.inspectorName} onChange={e => setForm(f => ({ ...f, inspectorName: e.target.value }))} className="mt-1" /></div>
+              <div><Label>Agencia</Label><Input value={form.inspectorAgency} onChange={e => setForm(f => ({ ...f, inspectorAgency: e.target.value }))} className="mt-1" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Puntaje Obtenido</Label><Input type="number" value={form.overallScore} onChange={e => setForm(f => ({ ...f, overallScore: e.target.value }))} className="mt-1" /></div>
+              <div><Label>Puntaje Máximo</Label><Input type="number" value={form.scoreMax} onChange={e => setForm(f => ({ ...f, scoreMax: e.target.value }))} className="mt-1" /></div>
+            </div>
+            <div><Label>Violaciones (JSON o texto)</Label><Textarea value={form.violations} onChange={e => setForm(f => ({ ...f, violations: e.target.value }))} rows={3} className="mt-1" placeholder='[{"description": "...", "severity": "major"}]' /></div>
+            <div><Label>Próxima Inspección</Label><Input type="date" value={form.nextInspectionDate} onChange={e => setForm(f => ({ ...f, nextInspectionDate: e.target.value }))} className="mt-1" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={!form.inspectionNumber} className="bg-gradient-to-r from-violet-600 to-purple-500">{editing ? 'Actualizar' : 'Registrar'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ FOOD SAFETY - TEMPERATURE LOGS PAGE ============
+function TenantTemperatureLogsPage() {
+  const { currentTenant, locale } = useAppStore() as any;
+  const [logs, setLogs] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
+  const [equipmentFilter, setEquipmentFilter] = useState('all');
+  const [form, setForm] = useState({ equipmentName: '', equipmentType: 'fridge', temperature: '', loggedBy: '', notes: '' });
+  const tid = currentTenant?.id;
+
+  const EQUIPMENT_RANGES: Record<string, { min: number; max: number; label: string; unit: string }> = {
+    fridge: { min: 0, max: 4, label: 'Refrigerador', unit: '°C' },
+    freezer: { min: -25, max: -18, label: 'Congelador', unit: '°C' },
+    hot_hold: { min: 63, max: 90, label: 'Mantenimiento Caliente', unit: '°C' },
+    display_case: { min: 0, max: 4, label: 'Vitrina', unit: '°C' },
+  };
+
+  const defaultForm = { equipmentName: '', equipmentType: 'fridge', temperature: '', loggedBy: '', notes: '' };
+
+  const load = useCallback(() => {
+    if (!tid) return;
+    setLoading(true);
+    Promise.all([
+      authFetch(`/api/tenant/${tid}/temperature-logs`).then(r => r.json()).catch(() => []),
+      authFetch(`/api/tenant/${tid}/temperature-logs?action=alerts`).then(r => r.json()).catch(() => []),
+    ]).then(([logsData, alertsData]) => {
+      setLogs(Array.isArray(logsData) ? logsData : []);
+      setAlerts(Array.isArray(alertsData) ? alertsData : []);
+      setLoading(false);
+    });
+  }, [tid]);
+  useEffect(() => { load(); }, [load]);
+
+  const openCreate = () => { setForm({ ...defaultForm }); setShowForm(true); };
+
+  const handleSave = async () => {
+    if (!form.equipmentName || !form.temperature) return;
+    try {
+      await authFetch(`/api/tenant/${tid}/temperature-logs`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, temperature: Number(form.temperature) }) });
+      setShowForm(false); setForm({ ...defaultForm }); load();
+      toast.success('Temperatura registrada');
+    } catch { toast.error('Error al guardar'); }
+  };
+
+  const filtered = logs.filter((l: any) => {
+    const matchSearch = !search || l.equipmentName?.toLowerCase().includes(search.toLowerCase());
+    const matchEquip = equipmentFilter === 'all' || l.equipmentType === equipmentFilter;
+    return matchSearch && matchEquip;
+  });
+
+  const outOfRange = logs.filter((l: any) => l.isWithinRange === false).length;
+  const inRange = logs.filter((l: any) => l.isWithinRange === true).length;
+  const totalLogs = logs.length;
+
+  if (loading) return <PageSkeleton type="table" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 shadow-lg"><Thermometer className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Registro de Temperaturas</h1><p className="text-sm text-muted-foreground">Monitoreo de temperatura de equipos</p></div>
+        </div>
+        <Button onClick={openCreate} className="bg-gradient-to-r from-red-500 to-orange-500"><Plus className="w-4 h-4 mr-2" />Nueva Lectura</Button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="p-4"><div className="text-2xl font-bold text-blue-600">{totalLogs}</div><div className="text-xs text-muted-foreground">Total Lecturas</div></Card>
+        <Card className="p-4"><div className="text-2xl font-bold text-emerald-600">{inRange}</div><div className="text-xs text-muted-foreground">En Rango</div></Card>
+        <Card className="p-4"><div className="text-2xl font-bold text-red-600">{outOfRange}</div><div className="text-xs text-muted-foreground">Fuera de Rango</div></Card>
+        <Card className="p-4"><div className="text-2xl font-bold text-amber-600">{alerts.length}</div><div className="text-xs text-muted-foreground">Alertas Activas</div></Card>
+      </div>
+
+      {alerts.length > 0 && (
+        <Card className="p-4 border-red-200 bg-red-50 dark:bg-red-900/20">
+          <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-medium mb-2"><AlertTriangle className="w-4 h-4" />Temperaturas Fuera de Rango ({alerts.length})</div>
+          <div className="flex gap-2 flex-wrap">{alerts.slice(0, 8).map((a: any) => <Badge key={a.id} variant="outline" className="bg-red-100 border-red-300 dark:bg-red-900/30">{a.equipmentName}: {a.temperature}°C</Badge>)}</div>
+        </Card>
+      )}
+
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative max-w-xs flex-1"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar equipo..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" /></div>
+        <Select value={equipmentFilter} onValueChange={setEquipmentFilter}>
+          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Tipo de equipo" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            {Object.entries(EQUIPMENT_RANGES).map(([key, val]) => <SelectItem key={key} value={key}>{val.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex gap-2 flex-wrap">
+        {Object.entries(EQUIPMENT_RANGES).map(([key, val]) => (
+          <Card key={key} className="p-3 flex-1 min-w-[140px]">
+            <div className="text-xs text-muted-foreground">{val.label}</div>
+            <div className="font-semibold text-sm">{val.min}°C — {val.max}°C</div>
+          </Card>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card className="p-12 text-center"><Thermometer className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">No hay lecturas registradas.</p><Button className="mt-4" variant="outline" onClick={openCreate}><Plus className="w-4 h-4 mr-2" />Registrar Primera</Button></Card>
+      ) : (
+        <Card>
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Equipo</TableHead><TableHead>Tipo</TableHead><TableHead>Temperatura</TableHead><TableHead>Estado</TableHead><TableHead>Registrado Por</TableHead><TableHead>Fecha</TableHead><TableHead>Notas</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {filtered.map((l: any) => {
+                  const range = EQUIPMENT_RANGES[l.equipmentType];
+                  const isOutOfRange = l.isWithinRange === false;
+                  return (
+                    <TableRow key={l.id} className={isOutOfRange ? 'bg-red-50/50 dark:bg-red-900/10' : ''}>
+                      <TableCell className="font-medium">{l.equipmentName}</TableCell>
+                      <TableCell><Badge variant="outline">{range?.label || l.equipmentType}</Badge></TableCell>
+                      <TableCell><span className={`font-semibold text-lg ${isOutOfRange ? 'text-red-600' : 'text-emerald-600'}`}>{l.temperature}°C</span></TableCell>
+                      <TableCell>{isOutOfRange ? <Badge className="bg-red-100 text-red-800">⚠ Fuera de Rango</Badge> : <Badge className="bg-emerald-100 text-emerald-800">✓ OK</Badge>}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{l.loggedBy || '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{l.createdAt?.slice(0, 16).replace('T', ' ') || '—'}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">{l.notes || '—'}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
+
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Nueva Lectura de Temperatura</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div><Label>Nombre del Equipo *</Label><Input value={form.equipmentName} onChange={e => setForm(f => ({ ...f, equipmentName: e.target.value }))} className="mt-1" /></div>
+            <div><Label>Tipo de Equipo</Label>
+              <Select value={form.equipmentType} onValueChange={v => setForm(f => ({ ...f, equipmentType: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>{Object.entries(EQUIPMENT_RANGES).map(([key, val]) => <SelectItem key={key} value={key}>{val.label} ({val.min}°C — {val.max}°C)</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div><Label>Temperatura (°C) *</Label><Input type="number" step="0.1" value={form.temperature} onChange={e => setForm(f => ({ ...f, temperature: e.target.value }))} className="mt-1" /></div>
+            <div><Label>Registrado Por</Label><Input value={form.loggedBy} onChange={e => setForm(f => ({ ...f, loggedBy: e.target.value }))} className="mt-1" /></div>
+            <div><Label>Notas</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="mt-1" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={!form.equipmentName || !form.temperature} className="bg-gradient-to-r from-red-500 to-orange-500">Registrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ FOOD SAFETY - CLEANING LOGS PAGE ============
+function TenantCleaningLogsPage() {
+  const { currentTenant, locale } = useAppStore() as any;
+  const [logs, setLogs] = useState<any[]>([]);
+  const [report, setReport] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
+  const [areaFilter, setAreaFilter] = useState('all');
+  const [form, setForm] = useState({ area: '', task: '', cleaningProduct: '', frequency: 'daily', completedBy: '', verifiedBy: '', notes: '' });
+  const tid = currentTenant?.id;
+
+  const AREAS = ['cocina', 'area_de_preparacion', 'horno', 'refrigeradores', 'mostrador', 'sala_de_ventas', 'bano', 'almacen', 'piso_general', 'equipos'];
+  const areaLabels: Record<string, string> = { cocina: 'Cocina', area_de_preparacion: 'Área de Preparación', horno: 'Horno', refrigeradores: 'Refrigeradores', mostrador: 'Mostrador', sala_de_ventas: 'Sala de Ventas', bano: 'Baño', almacen: 'Almacén', piso_general: 'Piso General', equipos: 'Equipos' };
+  const freqLabels: Record<string, string> = { daily: 'Diario', after_each_use: 'Después de Cada Uso', weekly: 'Semanal', monthly: 'Mensual', as_needed: 'Según Necesidad' };
+
+  const defaultForm = { area: '', task: '', cleaningProduct: '', frequency: 'daily', completedBy: '', verifiedBy: '', notes: '' };
+
+  const load = useCallback(() => {
+    if (!tid) return;
+    setLoading(true);
+    Promise.all([
+      authFetch(`/api/tenant/${tid}/cleaning-logs`).then(r => r.json()).catch(() => []),
+      authFetch(`/api/tenant/${tid}/cleaning-logs?action=daily-report`).then(r => r.json()).catch(() => null),
+    ]).then(([logsData, reportData]) => {
+      setLogs(Array.isArray(logsData) ? logsData : []);
+      setReport(reportData);
+      setLoading(false);
+    });
+  }, [tid]);
+  useEffect(() => { load(); }, [load]);
+
+  const openCreate = () => { setForm({ ...defaultForm }); setShowForm(true); };
+
+  const handleSave = async () => {
+    if (!form.area || !form.task) return;
+    try {
+      await authFetch(`/api/tenant/${tid}/cleaning-logs`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      setShowForm(false); setForm({ ...defaultForm }); load();
+      toast.success('Registro de limpieza guardado');
+    } catch { toast.error('Error al guardar'); }
+  };
+
+  const filtered = logs.filter((l: any) => {
+    const matchSearch = !search || l.area?.toLowerCase().includes(search.toLowerCase()) || l.task?.toLowerCase().includes(search.toLowerCase());
+    const matchArea = areaFilter === 'all' || l.area === areaFilter;
+    return matchSearch && matchArea;
+  });
+
+  const todayLogs = logs.filter((l: any) => {
+    if (!l.createdAt) return false;
+    return l.createdAt.slice(0, 10) === new Date().toISOString().slice(0, 10);
+  });
+
+  if (loading) return <PageSkeleton type="table" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-sky-500 shadow-lg"><SprayCan className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Registros de Limpieza</h1><p className="text-sm text-muted-foreground">Control de limpieza y sanitización</p></div>
+        </div>
+        <Button onClick={openCreate} className="bg-gradient-to-r from-cyan-500 to-sky-500"><Plus className="w-4 h-4 mr-2" />Nuevo Registro</Button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="p-4"><div className="text-2xl font-bold text-cyan-600">{logs.length}</div><div className="text-xs text-muted-foreground">Total Registros</div></Card>
+        <Card className="p-4"><div className="text-2xl font-bold text-emerald-600">{todayLogs.length}</div><div className="text-xs text-muted-foreground">Registros Hoy</div></Card>
+        <Card className="p-4"><div className="text-2xl font-bold text-blue-600">{report?.complianceRate != null ? `${report.complianceRate}%` : '—'}</div><div className="text-xs text-muted-foreground">Tasa Cumplimiento</div></Card>
+        <Card className="p-4"><div className="text-2xl font-bold text-amber-600">{report?.pendingTasks || 0}</div><div className="text-xs text-muted-foreground">Tareas Pendientes</div></Card>
+      </div>
+
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative max-w-xs flex-1"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar área o tarea..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" /></div>
+        <Select value={areaFilter} onValueChange={setAreaFilter}>
+          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Área" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            {AREAS.map(a => <SelectItem key={a} value={a}>{areaLabels[a] || a}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card className="p-12 text-center"><SprayCan className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">No hay registros de limpieza.</p><Button className="mt-4" variant="outline" onClick={openCreate}><Plus className="w-4 h-4 mr-2" />Agregar Primero</Button></Card>
+      ) : (
+        <Card>
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Área</TableHead><TableHead>Tarea</TableHead><TableHead>Producto</TableHead><TableHead>Frecuencia</TableHead><TableHead>Completado Por</TableHead><TableHead>Verificado Por</TableHead><TableHead>Fecha</TableHead><TableHead>Notas</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {filtered.map((l: any) => (
+                  <TableRow key={l.id}>
+                    <TableCell><Badge variant="outline">{areaLabels[l.area] || l.area}</Badge></TableCell>
+                    <TableCell className="font-medium">{l.task}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{l.cleaningProduct || '—'}</TableCell>
+                    <TableCell><Badge variant="secondary" className="text-xs">{freqLabels[l.frequency] || l.frequency}</Badge></TableCell>
+                    <TableCell className="text-sm">{l.completedBy || '—'}</TableCell>
+                    <TableCell className="text-sm">{l.verifiedBy ? <span className="text-emerald-600">{l.verifiedBy} ✓</span> : <span className="text-muted-foreground">—</span>}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{l.createdAt?.slice(0, 16).replace('T', ' ') || '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-[120px] truncate">{l.notes || '—'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
+
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Nuevo Registro de Limpieza</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Área *</Label>
+                <Select value={form.area} onValueChange={v => setForm(f => ({ ...f, area: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar área" /></SelectTrigger>
+                  <SelectContent>{AREAS.map(a => <SelectItem key={a} value={a}>{areaLabels[a] || a}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Frecuencia</Label>
+                <Select value={form.frequency} onValueChange={v => setForm(f => ({ ...f, frequency: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Diario</SelectItem>
+                    <SelectItem value="after_each_use">Después de Cada Uso</SelectItem>
+                    <SelectItem value="weekly">Semanal</SelectItem>
+                    <SelectItem value="monthly">Mensual</SelectItem>
+                    <SelectItem value="as_needed">Según Necesidad</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><Label>Tarea *</Label><Input value={form.task} onChange={e => setForm(f => ({ ...f, task: e.target.value }))} className="mt-1" /></div>
+            <div><Label>Producto de Limpieza</Label><Input value={form.cleaningProduct} onChange={e => setForm(f => ({ ...f, cleaningProduct: e.target.value }))} className="mt-1" /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Completado Por</Label><Input value={form.completedBy} onChange={e => setForm(f => ({ ...f, completedBy: e.target.value }))} className="mt-1" /></div>
+              <div><Label>Verificado Por</Label><Input value={form.verifiedBy} onChange={e => setForm(f => ({ ...f, verifiedBy: e.target.value }))} className="mt-1" /></div>
+            </div>
+            <div><Label>Notas</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="mt-1" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={!form.area || !form.task} className="bg-gradient-to-r from-cyan-500 to-sky-500">Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ============ TENANT APP VIEW ============
 function TenantAppView() {
   const { tenantPage, sidebarCollapsed, currentTenant, viewAsTenant, clearViewAsTenant } = useAppStore();
@@ -19730,6 +20702,13 @@ function TenantAppView() {
       case 'whatsapp': return <TenantWhatsAppPage />;
       case 'notifications': return <TenantNotificationsPage />;
       case 'pasteleria_analytics': return <TenantPasteleriaAnalyticsPage />;
+      // Food Safety pages
+      case 'haccp': return <TenantHACCPPage />;
+      case 'allergens': return <TenantAllergensPage />;
+      case 'food-handlers': return <TenantFoodHandlersPage />;
+      case 'health-inspections': return <TenantHealthInspectionsPage />;
+      case 'temperature-logs': return <TenantTemperatureLogsPage />;
+      case 'cleaning-logs': return <TenantCleaningLogsPage />;
       // Property Management pages (delegate to CT components)
       case 'pm-property': return <CTProperties />;
       case 'pm-property-units': return <CTPropertyUnits />;

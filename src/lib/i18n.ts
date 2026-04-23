@@ -498,6 +498,14 @@ export const translations: Record<string, Record<string, string>> = {
     'tenant.section.finanzas': 'FINANZAS',
     'tenant.section.herramientas': 'HERRAMIENTAS',
     'tenant.section.config': 'CONFIG',
+    'tenant.section.foodSafety': 'FOOD SAFETY',
+    'tenant.section.seguridadAlimentaria': 'SEGURIDAD ALIMENTARIA',
+    'tenant.haccp': 'HACCP Plans',
+    'tenant.allergens': 'Allergen Declarations',
+    'tenant.foodHandlers': 'Food Handlers',
+    'tenant.healthInspections': 'Health Inspections',
+    'tenant.temperatureLogs': 'Temperature Logs',
+    'tenant.cleaningLogs': 'Cleaning Logs',
 
     // Tenant industry-specific pages
     'tenant.cases': 'Cases & Matters',
@@ -2000,6 +2008,14 @@ export const translations: Record<string, Record<string, string>> = {
     'tenant.section.finanzas': 'FINANZAS',
     'tenant.section.herramientas': 'HERRAMIENTAS',
     'tenant.section.config': 'CONFIG',
+    'tenant.section.foodSafety': 'SEGURIDAD ALIMENTARIA',
+    'tenant.section.seguridadAlimentaria': 'SEGURIDAD ALIMENTARIA',
+    'tenant.haccp': 'Planes HACCP',
+    'tenant.allergens': 'Declaraciones de Alérgenos',
+    'tenant.foodHandlers': 'Manipuladores de Alimentos',
+    'tenant.healthInspections': 'Inspecciones Sanitarias',
+    'tenant.temperatureLogs': 'Registro de Temperaturas',
+    'tenant.cleaningLogs': 'Registros de Limpieza',
 
     // Tenant industry-specific pages
     'tenant.cases': 'Casos y Asuntos',
