@@ -165,20 +165,29 @@ export async function PUT(req: NextRequest) {
         include: { property: true, tenant: true },
       });
     } catch {
-      // Fallback to Management API
+      // Fallback to Management API — parameterized query to prevent SQL injection
       const setClauses: string[] = [`"updatedAt" = NOW()`];
-      if (updateData.unitNumber !== undefined) setClauses.push(`"unitNumber" = '${updateData.unitNumber.replace(/'/g, "''")}'`);
-      if (updateData.floor !== undefined) setClauses.push(`"floor" = ${updateData.floor}`);
-      if (updateData.area !== undefined) setClauses.push(`"area" = ${updateData.area === null ? 'NULL' : updateData.area}`);
-      if (updateData.baseRentTTD !== undefined) setClauses.push(`"baseRentTTD" = ${updateData.baseRentTTD}`);
-      if (updateData.baseRentUSD !== undefined) setClauses.push(`"baseRentUSD" = ${updateData.baseRentUSD}`);
-      if (updateData.status !== undefined) setClauses.push(`"status" = '${updateData.status}'`);
-      if (updateData.tenantId !== undefined) setClauses.push(`"tenantId" = ${updateData.tenantId === null ? 'NULL' : `'${updateData.tenantId}'`}`);
-      if (updateData.amenities !== undefined) setClauses.push(`"amenities" = '${updateData.amenities.replace(/'/g, "''")}'`);
-      if (updateData.notes !== undefined) setClauses.push(`"notes" = ${updateData.notes === null ? 'NULL' : `'${updateData.notes.replace(/'/g, "''")}'`}`);
+      const params: any[] = [];
+      let pIdx = 1;
+      if (updateData.unitNumber !== undefined) { setClauses.push(`"unitNumber" = $${pIdx++}`); params.push(updateData.unitNumber); }
+      if (updateData.floor !== undefined) { setClauses.push(`"floor" = $${pIdx++}`); params.push(updateData.floor); }
+      if (updateData.area !== undefined) { setClauses.push(`"area" = $${pIdx++}`); params.push(updateData.area); }
+      if (updateData.baseRentTTD !== undefined) { setClauses.push(`"baseRentTTD" = $${pIdx++}`); params.push(updateData.baseRentTTD); }
+      if (updateData.baseRentUSD !== undefined) { setClauses.push(`"baseRentUSD" = $${pIdx++}`); params.push(updateData.baseRentUSD); }
+      if (updateData.status !== undefined) { setClauses.push(`"status" = $${pIdx++}`); params.push(updateData.status); }
+      if (updateData.tenantId !== undefined) {
+        if (updateData.tenantId === null) { setClauses.push(`"tenantId" = NULL`); }
+        else { setClauses.push(`"tenantId" = $${pIdx++}`); params.push(updateData.tenantId); }
+      }
+      if (updateData.amenities !== undefined) { setClauses.push(`"amenities" = $${pIdx++}`); params.push(updateData.amenities); }
+      if (updateData.notes !== undefined) {
+        if (updateData.notes === null) { setClauses.push(`"notes" = NULL`); }
+        else { setClauses.push(`"notes" = $${pIdx++}`); params.push(updateData.notes); }
+      }
 
-      const sql = `UPDATE "PropertyUnit" SET ${setClauses.join(', ')} WHERE id = '${data.id}' RETURNING *`;
-      const rows = await pgQuery<any>(sql);
+      const sql = `UPDATE "PropertyUnit" SET ${setClauses.join(', ')} WHERE id = $${pIdx++}`;
+      params.push(data.id);
+      const rows = await pgQuery<any>(sql, params);
       unit = rows[0] || null;
     }
 

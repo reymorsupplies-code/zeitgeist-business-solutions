@@ -5,7 +5,6 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 // ============ PLATFORM MODELS ============
@@ -164,6 +163,9 @@ model Tenant {
   temperatureLogs          TemperatureLog[]
   cleaningLogs             CleaningSanitationLog[]
   properties               Property[]
+  ownerDisbursements       OwnerDisbursement[]
+  leaseRenewalLogs         LeaseRenewalLog[]
+  propertyVendors          PropertyVendor[]
 }
 
 model TenantMembership {
@@ -236,6 +238,8 @@ model Order {
   updatedAt       DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
 }
 
 model CatalogItem {
@@ -269,7 +273,8 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  loyaltyMembers LoyaltyMember[]
 }
 
 model Invoice {
@@ -292,7 +297,8 @@ model Invoice {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  payments Payment[]
 }
 
 model Quotation {
@@ -332,7 +338,8 @@ model Payment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 }
 
 model Expense {
@@ -371,7 +378,10 @@ model Recipe {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  allergenDeclarations AllergenDeclaration[]
+
+  @@index([tenantId])
 }
 
 model Ingredient {
@@ -388,7 +398,9 @@ model Ingredient {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  allergenDeclarations AllergenDeclaration[]
+  stockMovements      StockMovement[]
 }
 
 model DesignItem {
@@ -497,7 +509,8 @@ model Patient {
   isDeleted         Boolean   @default(false)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-  tenant            Tenant    @relation(fields: [tenantId], references: [id])
+  tenant               Tenant               @relation(fields: [tenantId], references: [id])
+  medicalAppointments MedicalAppointment[]
 }
 
 model MedicalAppointment {
@@ -515,7 +528,8 @@ model MedicalAppointment {
   isDeleted    Boolean   @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  tenant               Tenant               @relation(fields: [tenantId], references: [id])
+  patient              Patient?              @relation(fields: [patientId], references: [id], onDelete: SetNull)
 }
 
 // ============ LEGAL MODELS ============
@@ -538,7 +552,8 @@ model LegalCase {
   isDeleted   Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  timeEntries TimeEntry[]
 }
 
 model TimeEntry {
@@ -553,7 +568,8 @@ model TimeEntry {
   isDeleted   Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  legalCase LegalCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
 }
 
 // ============ INSURANCE MODELS ============
@@ -574,6 +590,7 @@ model Policy {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  claims        Claim[]
 }
 
 model Claim {
@@ -591,6 +608,7 @@ model Claim {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  policy       Policy?  @relation(fields: [policyId], references: [id], onDelete: SetNull)
 }
 
 // ============ RETAIL MODELS ============
@@ -615,6 +633,9 @@ model RetailProduct {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, isDeleted])
+  @@index([tenantId, barcode])
 }
 
 // ============ LAYAWAY (APARTADOS) ============
@@ -664,9 +685,11 @@ model StockMovement {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ingredient Ingredient? @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
 
   @@map("StockMovement")
+  @@index([tenantId, type])
 }
 
 // ============ PURCHASE ORDER ============
@@ -722,6 +745,8 @@ model POSSale {
   productReturns ProductReturn[]
 
   @@unique([tenantId, saleNumber])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
 }
 
 // ============ GIFT CARDS ============
@@ -808,6 +833,7 @@ model RegisterShift {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, shiftNumber])
+  @@index([tenantId, status])
 }
 
 // ============ EVENTS MODELS ============
@@ -944,6 +970,7 @@ model LoyaltyMember {
   createdAt   DateTime @default(now())
 
   tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  client       Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
   transactions LoyaltyTransaction[]
 
   @@unique([tenantId, clientPhone])
@@ -1056,6 +1083,9 @@ model Property {
   deposits            SecurityDeposit[]
   inspections         PropertyInspection[]
   legalNotices        LegalNotice[]
+  ownerDisbursements  OwnerDisbursement[]
+
+  @@index([tenantId])
 }
 
 model PropertyUnit {
@@ -1116,6 +1146,10 @@ model Lease {
   deposits     SecurityDeposit[]
   inspections  PropertyInspection[]
   legalNotices LegalNotice[]
+  renewalLogs  LeaseRenewalLog[]
+
+  @@index([tenantId, status])
+  @@index([unitId, status])
 }
 
 model MaintenanceRequest {
@@ -1142,6 +1176,9 @@ model MaintenanceRequest {
   vendorId String?
 
   propertyVendor PropertyVendor? @relation(fields: [vendorId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, propertyId])
 }
 
 // ============ PREMIUM LANDLORD FEATURES ============
@@ -1171,10 +1208,14 @@ model RentPayment {
   property Property     @relation(fields: [propertyId], references: [id])
   unit     PropertyUnit @relation(fields: [unitId], references: [id])
   tenant   Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, dueDate])
+  @@index([tenantId, leaseId])
 }
 
 model PropertyVendor {
   id         String   @id @default(cuid())
+  tenantId   String?
   propertyId String?
   name       String
   category   String? // plumbing, electrical, hvac, cleaning, landscaping, general, security, pest
@@ -1189,6 +1230,7 @@ model PropertyVendor {
   updatedAt  DateTime @updatedAt
 
   property            Property?            @relation(fields: [propertyId], references: [id])
+  tenant              Tenant?              @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   maintenanceRequests MaintenanceRequest[]
 }
 
@@ -1243,6 +1285,7 @@ model JournalEntryLine {
 
 model OwnerDisbursement {
   id                 String    @id @default(cuid())
+  tenantId           String?
   propertyId         String?
   periodStart        DateTime
   periodEnd          DateTime
@@ -1257,10 +1300,14 @@ model OwnerDisbursement {
   notes              String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 }
 
 model LeaseRenewalLog {
   id          String   @id @default(cuid())
+  tenantId    String?
   leaseId     String
   previousEnd DateTime
   newStart    DateTime
@@ -1271,6 +1318,9 @@ model LeaseRenewalLog {
   renewedBy   String? // userId or 'auto'
   notes       String?
   createdAt   DateTime @default(now())
+
+  lease  Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  tenant Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 }
 
 // ============ T&T PROPERTY RENTAL COMPLIANCE ============
@@ -1440,7 +1490,9 @@ model AllergenDeclaration {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipe     Recipe?     @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  ingredient Ingredient? @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
 }
 
 model FoodHandlerRegistration {

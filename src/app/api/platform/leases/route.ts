@@ -161,20 +161,32 @@ export async function PUT(req: NextRequest) {
         },
       });
     } catch {
-      // Fallback to Management API
+      // Fallback to Management API — parameterized query to prevent SQL injection
       const setClauses: string[] = [`"updatedAt" = NOW()`];
-      if (data.tenantId !== undefined) setClauses.push(`"tenantId" = ${data.tenantId === null ? 'NULL' : `'${data.tenantId}'`}`);
-      if (data.startDate !== undefined) setClauses.push(`"startDate" = '${new Date(data.startDate).toISOString()}'`);
-      if (data.endDate !== undefined) setClauses.push(`"endDate" = '${new Date(data.endDate).toISOString()}'`);
-      if (data.rentAmount !== undefined) setClauses.push(`"rentAmount" = ${data.rentAmount}`);
-      if (data.rentCurrency !== undefined) setClauses.push(`"rentCurrency" = '${data.rentCurrency}'`);
-      if (data.depositAmount !== undefined) setClauses.push(`"depositAmount" = ${data.depositAmount}`);
-      if (data.status !== undefined) setClauses.push(`"status" = '${data.status}'`);
-      if (data.terms !== undefined) setClauses.push(`"terms" = ${data.terms === null ? 'NULL' : `'${data.terms.replace(/'/g, "''")}'`}`);
-      if (data.notes !== undefined) setClauses.push(`"notes" = ${data.notes === null ? 'NULL' : `'${data.notes.replace(/'/g, "''")}'`}`);
+      const params: any[] = [];
+      let pIdx = 1;
+      if (data.tenantId !== undefined) {
+        if (data.tenantId === null) { setClauses.push(`"tenantId" = NULL`); }
+        else { setClauses.push(`"tenantId" = $${pIdx++}`); params.push(data.tenantId); }
+      }
+      if (data.startDate !== undefined) { setClauses.push(`"startDate" = $${pIdx++}`); params.push(new Date(data.startDate).toISOString()); }
+      if (data.endDate !== undefined) { setClauses.push(`"endDate" = $${pIdx++}`); params.push(new Date(data.endDate).toISOString()); }
+      if (data.rentAmount !== undefined) { setClauses.push(`"rentAmount" = $${pIdx++}`); params.push(data.rentAmount); }
+      if (data.rentCurrency !== undefined) { setClauses.push(`"rentCurrency" = $${pIdx++}`); params.push(data.rentCurrency); }
+      if (data.depositAmount !== undefined) { setClauses.push(`"depositAmount" = $${pIdx++}`); params.push(data.depositAmount); }
+      if (data.status !== undefined) { setClauses.push(`"status" = $${pIdx++}`); params.push(data.status); }
+      if (data.terms !== undefined) {
+        if (data.terms === null) { setClauses.push(`"terms" = NULL`); }
+        else { setClauses.push(`"terms" = $${pIdx++}`); params.push(data.terms); }
+      }
+      if (data.notes !== undefined) {
+        if (data.notes === null) { setClauses.push(`"notes" = NULL`); }
+        else { setClauses.push(`"notes" = $${pIdx++}`); params.push(data.notes); }
+      }
 
-      const sql = `UPDATE "Lease" SET ${setClauses.join(', ')} WHERE id = '${data.id}' RETURNING *`;
-      const rows = await pgQuery<any>(sql);
+      const sql = `UPDATE "Lease" SET ${setClauses.join(', ')} WHERE id = $${pIdx++}`;
+      params.push(data.id);
+      const rows = await pgQuery<any>(sql, params);
       lease = rows[0] || null;
     }
 

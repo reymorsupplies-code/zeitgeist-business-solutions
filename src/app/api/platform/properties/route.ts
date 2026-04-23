@@ -126,21 +126,36 @@ export async function PUT(req: NextRequest) {
         },
       });
     } catch {
-      // Fallback to Management API
+      // Fallback to Management API — parameterized query to prevent SQL injection
       const setClauses: string[] = [`"updatedAt" = NOW()`];
-      if (data.name !== undefined) setClauses.push(`"name" = '${data.name.replace(/'/g, "''")}'`);
-      if (data.address !== undefined) setClauses.push(`"address" = ${data.address === null ? 'NULL' : `'${data.address.replace(/'/g, "''")}'`}`);
-      if (data.city !== undefined) setClauses.push(`"city" = ${data.city === null ? 'NULL' : `'${data.city.replace(/'/g, "''")}'`}`);
-      if (data.country !== undefined) setClauses.push(`"country" = '${data.country}'`);
-      if (data.type !== undefined) setClauses.push(`"type" = '${data.type}'`);
-      if (data.totalArea !== undefined) setClauses.push(`"totalArea" = ${data.totalArea === null ? 'NULL' : data.totalArea}`);
-      if (data.units !== undefined) setClauses.push(`"units" = ${data.units}`);
-      if (data.description !== undefined) setClauses.push(`"description" = ${data.description === null ? 'NULL' : `'${data.description.replace(/'/g, "''")}'`}`);
-      if (data.imageUrl !== undefined) setClauses.push(`"imageUrl" = ${data.imageUrl === null ? 'NULL' : `'${data.imageUrl.replace(/'/g, "''")}'`}`);
-      if (data.status !== undefined) setClauses.push(`"status" = '${data.status}'`);
+      const params: any[] = [];
+      let pIdx = 1;
+      if (data.name !== undefined) { setClauses.push(`"name" = $${pIdx++}`); params.push(data.name); }
+      if (data.address !== undefined) {
+        if (data.address === null) { setClauses.push(`"address" = NULL`); }
+        else { setClauses.push(`"address" = $${pIdx++}`); params.push(data.address); }
+      }
+      if (data.city !== undefined) {
+        if (data.city === null) { setClauses.push(`"city" = NULL`); }
+        else { setClauses.push(`"city" = $${pIdx++}`); params.push(data.city); }
+      }
+      if (data.country !== undefined) { setClauses.push(`"country" = $${pIdx++}`); params.push(data.country); }
+      if (data.type !== undefined) { setClauses.push(`"type" = $${pIdx++}`); params.push(data.type); }
+      if (data.totalArea !== undefined) { setClauses.push(`"totalArea" = $${pIdx++}`); params.push(data.totalArea); }
+      if (data.units !== undefined) { setClauses.push(`"units" = $${pIdx++}`); params.push(data.units); }
+      if (data.description !== undefined) {
+        if (data.description === null) { setClauses.push(`"description" = NULL`); }
+        else { setClauses.push(`"description" = $${pIdx++}`); params.push(data.description); }
+      }
+      if (data.imageUrl !== undefined) {
+        if (data.imageUrl === null) { setClauses.push(`"imageUrl" = NULL`); }
+        else { setClauses.push(`"imageUrl" = $${pIdx++}`); params.push(data.imageUrl); }
+      }
+      if (data.status !== undefined) { setClauses.push(`"status" = $${pIdx++}`); params.push(data.status); }
 
-      const sql = `UPDATE "Property" SET ${setClauses.join(', ')} WHERE id = '${data.id}' RETURNING *`;
-      const rows = await pgQuery<any>(sql);
+      const sql = `UPDATE "Property" SET ${setClauses.join(', ')} WHERE id = $${pIdx++}`;
+      params.push(data.id);
+      const rows = await pgQuery<any>(sql, params);
       property = rows[0] || null;
     }
 

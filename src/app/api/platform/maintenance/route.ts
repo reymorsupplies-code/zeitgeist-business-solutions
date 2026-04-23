@@ -143,20 +143,35 @@ export async function PUT(req: NextRequest) {
         include: { property: true, unit: true, tenant: true },
       });
     } catch {
-      // Fallback to Management API
+      // Fallback to Management API — parameterized query to prevent SQL injection
       const setClauses: string[] = [`"updatedAt" = NOW()`];
-      if (data.title !== undefined) setClauses.push(`"title" = '${data.title.replace(/'/g, "''")}'`);
-      if (data.description !== undefined) setClauses.push(`"description" = ${data.description === null ? 'NULL' : `'${data.description.replace(/'/g, "''")}'`}`);
-      if (data.category !== undefined) setClauses.push(`"category" = ${data.category === null ? 'NULL' : `'${data.category}'`}`);
-      if (data.priority !== undefined) setClauses.push(`"priority" = '${data.priority}'`);
-      if (data.status !== undefined) setClauses.push(`"status" = '${data.status}'`);
-      if (data.cost !== undefined) setClauses.push(`"cost" = ${data.cost}`);
-      if (data.vendor !== undefined) setClauses.push(`"vendor" = ${data.vendor === null ? 'NULL' : `'${data.vendor.replace(/'/g, "''")}'`}`);
-      if (data.notes !== undefined) setClauses.push(`"notes" = ${data.notes === null ? 'NULL' : `'${data.notes.replace(/'/g, "''")}'`}`);
+      const params: any[] = [];
+      let pIdx = 1;
+      if (data.title !== undefined) { setClauses.push(`"title" = $${pIdx++}`); params.push(data.title); }
+      if (data.description !== undefined) {
+        if (data.description === null) { setClauses.push(`"description" = NULL`); }
+        else { setClauses.push(`"description" = $${pIdx++}`); params.push(data.description); }
+      }
+      if (data.category !== undefined) {
+        if (data.category === null) { setClauses.push(`"category" = NULL`); }
+        else { setClauses.push(`"category" = $${pIdx++}`); params.push(data.category); }
+      }
+      if (data.priority !== undefined) { setClauses.push(`"priority" = $${pIdx++}`); params.push(data.priority); }
+      if (data.status !== undefined) { setClauses.push(`"status" = $${pIdx++}`); params.push(data.status); }
+      if (data.cost !== undefined) { setClauses.push(`"cost" = $${pIdx++}`); params.push(data.cost); }
+      if (data.vendor !== undefined) {
+        if (data.vendor === null) { setClauses.push(`"vendor" = NULL`); }
+        else { setClauses.push(`"vendor" = $${pIdx++}`); params.push(data.vendor); }
+      }
+      if (data.notes !== undefined) {
+        if (data.notes === null) { setClauses.push(`"notes" = NULL`); }
+        else { setClauses.push(`"notes" = $${pIdx++}`); params.push(data.notes); }
+      }
       if (updateData.resolvedAt) setClauses.push(`"resolvedAt" = NOW()`);
 
-      const sql = `UPDATE "MaintenanceRequest" SET ${setClauses.join(', ')} WHERE id = '${data.id}' RETURNING *`;
-      const rows = await pgQuery<any>(sql);
+      const sql = `UPDATE "MaintenanceRequest" SET ${setClauses.join(', ')} WHERE id = $${pIdx++}`;
+      params.push(data.id);
+      const rows = await pgQuery<any>(sql, params);
       request = rows[0] || null;
     }
 
