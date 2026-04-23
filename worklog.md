@@ -93,3 +93,23 @@ Stage Summary:
 - Covers all changes from Task 2 (Phases 1-5) that need DB sync
 - User must execute in Supabase Dashboard > SQL Editor
 - After execution: prisma generate succeeds, Vercel redeploy picks up changes
+---
+Task ID: 4
+Agent: Main Agent
+Task: Generate full schema SQL script (70 tables) to fix missing tables error
+
+Work Log:
+- User reported: ERROR 42P01: relation "Policy" does not exist
+- Root cause: Previous migration script (Task 3) only added indexes/FKs, did NOT create missing base tables
+- Generated comprehensive full-schema SQL: zbs-full-schema.sql (2,200 lines)
+- 70 CREATE TABLE IF NOT EXISTS statements (all models covered)
+- 107 foreign key constraints (all idempotent via DO $$ blocks)
+- 41 indexes (CREATE INDEX IF NOT EXISTS)
+- All wrapped in BEGIN/COMMIT transaction
+- Script is 100% idempotent — safe to run multiple times
+- File saved to: /home/z/my-project/download/zbs-full-schema.sql
+
+Stage Summary:
+- This script REPLACES the previous zbs-schema-migration.sql — use this one instead
+- User must run in Supabase Dashboard > SQL Editor > New query > paste > Run
+- This will create ALL missing tables including Policy, plus apply all indexes and FKs
