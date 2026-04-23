@@ -73,4 +73,23 @@ Stage Summary:
 - 26 new DB indexes for query performance
 - 1 UI nav duplicate removed
 - 63 db-init type alignments with Prisma schema
-- Pending: prisma db push needs correct Supabase DATABASE_URL
+- Pending: Schema migration needs to be applied to Supabase via SQL Editor
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Generate SQL migration script for Supabase (prisma db push alternative)
+
+Work Log:
+- Discovered: Port 5432 (direct) unreachable from both dev server and user machine
+- Discovered: Port 6543 (pooler) connects but pgbouncer doesn't support DDL for prisma db push
+- Solution: Generated comprehensive idempotent SQL migration script
+- Script saved to: /home/z/my-project/download/zbs-schema-migration.sql
+- Script covers: 5 new columns, 5 FK constraints, 41 indexes (all IF NOT EXISTS safe)
+- User needs to run this in Supabase SQL Editor (browser)
+
+Stage Summary:
+- SQL script is 100% idempotent - safe to run multiple times
+- Covers all changes from Task 2 (Phases 1-5) that need DB sync
+- User must execute in Supabase Dashboard > SQL Editor
+- After execution: prisma generate succeeds, Vercel redeploy picks up changes
