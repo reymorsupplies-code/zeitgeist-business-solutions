@@ -152,6 +152,17 @@ model Tenant {
   giftCards            GiftCard[]
   productReturns       ProductReturn[]
   registerShifts       RegisterShift[]
+  securityDeposits SecurityDeposit[]
+  propertyInspections PropertyInspection[]
+  legalNotices LegalNotice[]
+  vatReturns VATReturn[]
+  haccpPlans HACCPPlan[]
+  haccpRiskLogs HACCPRiskLog[]
+  allergenDeclarations AllergenDeclaration[]
+  foodHandlerRegistrations FoodHandlerRegistration[]
+  healthInspections HealthInspection[]
+  temperatureLogs TemperatureLog[]
+  cleaningLogs CleaningSanitationLog[]
 }
 
 model TenantMembership {
@@ -596,6 +607,7 @@ model RetailProduct {
   supplier    String?
   barcode     String?
   imageUrl    String?
+  settings    String   @default("{}")
   isActive    Boolean  @default(true)
   isDeleted   Boolean  @default(false)
   createdAt   DateTime @default(now())
@@ -1034,6 +1046,9 @@ model Property {
   rentPayments RentPayment[]
   vendors PropertyVendor[]
   documents PropertyDocument[]
+  deposits SecurityDeposit[]
+  inspections PropertyInspection[]
+  legalNotices LegalNotice[]
 }
 
 model PropertyUnit {
@@ -1057,6 +1072,9 @@ model PropertyUnit {
   maintenanceRequests MaintenanceRequest[]
   rentPayments RentPayment[]
   documents PropertyDocument[]
+  deposits SecurityDeposit[]
+  inspections PropertyInspection[]
+  legalNotices LegalNotice[]
 
   @@unique([propertyId, unitNumber])
 }
@@ -1088,6 +1106,9 @@ model Lease {
   tenant Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   rentPayments RentPayment[]
   documents PropertyDocument[]
+  deposits SecurityDeposit[]
+  inspections PropertyInspection[]
+  legalNotices LegalNotice[]
 }
 
 model MaintenanceRequest {
@@ -1243,4 +1264,253 @@ model LeaseRenewalLog {
   renewedBy     String?  // userId or 'auto'
   notes         String?
   createdAt     DateTime @default(now())
+}
+
+// ============ T&T PROPERTY RENTAL COMPLIANCE ============
+
+model SecurityDeposit {
+  id              String   @id @default(cuid())
+  leaseId         String
+  propertyId      String
+  unitId          String
+  tenantId        String?
+  amount          Float    @default(0)
+  currency        String   @default("TTD")
+  status          String   @default("held") // held, partially_returned, fully_returned, deducted
+  receivedDate    DateTime @default(now())
+  returnDeadline  DateTime // T&T law: 14 days after vacate
+  returnedAmount  Float    @default(0)
+  returnedDate    DateTime?
+  deductions      String   @default("[]") // JSON: [{description, amount, photoUrl, approvedAt}]
+  deductionTotal  Float    @default(0)
+  refundMethod    String?  // bank_transfer, cash, cheque
+  refundReference String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  lease     Lease        @relation(fields: [leaseId], references: [id])
+  property  Property     @relation(fields: [propertyId], references: [id])
+  unit      PropertyUnit @relation(fields: [unitId], references: [id])
+  tenant    Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+}
+
+model PropertyInspection {
+  id            String   @id @default(cuid())
+  propertyId    String
+  unitId        String?
+  leaseId       String?
+  tenantId      String?
+  type          String   @default("move_in") // move_in, move_out, routine, emergency
+  inspectorName String?
+  inspectorRole String?
+  inspectedAt   DateTime @default(now())
+  overallCondition String @default("good") // excellent, good, fair, poor, damaged
+  checklist     String   @default("[]") // JSON: [{area, item, condition, notes, photoUrl, score}]
+  notes         String?
+  scoreTotal    Int      @default(0)
+  scoreMax      Int      @default(100)
+  signedByTenant Boolean @default(false)
+  signedByLandlord Boolean @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  property Property?    @relation(fields: [propertyId], references: [id])
+  unit     PropertyUnit? @relation(fields: [unitId], references: [id])
+  lease    Lease?        @relation(fields: [leaseId], references: [id])
+  tenant   Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+}
+
+model LegalNotice {
+  id              String   @id @default(cuid())
+  leaseId         String
+  propertyId      String
+  unitId          String
+  tenantId        String?
+  type            String   // rent_increase, lease_renewal, lease_termination, eviction, late_payment, maintenance, vacate_notice
+  jurisdiction    String   @default("TT") // TT, JM, BB, etc.
+  templateSlug    String   // links to notice template
+  title           String
+  content         String   // full text of the legal notice
+  sentDate        DateTime?
+  sentMethod      String?  // email, mail, hand_delivered, posted
+  responseDate    DateTime?
+  responseNotes   String?
+  status          String   @default("draft") // draft, sent, acknowledged, disputed, resolved, expired
+  effectiveDate   DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  lease     Lease        @relation(fields: [leaseId], references: [id])
+  property  Property     @relation(fields: [propertyId], references: [id])
+  unit      PropertyUnit @relation(fields: [unitId], references: [id])
+  tenant    Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+}
+
+// ============ RETAIL VAT COMPLIANCE (T&T BIR) ============
+
+model VATReturn {
+  id              String   @id @default(cuid())
+  tenantId        String
+  periodStart     DateTime
+  periodEnd       DateTime
+  quarter         String   // Q1, Q2, Q3, Q4
+  year            Int
+  totalSalesExVAT Decimal  @default(0) @db.Decimal(14,2)
+  totalVATCollected Decimal @default(0) @db.Decimal(14,2)
+  totalVATPaid    Decimal  @default(0) @db.Decimal(14,2)
+  vatDue          Decimal  @default(0) @db.Decimal(14,2)
+  vatRefund       Decimal  @default(0) @db.Decimal(14,2)
+  birNumber       String?
+  tin             String?
+  vatRegNumber    String?
+  status          String   @default("draft") // draft, filed, submitted, amended
+  filedDate       DateTime?
+  filedBy         String?
+  receiptNumber   String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// ============ BAKERY FOOD SAFETY (HACCP / T&T Public Health) ============
+
+model HACCPPlan {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  description     String?
+  productCategory String?  // bread, cake, pastry, dessert, etc.
+  status          String   @default("draft") // draft, active, under_review, approved
+  approvedBy      String?
+  approvedAt      DateTime?
+  criticalLimits  String   @default("[]") // JSON: [{ccpId, hazard, criticalLimit, monitoringProcedure, correctiveAction, record}]
+  lastReviewDate  DateTime?
+  nextReviewDate  DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  logs   HACCPRiskLog[]
+}
+
+model HACCPRiskLog {
+  id              String   @id @default(cuid())
+  planId          String
+  tenantId        String
+  ccpName         String   // Critical Control Point name
+  hazardType      String?  // biological, chemical, physical, allergen
+  monitoringValue String?
+  criticalLimit   String?
+  isWithinLimit   Boolean  @default(true)
+  correctiveAction String?
+  loggedBy        String?
+  loggedAt        DateTime @default(now())
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  plan   HACCPPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  tenant Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model AllergenDeclaration {
+  id            String   @id @default(cuid())
+  tenantId      String
+  recipeId      String?
+  ingredientId  String?
+  productName   String
+  allergens     String   @default("[]") // JSON: [{name, contains, level}] level: free, traces, contains
+  lastReviewAt  DateTime @default(now())
+  reviewedBy    String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model FoodHandlerRegistration {
+  id              String   @id @default(cuid())
+  tenantId        String
+  employeeName    String
+  employeeRole    String?
+  registrationNumber String?
+  registeredDate  DateTime?
+  expiryDate      DateTime
+  healthStatus    String   @default("active") // active, suspended, expired
+  trainingDate    DateTime?
+  certificateUrl  String?
+  publicHealthDept String @default("County Medical Officer of Health")
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model HealthInspection {
+  id              String   @id @default(cuid())
+  tenantId        String
+  inspectionDate  DateTime
+  inspectorName   String?
+  inspectorAgency String   @default("Public Health Department")
+  type            String   @default("routine") // routine, follow_up, complaint, pre_licensing
+  overallScore    Int?
+  scoreMax        Int      @default(100)
+  result          String   @default("pass") // pass, pass_with_conditions, fail, pending
+  violations      String   @default("[]") // JSON: [{code, description, severity, correctiveAction, dueDate, status}]
+  correctiveActions String @default("[]") // JSON: [{action, assignedTo, dueDate, completedAt, notes}]
+  nextInspectionDate DateTime?
+  certificateUrl  String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model TemperatureLog {
+  id              String   @id @default(cuid())
+  tenantId        String
+  equipmentName   String
+  equipmentType   String   // oven, fridge, freezer, display_case, storage, delivery_vehicle
+  location        String?
+  temperature     Float
+  unit            String   @default("C") // C or F
+  isWithinRange   Boolean  @default(true)
+  minSafe         Float?
+  maxSafe         Float?
+  loggedBy        String?
+  loggedAt        DateTime @default(now())
+  correctiveNote  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model CleaningSanitationLog {
+  id              String   @id @default(cuid())
+  tenantId        String
+  area            String   // kitchen, storage, display, equipment, bathroom, general
+  task            String
+  cleaningProduct String?
+  frequency       String   @default("daily") // after_each_use, daily, weekly, monthly
+  completedBy     String?
+  completedAt     DateTime @default(now())
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  status          String   @default("completed") // completed, missed, rescheduled
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
