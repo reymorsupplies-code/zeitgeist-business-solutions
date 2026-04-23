@@ -9128,7 +9128,7 @@ function getPasteleriaNav(locale: string) {
 // ============ TENANT VIEW ============
 
 function TenantSidebar() {
-  const { currentTenant, tenantPage, setTenantPage, sidebarCollapsed, toggleSidebar, theme, setTheme, logout, user, bakeryWorkspace, setBakeryWorkspace, currentUserRole, stealthMode, locale } = useAppStore();
+  const { currentTenant, tenantPage, setTenantPage, sidebarCollapsed, toggleSidebar, theme, setTheme, logout, user, bakeryWorkspace, setBakeryWorkspace, currentUserRole, stealthMode, locale, viewAsTenant, isSuperAdmin } = useAppStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const currentIndustry = currentTenant?.industry?.slug || currentTenant?.industryId || 'bakery';
   const navItems = (() => {
@@ -9226,21 +9226,21 @@ function TenantSidebar() {
           <div key={section}>
             {!sidebarCollapsed && <p className="px-3 mb-1.5 text-[10px] font-semibold tracking-widest uppercase text-muted-foreground/50">{section}</p>}
             <div className="space-y-0.5">
-              {items.filter((item) => !item.tier || item.tier === 'Owner' ? currentUserRole === 'owner' : true).map((item) => {
+              {items.filter((item) => isSuperAdmin || !item.tier || item.tier === 'Owner' ? currentUserRole === 'owner' : true).map((item) => {
                 const isActive = tenantPage === item.page;
                 const Icon = item.icon;
                 return (
                   <TooltipProvider key={item.label}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <button onClick={() => { if (item.available) handleNavClick(item.page); else toast.info(item.tier ? `Available on ${item.tier} plan` : 'Coming soon!'); }}
-                          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all w-full cursor-pointer ${isActive ? 'bg-primary/15 text-primary font-medium' : !item.available ? 'text-muted-foreground/50' : 'text-muted-foreground hover:bg-muted hover:text-foreground'} ${sidebarCollapsed ? 'justify-center' : ''}`}>
+                        <button onClick={() => { if (item.available || isSuperAdmin) handleNavClick(item.page); else toast.info(item.tier ? `Available on ${item.tier} plan` : 'Coming soon!'); }}
+                          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all w-full cursor-pointer ${isActive ? 'bg-primary/15 text-primary font-medium' : (!item.available && !isSuperAdmin) ? 'text-muted-foreground/50' : 'text-muted-foreground hover:bg-muted hover:text-foreground'} ${sidebarCollapsed ? 'justify-center' : ''}`}>
                           <Icon className="w-4 h-4 shrink-0" />
                           {!sidebarCollapsed && (
                             <>
                               <span className="flex-1 truncate text-left">{item.label}</span>
-                              {item.tier && <span className="text-[10px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded">{item.tier}</span>}
-                              {!item.available && !item.tier && <Lock className="w-3 h-3 opacity-40" />}
+                              {item.tier && !isSuperAdmin && <span className="text-[10px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded">{item.tier}</span>}
+                              {!item.available && !item.tier && !isSuperAdmin && <Lock className="w-3 h-3 opacity-40" />}
                             </>
                           )}
                         </button>
