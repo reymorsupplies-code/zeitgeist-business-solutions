@@ -6,10 +6,10 @@
 -- Order matters: tables first, then columns, then FKs, then indexes.
 -- ============================================================================
 
-BEGIN;
-
 -- ============================================================================
 -- SECTION 1: CREATE ALL 70 TABLES (idempotent via IF NOT EXISTS)
+-- NOTE: No BEGIN/COMMIT — each statement runs independently so errors don't
+--       roll back successful work. Safe to re-run multiple times.
 -- ============================================================================
 
 -- ============================================================================
@@ -4004,7 +4004,7 @@ DO $$ BEGIN
 END $$;
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'POSSale' AND column_name = 'splitDetails') THEN
-    ALTER TABLE "POSSale" ADD COLUMN "splitDetails" TEXT DEFAULT "";
+    ALTER TABLE "POSSale" ADD COLUMN "splitDetails" TEXT DEFAULT '';
   END IF;
 END $$;
 DO $$ BEGIN
@@ -4024,7 +4024,7 @@ DO $$ BEGIN
 END $$;
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'POSSale' AND column_name = 'customerName') THEN
-    ALTER TABLE "POSSale" ADD COLUMN "customerName" TEXT DEFAULT "";
+    ALTER TABLE "POSSale" ADD COLUMN "customerName" TEXT DEFAULT '';
   END IF;
 END $$;
 DO $$ BEGIN
@@ -4749,7 +4749,7 @@ DO $$ BEGIN
 END $$;
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'LoyaltyMember' AND column_name = 'clientEmail') THEN
-    ALTER TABLE "LoyaltyMember" ADD COLUMN "clientEmail" TEXT DEFAULT "";
+    ALTER TABLE "LoyaltyMember" ADD COLUMN "clientEmail" TEXT DEFAULT '';
   END IF;
 END $$;
 DO $$ BEGIN
@@ -4816,7 +4816,7 @@ DO $$ BEGIN
 END $$;
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'LoyaltyTransaction' AND column_name = 'description') THEN
-    ALTER TABLE "LoyaltyTransaction" ADD COLUMN description TEXT DEFAULT "";
+    ALTER TABLE "LoyaltyTransaction" ADD COLUMN description TEXT DEFAULT '';
   END IF;
 END $$;
 DO $$ BEGIN
@@ -7512,5 +7512,5 @@ CREATE INDEX IF NOT EXISTS idx_RentPayment_tenantId_leaseId ON "RentPayment"("te
 CREATE INDEX IF NOT EXISTS idx_LeaseRenewalLog_leaseId ON "LeaseRenewalLog"("leaseId");
 
 
-COMMIT;
+-- DONE — All 70 tables, columns, FKs, and indexes applied.
 
