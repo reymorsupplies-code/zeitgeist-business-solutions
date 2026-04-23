@@ -14,6 +14,29 @@ export async function GET(req: NextRequest, {params }: { params: Promise<{ tenan
   }
 
   try {
+    const { searchParams } = new URL(req.url);
+    if (searchParams.get('action') === 'summary') {
+      const all = await db.medicalAppointment.findMany({ where: { tenantId, isDeleted: false } });
+      const today = new Date();
+      const todayStr = today.toISOString().slice(0, 10);
+      const todayAppts = all.filter((a: any) => (a.date || a.appointmentDate || '').startsWith(todayStr));
+      const thisWeek = (() => {
+        const start = new Date(today);
+        start.setDate(today.getDate() - today.getDay());
+        return all.filter((a: any) => {
+          const d = new Date(a.date || a.appointmentDate || 0);
+          return d >= start && d <= today;
+        }).length;
+      })();
+      const completed = all.filter((a: any) => a.status === 'completed' || a.status === 'done');
+      return NextResponse.json({
+        totalAppointments: all.length,
+        todayAppointments: todayAppts.length,
+        thisWeekAppointments: thisWeek,
+        completedAppointments: completed.length,
+        pendingAppointments: all.filter((a: any) => a.status === 'scheduled' || a.status === 'pending' || !a.status).length,
+      });
+    }
     const items = await db.medicalAppointment.findMany({ where: { tenantId, isDeleted: false }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json(items);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }

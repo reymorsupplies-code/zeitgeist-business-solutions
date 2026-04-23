@@ -26,7 +26,7 @@ interface LegalCase {
   closeDate: string;
   description: string;
   billingRate: string;
-  hoursBilled: string;
+  hoursBilled: number;
 }
 
 interface CaseSummary {
@@ -80,7 +80,7 @@ export default function LegalCasesPage() {
   const defaultForm = {
     caseNumber: '', title: '', clientName: '', caseType: 'civil',
     status: 'open', court: '', judge: '', openDate: '', closeDate: '',
-    description: '', billingRate: '', hoursBilled: '',
+    description: '', billingRate: '', hoursBilled: 0,
   };
   const [form, setForm] = useState({ ...defaultForm });
 
@@ -114,7 +114,7 @@ export default function LegalCasesPage() {
       closeDate: row.closeDate?.slice(0, 10) || '',
       description: row.description || '',
       billingRate: row.billingRate || '',
-      hoursBilled: row.hoursBilled || '',
+      hoursBilled: row.hoursBilled || 0,
     });
     setShowForm(true);
   };
@@ -233,7 +233,7 @@ export default function LegalCasesPage() {
               </TableHeader>
               <TableBody>
                 {filtered.map((c) => {
-                  const billedAmount = (parseFloat(c.billingRate || '0') * parseFloat(c.hoursBilled || '0'));
+                  const billedAmount = ((parseFloat(c.billingRate || '0')) * (c.hoursBilled || 0));
                   return (
                     <TableRow key={c.id}>
                       <TableCell className="font-medium">{c.caseNumber}</TableCell>
@@ -348,7 +348,7 @@ export default function LegalCasesPage() {
               </div>
               <div>
                 <Label>Hours Billed</Label>
-                <Input type="number" step="0.1" value={form.hoursBilled} onChange={e => setForm(f => ({ ...f, hoursBilled: e.target.value }))} className="mt-1" />
+                <Input type="number" step="0.1" value={form.hoursBilled} onChange={e => setForm(f => ({ ...f, hoursBilled: parseFloat(e.target.value) || 0 }))} className="mt-1" />
               </div>
             </div>
             <div>

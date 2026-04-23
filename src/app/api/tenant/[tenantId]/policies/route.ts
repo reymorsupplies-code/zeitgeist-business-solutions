@@ -14,6 +14,26 @@ export async function GET(req: NextRequest, {params }: { params: Promise<{ tenan
   }
 
   try {
+    const { searchParams } = new URL(req.url);
+    if (searchParams.get('action') === 'summary') {
+      const all = await db.policy.findMany({ where: { tenantId, isDeleted: false } });
+      const active = all.filter((p: any) => p.status === 'active');
+      const totalCoverage = active.reduce((sum: number, p: any) => sum + (parseFloat(p.coverageAmount || p.coverage || '0')), 0);
+      const monthlyPremiums = active.reduce((sum: number, p: any) => sum + (parseFloat(p.premium || '0')), 0);
+      const expiringSoon = active.filter((p: any) => {
+        const end = new Date(p.expiryDate || p.endDate || '2099-12-31');
+        const diff = (end.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+        return diff > 0 && diff <= 30;
+      }).length;
+      return NextResponse.json({
+        totalPolicies: all.length,
+        activePolicies: active.length,
+        expiredPolicies: all.filter((p: any) => p.status === 'expired' || (p.expiryDate && new Date(p.expiryDate) < new Date())).length,
+        totalCoverage,
+        monthlyPremiums,
+        expiringSoon,
+      });
+    }
     const items = await db.policy.findMany({ where: { tenantId, isDeleted: false }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json(items);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }

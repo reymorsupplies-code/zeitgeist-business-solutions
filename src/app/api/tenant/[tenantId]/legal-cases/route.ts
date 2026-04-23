@@ -14,6 +14,24 @@ export async function GET(req: NextRequest, {params }: { params: Promise<{ tenan
   }
 
   try {
+    const { searchParams } = new URL(req.url);
+    if (searchParams.get('action') === 'summary') {
+      const all = await db.legalCase.findMany({ where: { tenantId, isDeleted: false } });
+      const open = all.filter((c: any) => c.status === 'open' || c.status === 'in_progress');
+      const totalHoursBilled = all.reduce((sum: number, c: any) => sum + (parseFloat(c.hoursBilled || '0')), 0);
+      const totalBilledRevenue = all.reduce((sum: number, c: any) => {
+        const hours = parseFloat(c.hoursBilled || '0');
+        const rate = parseFloat(c.billingRate || '0');
+        return sum + (hours * rate);
+      }, 0);
+      return NextResponse.json({
+        totalCases: all.length,
+        openCases: open.length,
+        closedCases: all.filter((c: any) => c.status === 'closed' || c.status === 'settled').length,
+        totalHoursBilled: Math.round(totalHoursBilled * 100) / 100,
+        totalBilledRevenue: Math.round(totalBilledRevenue * 100) / 100,
+      });
+    }
     const items = await db.legalCase.findMany({ where: { tenantId, isDeleted: false }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json(items);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }

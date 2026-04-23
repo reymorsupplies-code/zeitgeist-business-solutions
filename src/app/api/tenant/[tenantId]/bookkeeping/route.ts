@@ -18,8 +18,8 @@ export async function GET(_req: NextRequest, {params }: { params: Promise<{ tena
     const entries = await db.bookkeepingEntry.findMany({ where: { tenantId, isDeleted: false }, orderBy: { date: 'desc' } });
     
     // Calculate P&L
-    const credits = entries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0);
-    const debits = entries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0);
+    const credits = entries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount.toNumber(), 0);
+    const debits = entries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount.toNumber(), 0);
     const netIncome = credits - debits;
     
     // By category
@@ -27,8 +27,8 @@ export async function GET(_req: NextRequest, {params }: { params: Promise<{ tena
     for (const entry of entries) {
       const cat = entry.category || 'Uncategorized';
       if (!categories[cat]) categories[cat] = { credits: 0, debits: 0 };
-      if (entry.type === 'credit') categories[cat].credits += entry.amount;
-      else categories[cat].debits += entry.amount;
+      if (entry.type === 'credit') categories[cat].credits += entry.amount.toNumber();
+      else categories[cat].debits += entry.amount.toNumber();
     }
     
     return NextResponse.json({ entries, summary: { totalCredits: credits, totalDebits: debits, netIncome, categories } });

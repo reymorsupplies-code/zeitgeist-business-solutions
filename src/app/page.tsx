@@ -49,7 +49,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Toaster } from '@/components/ui/sonner';
+// Toaster is rendered in layout.tsx — no import needed here
 import BarcodeScanner from '@/components/barcode-scanner';
 import InsurancePoliciesPage from '@/components/pages/InsurancePoliciesPage';
 import InsuranceClaimsPage from '@/components/pages/InsuranceClaimsPage';
@@ -266,7 +266,7 @@ function getSalonNav(locale: string) {
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
     { label: t('tenant.appointments', locale), icon: Calendar, page: 'appointments' as const, available: true },
     { label: t('tenant.stylists', locale), icon: Scissors, page: 'stylists' as const, available: true },
-    { label: t('tenant.salonServices', locale), icon: Sparkles, page: 'salon_services' as const, available: true },
+    { label: t('tenant.salonServices', locale), icon: Sparkles, page: 'salon-services' as const, available: true },
   ]},
   { section: t('tenant.section.clients', locale), items: [
     { label: t('tenant.salonClients', locale), icon: Users, page: 'salon_clients' as const, available: true },
@@ -444,7 +444,7 @@ function getClinicsNav(locale: string) {
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
     { label: t('tenant.appointments', locale), icon: Calendar, page: 'clinic-appointments' as const, available: true },
     { label: t('tenant.doctors', locale), icon: UsersIcon, page: 'stylists' as const, available: true },
-    { label: t('tenant.salonServices', locale), icon: Stethoscope, page: 'salon_services' as const, available: true },
+    { label: t('tenant.salonServices', locale), icon: Stethoscope, page: 'salon-services' as const, available: true },
   ]},
   { section: t('tenant.section.patients', locale), items: [
     { label: t('tenant.patientRecords', locale), icon: Users, page: 'clinic-patients' as const, available: true },
@@ -482,6 +482,7 @@ function getPropertyMgmtNav(locale: string) {
     { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
   { section: t('tenant.section.operations', locale), items: [
+    { label: t('tenant.maintenance', locale), icon: Wrench, page: 'pm-maintenance' as const, available: true },
     { label: t('tenant.vendors', locale), icon: Truck, page: 'pm-vendors' as const, available: true },
     { label: t('tenant.documents', locale), icon: FileSpreadsheet, page: 'pm-property-documents' as const, available: true },
   ]},
@@ -871,7 +872,7 @@ function PortalTestimonials() {
 }
 
 function PortalPricing() {
-  const { billingCycle, setBillingCycle, setSelectedPlan, selectedIndustrySlug, setSelectedIndustrySlug } = useAppStore();
+  const { billingCycle, setBillingCycle, setSelectedPlan, selectedIndustrySlug, setSelectedIndustrySlug, setView } = useAppStore();
   const [activeIndustry, setActiveIndustry] = useState<string | null>(selectedIndustrySlug);
   const displayPlans = getPlansForIndustry(activeIndustry);
   const hasIndustry = !!activeIndustry;
@@ -3230,7 +3231,7 @@ function CTApprovals() {
                             <h3 className="font-semibold">{t.name}</h3>
                             <div className="flex flex-wrap items-center gap-2 mt-0.5">
                               <Badge variant="outline" className="text-xs">{t.planName || plan?.name || 'No Plan'}</Badge>
-                              <span className="text-xs text-muted-foreground">TT${plan?.priceTTD || 0}/mo</span>
+                              <span className="text-xs text-muted-foreground">${plan?.priceUSD || 0}/mo</span>
                               <Badge variant="outline" className="text-[10px]">{t.industry?.name || t.industryId || '—'}</Badge>
                             </div>
                           </div>
@@ -4097,7 +4098,7 @@ function CTAnalytics() {
                       <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${planColors[plan.name] || '#2563EB'}, ${planColors[plan.name] || '#2563EB'}cc)` }}>
                         <span className="text-white text-sm font-bold">{i + 1}</span>
                       </div>
-                      <div><p className="text-sm font-bold">{plan.name}</p><p className="text-[10px] text-muted-foreground">TT${plan.priceTTD}/mo</p></div>
+                      <div><p className="text-sm font-bold">{plan.name}</p><p className="text-[10px] text-muted-foreground">${plan.priceUSD}/mo</p></div>
                     </div>
                     <div className="flex items-center justify-between mb-1"><span className="text-xs text-muted-foreground">{count} subscribers</span><span className="text-xs font-bold">{pct.toFixed(0)}%</span></div>
                     <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: planColors[plan.name] || '#2563EB' }} /></div>

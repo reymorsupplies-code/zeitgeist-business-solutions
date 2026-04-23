@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
         unit: true,
         tenant: true,
       },
-      orderBy: { collectedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     // Compute pastReturnDeadline flag for each deposit
@@ -104,10 +104,10 @@ export async function POST(req: NextRequest) {
     const monthlyRent = lease.rentAmount;
     const depositAmount = Number(amount) || 0;
 
-    if (depositAmount > monthlyRent && monthlyRent > 0) {
+    if (depositAmount > monthlyRent.toNumber() && monthlyRent.toNumber() > 0) {
       return NextResponse.json(
         {
-          error: `T&T compliance violation: Security deposit (${currency || 'TTD'} ${depositAmount.toFixed(2)}) exceeds one month's rent (${lease.rentCurrency || 'TTD'} ${monthlyRent.toFixed(2)}). Under Trinidad & Tobago rental regulations, the security deposit should not exceed one month's rent.`,
+          error: `T&T compliance violation: Security deposit (${currency || 'TTD'} ${depositAmount.toFixed(2)}) exceeds one month's rent (${lease.rentCurrency || 'TTD'} ${monthlyRent.toNumber().toFixed(2)}). Under Trinidad & Tobago rental regulations, the security deposit should not exceed one month's rent.`,
           compliance: {
             maxAllowed: monthlyRent,
             requested: depositAmount,
@@ -140,12 +140,11 @@ export async function POST(req: NextRequest) {
         amount: depositAmount,
         currency: currency || 'TTD',
         status: 'held',
-        collectedAt: new Date(),
-        returnDeadline,
+        receivedDate: new Date(),
+        returnDeadline: returnDeadline || new Date(),
         returnedAmount: 0,
         deductionTotal: 0,
-        deductionDetails: '[]',
-        deductionReceipts: '[]',
+        deductions: '[]',
         notes: body.notes || null,
       },
       include: {
@@ -190,10 +189,10 @@ export async function PATCH(req: NextRequest) {
       const returnedAmount = Number(body.returnedAmount) || 0;
 
       // ─── T&T Compliance: returnedAmount + deductionTotal <= amount ───
-      if (returnedAmount + deductionTotal > existing.amount) {
+      if (returnedAmount + deductionTotal > existing.amount.toNumber()) {
         return NextResponse.json(
           {
-            error: `Total disbursement (returned: ${returnedAmount.toFixed(2)} + deductions: ${deductionTotal.toFixed(2)} = ${(returnedAmount + deductionTotal).toFixed(2)}) exceeds deposit amount (${existing.amount.toFixed(2)}).`,
+            error: `Total disbursement (returned: ${returnedAmount.toFixed(2)} + deductions: ${deductionTotal.toFixed(2)} = ${(returnedAmount + deductionTotal).toFixed(2)}) exceeds deposit amount (${existing.amount.toNumber().toFixed(2)}).`,
             compliance: {
               depositAmount: existing.amount,
               returnedAmount,
@@ -211,10 +210,10 @@ export async function PATCH(req: NextRequest) {
       data.returnedAmount = returnedAmount;
 
       // Auto-update status based on return
-      if (returnedAmount > 0 && returnedAmount < existing.amount - deductionTotal) {
+      if (returnedAmount > 0 && returnedAmount < existing.amount.toNumber() - deductionTotal) {
         data.status = 'partially_returned';
       } else if (returnedAmount > 0 || deductionTotal > 0) {
-        if (returnedAmount + deductionTotal >= existing.amount) {
+        if (returnedAmount + deductionTotal >= existing.amount.toNumber()) {
           data.status = 'fully_returned';
         }
       }
@@ -222,8 +221,8 @@ export async function PATCH(req: NextRequest) {
       // Set return timestamps
       if (returnedAmount > 0) {
         data.returnedAt = new Date();
-        data.returnMethod = body.returnMethod || existing.returnMethod;
-        data.returnRef = body.returnRef || existing.returnRef;
+        data.refundMethod = body.refundMethod || existing.refundMethod;
+        data.refundReference = body.refundRef || existing.refundReference;
       }
     }
 
@@ -241,9 +240,9 @@ export async function PATCH(req: NextRequest) {
           : JSON.stringify(body.deductionReceipts);
     }
 
-    // Handle return method and reference
-    if (body.returnMethod !== undefined) data.returnMethod = body.returnMethod;
-    if (body.returnRef !== undefined) data.returnRef = body.returnRef;
+    // Handle refund method and reference
+    if (body.refundMethod !== undefined) data.refundMethod = body.refundMethod;
+    if (body.refundReference !== undefined) data.refundReference = body.refundReference;
 
     // Handle returnDeadline update
     if (body.returnDeadline !== undefined) {

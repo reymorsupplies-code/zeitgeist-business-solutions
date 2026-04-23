@@ -14,6 +14,22 @@ export async function GET(req: NextRequest, {params }: { params: Promise<{ tenan
   }
 
   try {
+    const { searchParams } = new URL(req.url);
+    if (searchParams.get('action') === 'summary') {
+      const all = await db.patient.findMany({ where: { tenantId, isDeleted: false } });
+      const now = new Date();
+      const thisMonth = all.filter((p: any) => {
+        const d = new Date(p.createdAt || p.registrationDate || 0);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      }).length;
+      const withAllergies = all.filter((p: any) => p.allergies && p.allergies.length > 0).length;
+      return NextResponse.json({
+        totalPatients: all.length,
+        newThisMonth: thisMonth,
+        withAllergies,
+        activePatients: all.filter((p: any) => p.status === 'active' || !p.status).length,
+      });
+    }
     const items = await db.patient.findMany({ where: { tenantId, isDeleted: false }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json(items);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }

@@ -21,7 +21,6 @@ interface TimeEntry {
   billingRate: string;
   billable: boolean;
   date: string;
-  notes: string;
 }
 
 interface CaseOption {
@@ -67,7 +66,7 @@ export default function LegalTimeEntriesPage() {
 
   const defaultForm = {
     caseId: '', description: '', duration: 30, billingRate: '',
-    billable: true, date: '', notes: '',
+    billable: true, date: '',
   };
   const [form, setForm] = useState({ ...defaultForm });
 
@@ -98,7 +97,6 @@ export default function LegalTimeEntriesPage() {
       billingRate: row.billingRate || '',
       billable: row.billable !== false,
       date: row.date?.slice(0, 10) || '',
-      notes: row.notes || '',
     });
     setShowForm(true);
   };
@@ -298,10 +296,7 @@ export default function LegalTimeEntriesPage() {
                 <span className="text-sm">Billable</span>
               </label>
             </div>
-            <div>
-              <Label>Notes</Label>
-              <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="mt-1" />
-            </div>
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>

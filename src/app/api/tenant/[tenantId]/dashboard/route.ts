@@ -11,14 +11,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ten
     const expenses = await db.expense.findMany({ where: { tenantId, isDeleted: false } });
     const catalogItems = await db.catalogItem.findMany({ where: { tenantId, isDeleted: false } });
     
-    const totalRevenue = payments.reduce((s, p) => s + p.amount, 0);
+    const totalRevenue = payments.reduce((s, p) => s + p.amount.toNumber(), 0);
     const pendingOrders = orders.filter(o => o.status === 'pending').length;
-    const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-    const overdueInvoices = invoices.filter(i => i.status === 'overdue' || (i.balanceDue > 0 && i.dueDate && new Date(i.dueDate) < new Date())).length;
+    const totalExpenses = expenses.reduce((s, e) => s + e.amount.toNumber(), 0);
+    const overdueInvoices = invoices.filter(i => i.status === 'overdue' || (i.balanceDue.toNumber() > 0 && i.dueDate && new Date(i.dueDate) < new Date())).length;
     
     return NextResponse.json({
       orders: { total: orders.length, pending: pendingOrders, list: orders.slice(0, 5) },
-      revenue: { total: totalRevenue, thisMonth: payments.filter(p => new Date(p.createdAt).getMonth() === new Date().getMonth()).reduce((s, p) => s + p.amount, 0) },
+      revenue: { total: totalRevenue, thisMonth: payments.filter(p => new Date(p.createdAt).getMonth() === new Date().getMonth()).reduce((s, p) => s + p.amount.toNumber(), 0) },
       clients: { total: clients.length },
       expenses: { total: totalExpenses },
       invoices: { total: invoices.length, overdue: overdueInvoices },

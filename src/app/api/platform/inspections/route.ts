@@ -150,7 +150,7 @@ export async function GET(req: NextRequest) {
         lease: { include: { unit: { include: { property: true } }, tenant: true } },
         tenant: true,
       },
-      orderBy: { scheduledDate: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     return NextResponse.json(inspections);
@@ -212,14 +212,12 @@ export async function POST(req: NextRequest) {
         leaseId: leaseId || null,
         tenantId: tenantId || null,
         type: type || 'routine',
-        status: 'scheduled',
-        scheduledDate: scheduledDate ? new Date(scheduledDate) : new Date(),
+        inspectedAt: scheduledDate ? new Date(scheduledDate) : new Date(),
         inspectorName: inspectorName || null,
-        checklistItems: JSON.stringify(finalChecklist),
-        overallScore: body.overallScore || null,
-        tenantSignOff: false,
-        landlordSignOff: false,
-        photos: body.photos ? JSON.stringify(body.photos) : '[]',
+        checklist: JSON.stringify(finalChecklist),
+        scoreTotal: body.overallScore ? Number(body.overallScore) : 0,
+        signedByTenant: false,
+        signedByLandlord: false,
         notes: notes || null,
       },
       include: {
@@ -261,8 +259,8 @@ export async function PATCH(req: NextRequest) {
     // Handle status transitions
     if (body.status !== undefined) {
       data.status = body.status;
-      if (body.status === 'completed' && !existing.completedDate) {
-        data.completedDate = new Date();
+      if (body.status === 'completed' && !existing.inspectedAt) {
+        data.inspectedAt = new Date();
       }
     }
 
@@ -306,15 +304,13 @@ export async function PATCH(req: NextRequest) {
     }
 
     // ─── Tenant Sign-Off ───
-    if (body.tenantSignOff === true && !existing.tenantSignOff) {
-      data.tenantSignOff = true;
-      data.tenantSignedAt = new Date();
+    if (body.signedByTenant === true && !existing.signedByTenant) {
+      data.signedByTenant = true;
     }
 
     // ─── Landlord Sign-Off ───
-    if (body.landlordSignOff === true && !existing.landlordSignOff) {
-      data.landlordSignOff = true;
-      data.landlordSignedAt = new Date();
+    if (body.signedByLandlord === true && !existing.signedByLandlord) {
+      data.signedByLandlord = true;
     }
 
     // Handle notes
@@ -322,8 +318,8 @@ export async function PATCH(req: NextRequest) {
 
     // Auto-update status to 'signed' when both parties have signed off
     if (
-      (body.tenantSignOff === true || existing.tenantSignOff) &&
-      (body.landlordSignOff === true || existing.landlordSignOff) &&
+      (body.signedByTenant === true || existing.signedByTenant) &&
+      (body.signedByLandlord === true || existing.signedByLandlord) &&
       data.status !== 'signed'
     ) {
       data.status = 'signed';

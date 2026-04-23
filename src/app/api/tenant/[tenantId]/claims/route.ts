@@ -14,6 +14,29 @@ export async function GET(req: NextRequest, {params}: { params: Promise<{ tenant
   }
 
   try {
+    const { searchParams } = new URL(req.url);
+    if (searchParams.get('action') === 'summary') {
+      const all = await db.claim.findMany({ where: { tenantId, isDeleted: false } });
+      const open = all.filter((c: any) => c.status === 'open' || c.status === 'pending');
+      const totalClaimed = all.reduce((sum: number, c: any) => sum + (parseFloat(c.amount || c.claimAmount || '0')), 0);
+      const totalSettled = all.filter((c: any) => c.status === 'settled' || c.status === 'approved').reduce((sum: number, c: any) => sum + (parseFloat(c.settlementAmount || c.amount || '0')), 0);
+      const avgProcessingDays = (() => {
+        const settled = all.filter((c: any) => c.status === 'settled' && c.dateReported && c.dateSettled);
+        if (settled.length === 0) return 0;
+        return Math.round(settled.reduce((sum: number, c: any) => {
+          return sum + (new Date(c.dateSettled).getTime() - new Date(c.dateReported).getTime()) / (1000 * 60 * 60 * 24);
+        }, 0) / settled.length);
+      })();
+      return NextResponse.json({
+        totalClaims: all.length,
+        openClaims: open.length,
+        settledClaims: all.filter((c: any) => c.status === 'settled' || c.status === 'approved').length,
+        deniedClaims: all.filter((c: any) => c.status === 'denied' || c.status === 'rejected').length,
+        totalClaimed,
+        totalSettled,
+        avgProcessingDays,
+      });
+    }
     const items = await db.claim.findMany({ where: { tenantId, isDeleted: false }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json(items);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }

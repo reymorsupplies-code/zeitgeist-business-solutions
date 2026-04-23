@@ -426,19 +426,12 @@ export async function POST(req: NextRequest) {
         type,
         status: 'draft',
         jurisdiction: 'TT',
-        recipientName: finalRecipientName || null,
-        recipientEmail: finalRecipientEmail || null,
-        recipientAddress: finalRecipientAddress || null,
-        subject: noticeSubject,
+        title: noticeSubject,
         content: noticeContent,
-        templateType: type,
-        legalReferences: JSON.stringify(template.legalReferences),
-        issuedDate,
+        templateSlug: type,
         effectiveDate: effective,
-        expiryDate: expiry,
-        sentVia: sentVia || null,
-        trackingRef: trackingRef || null,
-        notes: notes || null,
+        expiresAt: expiry,
+        sentMethod: sentVia || null,
       },
       include: {
         lease: { include: { unit: { include: { property: true } }, tenant: true } },
@@ -508,14 +501,14 @@ async function handleAutoGenerate(req: NextRequest) {
     );
 
     // Generate notices for each lease
-    const generatedNotices = [];
+    const generatedNotices: any[] = [];
     for (const lease of leasesNeedingNotice) {
       const content = template.defaultContent
         .replace('[Tenant Name]', lease.tenant?.name || 'Tenant')
         .replace('[Property Address]', lease.unit?.property?.address || 'N/A')
         .replace('[Unit Number]', lease.unit?.unitNumber || 'N/A')
-        .replace('[Current Amount]', lease.rentAmount.toFixed(2))
-        .replace('[New Amount]', lease.rentAmount.toFixed(2))
+        .replace('[Current Amount]', lease.rentAmount.toNumber().toFixed(2))
+        .replace('[New Amount]', lease.rentAmount.toNumber().toFixed(2))
         .replace('[Start Date]', lease.startDate.toLocaleDateString())
         .replace('[End Date]', lease.endDate.toLocaleDateString())
         .replace('[Date]', now.toLocaleDateString())
@@ -529,23 +522,17 @@ async function handleAutoGenerate(req: NextRequest) {
       const notice = await db.legalNotice.create({
         data: {
           leaseId: lease.id,
-          propertyId: lease.unit?.propertyId || null,
+          propertyId: lease.unit?.propertyId || '',
           unitId: lease.unitId,
           tenantId: lease.tenantId || null,
           type: noticeType,
           status: 'draft',
           jurisdiction: 'TT',
-          recipientName: lease.tenant?.name || null,
-          recipientEmail: lease.tenant?.email || null,
-          recipientAddress: lease.unit?.property?.address || null,
-          subject: template.defaultSubject,
+          title: template.defaultSubject,
           content,
-          templateType: noticeType,
-          legalReferences: JSON.stringify(template.legalReferences),
-          issuedDate: now,
+          templateSlug: noticeType,
           effectiveDate: now,
-          expiryDate: expiry,
-          notes: `Auto-generated: Lease ${lease.id} expires ${lease.endDate.toLocaleDateString()}`,
+          expiresAt: expiry,
         },
         include: {
           lease: { include: { unit: { include: { property: true } }, tenant: true } },
@@ -605,8 +592,8 @@ export async function PATCH(req: NextRequest) {
       data.status = body.status;
 
       // Auto-set issuedDate when notice is sent
-      if (body.status === 'sent' && !existing.issuedDate) {
-        data.issuedDate = new Date();
+      if (body.status === 'sent' && !existing.sentDate) {
+        data.sentDate = new Date();
       }
     }
 

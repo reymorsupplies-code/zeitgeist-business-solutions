@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ============ PLATFORM MODELS ============
@@ -49,8 +49,8 @@ model Plan {
   name             String
   slug             String   @unique
   tier             String   @default("starter")
-  priceUSD         Decimal  @default(0) @db.Decimal(14,2)
-  priceTTD         Decimal  @default(0) @db.Decimal(14,2)
+  priceUSD         Decimal  @default(0) @db.Decimal(14, 2)
+  priceTTD         Decimal  @default(0) @db.Decimal(14, 2)
   currency         String   @default("TTD")
   billingCycle     String   @default("monthly")
   tagline          String?
@@ -206,8 +206,8 @@ model TenantSubscription {
   planName           String?
   status             String    @default("active")
   billingCycle       String    @default("monthly")
-  priceUSD           Decimal   @default(0) @db.Decimal(14,2)
-  priceTTD           Decimal   @default(0) @db.Decimal(14,2)
+  priceUSD           Decimal   @default(0) @db.Decimal(14, 2)
+  priceTTD           Decimal   @default(0) @db.Decimal(14, 2)
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
   paymentBehavior    String    @default("always_on_time")
@@ -228,9 +228,9 @@ model Order {
   clientEmail     String?
   clientPhone     String?
   items           String    @default("[]")
-  subtotal        Decimal   @default(0) @db.Decimal(14,2)
-  taxAmount       Decimal   @default(0) @db.Decimal(14,2)
-  totalAmount     Decimal   @default(0) @db.Decimal(14,2)
+  subtotal        Decimal   @default(0) @db.Decimal(14, 2)
+  taxAmount       Decimal   @default(0) @db.Decimal(14, 2)
+  totalAmount     Decimal   @default(0) @db.Decimal(14, 2)
   status          String    @default("pending")
   orderType       String    @default("custom")
   deliveryDate    DateTime?
@@ -251,8 +251,8 @@ model CatalogItem {
   name        String
   description String?
   category    String?
-  price       Decimal  @default(0) @db.Decimal(14,2)
-  cost        Decimal  @default(0) @db.Decimal(14,2)
+  price       Decimal  @default(0) @db.Decimal(14, 2)
+  cost        Decimal  @default(0) @db.Decimal(14, 2)
   unit        String?
   imageUrl    String?
   isAvailable Boolean  @default(true)
@@ -263,7 +263,6 @@ model CatalogItem {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
-
 }
 
 model Client {
@@ -283,7 +282,6 @@ model Client {
   loyaltyMembers LoyaltyMember[]
 
   @@index([tenantId])
-
 }
 
 model Invoice {
@@ -293,11 +291,11 @@ model Invoice {
   clientName    String?
   clientEmail   String?
   items         String    @default("[]")
-  subtotal      Decimal   @default(0) @db.Decimal(14,2)
+  subtotal      Decimal   @default(0) @db.Decimal(14, 2)
   taxRate       Float     @default(0)
-  taxAmount     Decimal   @default(0) @db.Decimal(14,2)
-  totalAmount   Decimal   @default(0) @db.Decimal(14,2)
-  balanceDue    Decimal   @default(0) @db.Decimal(14,2)
+  taxAmount     Decimal   @default(0) @db.Decimal(14, 2)
+  totalAmount   Decimal   @default(0) @db.Decimal(14, 2)
+  balanceDue    Decimal   @default(0) @db.Decimal(14, 2)
   status        String    @default("draft")
   issueDate     DateTime?
   dueDate       DateTime?
@@ -310,7 +308,6 @@ model Invoice {
   payments Payment[]
 
   @@index([tenantId])
-
 }
 
 model Quotation {
@@ -321,11 +318,11 @@ model Quotation {
   clientEmail String?
   clientPhone String?
   items       String    @default("[]")
-  subtotal    Decimal   @default(0) @db.Decimal(14,2)
-  discount    Decimal   @default(0) @db.Decimal(14,2)
+  subtotal    Decimal   @default(0) @db.Decimal(14, 2)
+  discount    Decimal   @default(0) @db.Decimal(14, 2)
   taxRate     Float     @default(0)
-  taxAmount   Decimal   @default(0) @db.Decimal(14,2)
-  totalAmount Decimal   @default(0) @db.Decimal(14,2)
+  taxAmount   Decimal   @default(0) @db.Decimal(14, 2)
+  totalAmount Decimal   @default(0) @db.Decimal(14, 2)
   status      String    @default("draft")
   validUntil  DateTime?
   notes       String?
@@ -336,14 +333,13 @@ model Quotation {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
-
 }
 
 model Payment {
   id        String   @id @default(cuid())
   tenantId  String
   invoiceId String?
-  amount    Decimal  @default(0) @db.Decimal(14,2)
+  amount    Decimal  @default(0) @db.Decimal(14, 2)
   currency  String   @default("TTD")
   method    String   @default("cash")
   reference String?
@@ -357,7 +353,6 @@ model Payment {
   invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
-
 }
 
 model Expense {
@@ -365,7 +360,7 @@ model Expense {
   tenantId    String
   category    String?
   description String?
-  amount      Decimal   @default(0) @db.Decimal(14,2)
+  amount      Decimal   @default(0) @db.Decimal(14, 2)
   currency    String    @default("TTD")
   date        DateTime?
   receiptUrl  String?
@@ -377,7 +372,6 @@ model Expense {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
-
 }
 
 model Recipe {
@@ -391,15 +385,15 @@ model Recipe {
   cookTime       Int?
   ingredients    String   @default("[]")
   instructions   String   @default("[]")
-  costPerServing Decimal   @default(0) @db.Decimal(14,2)
-  sellingPrice   Decimal   @default(0) @db.Decimal(14,2)
+  costPerServing Decimal  @default(0) @db.Decimal(14, 2)
+  sellingPrice   Decimal  @default(0) @db.Decimal(14, 2)
   imageUrl       String?
   isPublic       Boolean  @default(false)
   isDeleted      Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  tenant               Tenant                @relation(fields: [tenantId], references: [id])
   allergenDeclarations AllergenDeclaration[]
 
   @@index([tenantId])
@@ -411,7 +405,7 @@ model Ingredient {
   name        String
   category    String?
   unit        String?
-  costPerUnit Decimal   @default(0) @db.Decimal(14,2)
+  costPerUnit Decimal  @default(0) @db.Decimal(14, 2)
   quantity    Float    @default(0)
   minStock    Float    @default(0)
   supplier    String?
@@ -419,12 +413,11 @@ model Ingredient {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  tenant               Tenant                @relation(fields: [tenantId], references: [id])
   allergenDeclarations AllergenDeclaration[]
-  stockMovements      StockMovement[]
+  stockMovements       StockMovement[]
 
   @@index([tenantId])
-
 }
 
 model DesignItem {
@@ -442,7 +435,6 @@ model DesignItem {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
-
 }
 
 model TenantDocument {
@@ -459,7 +451,6 @@ model TenantDocument {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
-
 }
 
 // ============ SALON MODELS ============
@@ -483,7 +474,6 @@ model Appointment {
   service SalonServiceItem? @relation(fields: [serviceId], references: [id])
 
   @@index([tenantId])
-
 }
 
 model Stylist {
@@ -503,7 +493,6 @@ model Stylist {
   appointments Appointment[]
 
   @@index([tenantId])
-
 }
 
 model SalonServiceItem {
@@ -512,7 +501,7 @@ model SalonServiceItem {
   name        String
   description String?
   duration    Int      @default(60)
-  price       Decimal  @default(0) @db.Decimal(14,2)
+  price       Decimal  @default(0) @db.Decimal(14, 2)
   category    String?
   isActive    Boolean  @default(true)
   isDeleted   Boolean  @default(false)
@@ -523,36 +512,34 @@ model SalonServiceItem {
   appointments Appointment[]
 
   @@index([tenantId])
-
 }
 
 // ============ CLINIC MODELS ============
 
 model Patient {
-  id                String    @id @default(cuid())
-  tenantId          String
-  firstName         String
-  lastName          String
-  dateOfBirth       DateTime?
-  gender            String?
-  email             String?
-  phone             String?
-  address           String?
-  bloodType         String?
-  allergies         String    @default("[]")
-  medicalNotes      String?
-  insuranceProvider String?
-  insuranceNumber   String?
-  emergencyContact  String?
-  emergencyPhone    String?
-  isDeleted         Boolean   @default(false)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  tenant               Tenant               @relation(fields: [tenantId], references: [id])
+  id                  String               @id @default(cuid())
+  tenantId            String
+  firstName           String
+  lastName            String
+  dateOfBirth         DateTime?
+  gender              String?
+  email               String?
+  phone               String?
+  address             String?
+  bloodType           String?
+  allergies           String               @default("[]")
+  medicalNotes        String?
+  insuranceProvider   String?
+  insuranceNumber     String?
+  emergencyContact    String?
+  emergencyPhone      String?
+  isDeleted           Boolean              @default(false)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
   medicalAppointments MedicalAppointment[]
 
   @@index([tenantId])
-
 }
 
 model MedicalAppointment {
@@ -570,57 +557,54 @@ model MedicalAppointment {
   isDeleted    Boolean   @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  tenant               Tenant               @relation(fields: [tenantId], references: [id])
-  patient              Patient?              @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  patient      Patient?  @relation(fields: [patientId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
-
 }
 
 // ============ LEGAL MODELS ============
 
 model LegalCase {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   tenantId    String
   caseNumber  String?
   title       String
   clientName  String?
   caseType    String?
-  status      String    @default("open")
+  status      String      @default("open")
   court       String?
   judge       String?
   openDate    DateTime?
   closeDate   DateTime?
   description String?
-  billingRate Decimal   @default(0) @db.Decimal(14,2)
-  hoursBilled Float     @default(0)
-  isDeleted   Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  billingRate Decimal     @default(0) @db.Decimal(14, 2)
+  hoursBilled Float       @default(0)
+  isDeleted   Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   tenant      Tenant      @relation(fields: [tenantId], references: [id])
   timeEntries TimeEntry[]
 
   @@index([tenantId])
-
 }
 
 model TimeEntry {
-  id          String    @id @default(cuid())
+  id          String     @id @default(cuid())
   tenantId    String
   caseId      String?
   description String
-  duration    Int       @default(0)
-  billingRate Decimal   @default(0) @db.Decimal(14,2)
-  billable    Boolean   @default(true)
+  duration    Int        @default(0)
+  billingRate Decimal    @default(0) @db.Decimal(14, 2)
+  billable    Boolean    @default(true)
   date        DateTime?
-  isDeleted   Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  tenant    Tenant    @relation(fields: [tenantId], references: [id])
-  legalCase LegalCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  isDeleted   Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+  legalCase   LegalCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
-
 }
 
 // ============ INSURANCE MODELS ============
@@ -631,8 +615,8 @@ model Policy {
   policyNumber  String?
   clientName    String?
   type          String?
-  premium       Decimal   @default(0) @db.Decimal(14,2)
-  coverage      Decimal   @default(0) @db.Decimal(14,2)
+  premium       Decimal   @default(0) @db.Decimal(14, 2)
+  coverage      Decimal   @default(0) @db.Decimal(14, 2)
   startDate     DateTime?
   endDate       DateTime?
   status        String    @default("active")
@@ -644,7 +628,6 @@ model Policy {
   claims        Claim[]
 
   @@index([tenantId])
-
 }
 
 model Claim {
@@ -654,7 +637,7 @@ model Claim {
   claimNumber  String?
   claimantName String?
   type         String?
-  amount       Decimal   @default(0) @db.Decimal(14,2)
+  amount       Decimal   @default(0) @db.Decimal(14, 2)
   status       String    @default("submitted")
   incidentDate DateTime?
   description  String?
@@ -662,34 +645,33 @@ model Claim {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   tenant       Tenant    @relation(fields: [tenantId], references: [id])
-  policy       Policy?  @relation(fields: [policyId], references: [id], onDelete: SetNull)
+  policy       Policy?   @relation(fields: [policyId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
-
 }
 
 // ============ RETAIL MODELS ============
 
 model RetailProduct {
-  id        String   @id @default(cuid())
-  tenantId  String
-  name      String
-  sku       String?
-  category  String?
-  price     Decimal  @default(0) @db.Decimal(12, 2)
-  cost      Decimal  @default(0) @db.Decimal(12, 2)
-  quantity  Int      @default(0)
-  minStock  Int      @default(0)
-  supplier  String?
-  barcode   String?
-  imageUrl  String?
-  taxCategory String @default("standard") // standard (12.5%), exempt, zero_rated — T&T VAT
-  settings  String   @default("{}")
-  isActive  Boolean  @default(true)
-  isDeleted Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  sku         String?
+  category    String?
+  price       Decimal  @default(0) @db.Decimal(12, 2)
+  cost        Decimal  @default(0) @db.Decimal(12, 2)
+  quantity    Int      @default(0)
+  minStock    Int      @default(0)
+  supplier    String?
+  barcode     String?
+  imageUrl    String?
+  taxCategory String   @default("standard") // standard (12.5%), exempt, zero_rated — T&T VAT
+  settings    String   @default("{}")
+  isActive    Boolean  @default(true)
+  isDeleted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, isDeleted])
   @@index([tenantId, barcode])
@@ -742,11 +724,11 @@ model StockMovement {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   ingredient Ingredient? @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
 
-  @@map("StockMovement")
   @@index([tenantId, type])
+  @@map("StockMovement")
 }
 
 // ============ PURCHASE ORDER ============
@@ -787,7 +769,7 @@ model POSSale {
   taxRate        Decimal         @default(0.125) @db.Decimal(5, 4) // VAT rate applied (default 12.5% T&T)
   totalAmount    Decimal         @default(0) @db.Decimal(12, 2)
   paymentMethod  String          @default("cash") // cash, card, transfer, gift_card, split
-  giftCardId     String?         // Reference to gift card used for payment
+  giftCardId     String? // Reference to gift card used for payment
   splitDetails   String?         @default("") // JSON: {cash, card, giftCard, transfer, giftCardId}
   cashReceived   Decimal         @default(0) @db.Decimal(12, 2)
   changeAmount   Decimal         @default(0) @db.Decimal(12, 2)
@@ -907,7 +889,7 @@ model Event {
   eventDate  DateTime?
   setupDate  DateTime?
   guestCount Int       @default(0)
-  budget     Decimal   @default(0) @db.Decimal(14,2)
+  budget     Decimal   @default(0) @db.Decimal(14, 2)
   status     String    @default("planning")
   notes      String?
   isDeleted  Boolean   @default(false)
@@ -916,7 +898,6 @@ model Event {
   tenant     Tenant    @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
-
 }
 
 // ============ RETAIL SUPPLIERS ============
@@ -951,7 +932,7 @@ model Venue {
   email        String?
   phone        String?
   amenities    String   @default("[]")
-  pricePerHour Decimal  @default(0) @db.Decimal(14,2)
+  pricePerHour Decimal  @default(0) @db.Decimal(14, 2)
   isActive     Boolean  @default(true)
   isDeleted    Boolean  @default(false)
   createdAt    DateTime @default(now())
@@ -959,7 +940,6 @@ model Venue {
   tenant       Tenant   @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
-
 }
 
 model Vendor {
@@ -978,7 +958,6 @@ model Vendor {
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
-
 }
 
 // ============ PROFESSIONAL CONTRACTS ============
@@ -988,7 +967,7 @@ model Contract {
   tenantId    String
   clientName  String?
   type        String?
-  value       Decimal   @default(0) @db.Decimal(14,2)
+  value       Decimal   @default(0) @db.Decimal(14, 2)
   startDate   DateTime?
   endDate     DateTime?
   status      String    @default("active")
@@ -1000,7 +979,6 @@ model Contract {
   tenant      Tenant    @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
-
 }
 
 // ============ PROFESSIONAL SERVICES MODELS ============
@@ -1013,8 +991,8 @@ model Project {
   status      String    @default("active")
   startDate   DateTime?
   deadline    DateTime?
-  budget      Decimal   @default(0) @db.Decimal(14,2)
-  spent       Decimal   @default(0) @db.Decimal(14,2)
+  budget      Decimal   @default(0) @db.Decimal(14, 2)
+  spent       Decimal   @default(0) @db.Decimal(14, 2)
   progress    Int       @default(0)
   description String?
   isDeleted   Boolean   @default(false)
@@ -1023,7 +1001,6 @@ model Project {
   tenant      Tenant    @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
-
 }
 
 // ============ LOYALTY PROGRAM ============
@@ -1036,7 +1013,7 @@ model LoyaltyMember {
   clientPhone String
   clientEmail String   @default("")
   points      Int      @default(0)
-  totalSpent  Decimal   @default(0) @db.Decimal(14,2)
+  totalSpent  Decimal  @default(0) @db.Decimal(14, 2)
   totalOrders Int      @default(0)
   tier        String   @default("bronze")
   joinDate    DateTime @default(now())
@@ -1063,7 +1040,6 @@ model LoyaltyTransaction {
   tenant Tenant        @relation("LoyaltyTransactionTenant", fields: [tenantId], references: [id])
 
   @@index([tenantId])
-
 }
 
 // ============ BOOKKEEPING ============
@@ -1075,7 +1051,7 @@ model BookkeepingEntry {
   description String
   category    String?
   type        String   @default("debit")
-  amount      Decimal   @default(0) @db.Decimal(14,2)
+  amount      Decimal  @default(0) @db.Decimal(14, 2)
   currency    String   @default("TTD")
   reference   String?
   accountId   String?
@@ -1085,7 +1061,6 @@ model BookkeepingEntry {
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
-
 }
 
 // ============ PLATFORM ADMIN ============
@@ -1120,23 +1095,22 @@ model PlatformInvoice {
   id            String    @id @default(cuid())
   tenantId      String?
   invoiceNumber String?
-  amountUSD     Decimal   @default(0) @db.Decimal(14,2)
-  amountTTD     Decimal   @default(0) @db.Decimal(14,2)
+  amountUSD     Decimal   @default(0) @db.Decimal(14, 2)
+  amountTTD     Decimal   @default(0) @db.Decimal(14, 2)
   status        String    @default("draft")
   issueDate     DateTime?
   dueDate       DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id])
 }
-
 
 model PriceSetting {
   id        String   @id @default(cuid())
   planId    String?
   key       String   @unique
-  valueUSD  Decimal   @default(0) @db.Decimal(14,2)
-  valueTTD  Decimal   @default(0) @db.Decimal(14,2)
+  valueUSD  Decimal  @default(0) @db.Decimal(14, 2)
+  valueTTD  Decimal  @default(0) @db.Decimal(14, 2)
   updatedAt DateTime @updatedAt
 
   plan Plan? @relation(fields: [planId], references: [id])
@@ -1146,7 +1120,7 @@ model PriceSetting {
 
 model Property {
   id          String   @id @default(cuid())
-  tenantId    String?  // Multi-tenant scoping - links property to owning tenant
+  tenantId    String? // Multi-tenant scoping - links property to owning tenant
   name        String
   address     String?
   city        String?
@@ -1180,8 +1154,8 @@ model PropertyUnit {
   unitNumber  String // e.g. "A1", "B2", "101"
   floor       Int      @default(1)
   area        Float? // sq ft
-  baseRentTTD Decimal   @default(0) @db.Decimal(14,2)
-  baseRentUSD Decimal   @default(0) @db.Decimal(14,2)
+  baseRentTTD Decimal  @default(0) @db.Decimal(14, 2)
+  baseRentUSD Decimal  @default(0) @db.Decimal(14, 2)
   tenantId    String? // nullable - unit can be vacant
   status      String   @default("vacant") // vacant, occupied, maintenance, reserved
   amenities   String   @default("[]")
@@ -1208,9 +1182,9 @@ model Lease {
   tenantId            String?
   startDate           DateTime
   endDate             DateTime
-  rentAmount          Decimal   @default(0) @db.Decimal(14,2) // monthly
+  rentAmount          Decimal   @default(0) @db.Decimal(14, 2) // monthly
   rentCurrency        String    @default("TTD")
-  depositAmount       Decimal   @default(0) @db.Decimal(14,2)
+  depositAmount       Decimal   @default(0) @db.Decimal(14, 2)
   status              String    @default("active") // draft, active, expired, terminated, renewed
   terms               String?
   notes               String?
@@ -1250,7 +1224,7 @@ model MaintenanceRequest {
   status      String    @default("open") // open, in_progress, resolved, closed
   requestedAt DateTime  @default(now())
   resolvedAt  DateTime?
-  cost        Decimal   @default(0) @db.Decimal(14,2)
+  cost        Decimal   @default(0) @db.Decimal(14, 2)
   vendor      String?
   notes       String?
   createdAt   DateTime  @default(now())
@@ -1277,9 +1251,9 @@ model RentPayment {
   tenantId      String?
   periodStart   DateTime // billing period start
   periodEnd     DateTime // billing period end
-  amountDue     Decimal   @default(0) @db.Decimal(14,2)
-  amountPaid    Decimal   @default(0) @db.Decimal(14,2)
-  lateFee       Decimal   @default(0) @db.Decimal(14,2)
+  amountDue     Decimal   @default(0) @db.Decimal(14, 2)
+  amountPaid    Decimal   @default(0) @db.Decimal(14, 2)
+  lateFee       Decimal   @default(0) @db.Decimal(14, 2)
   currency      String    @default("TTD")
   paymentMethod String? // bank_transfer, cash, cheque, online
   paymentRef    String?
@@ -1360,8 +1334,8 @@ model JournalEntryLine {
   accountCode    String
   accountName    String
   accountType    String // Asset, Liability, Equity, Revenue, Expense
-  debit          Decimal   @default(0) @db.Decimal(14,2)
-  credit         Decimal   @default(0) @db.Decimal(14,2)
+  debit          Decimal  @default(0) @db.Decimal(14, 2)
+  credit         Decimal  @default(0) @db.Decimal(14, 2)
   createdAt      DateTime @default(now())
 
   journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
@@ -1375,11 +1349,11 @@ model OwnerDisbursement {
   propertyId         String?
   periodStart        DateTime
   periodEnd          DateTime
-  grossIncome        Decimal   @default(0) @db.Decimal(14,2)
-  totalExpenses      Decimal   @default(0) @db.Decimal(14,2)
-  netIncome          Decimal   @default(0) @db.Decimal(14,2)
+  grossIncome        Decimal   @default(0) @db.Decimal(14, 2)
+  totalExpenses      Decimal   @default(0) @db.Decimal(14, 2)
+  netIncome          Decimal   @default(0) @db.Decimal(14, 2)
   ownerShare         Float     @default(100) // percentage
-  disbursementAmount Decimal   @default(0) @db.Decimal(14,2)
+  disbursementAmount Decimal   @default(0) @db.Decimal(14, 2)
   currency           String    @default("TTD")
   status             String    @default("pending") // pending, approved, paid
   paidAt             DateTime?
@@ -1398,18 +1372,17 @@ model LeaseRenewalLog {
   previousEnd DateTime
   newStart    DateTime
   newEnd      DateTime
-  oldRent     Decimal   @default(0) @db.Decimal(14,2)
-  newRent     Decimal   @default(0) @db.Decimal(14,2)
-  increasePct Float     @default(0)
+  oldRent     Decimal  @default(0) @db.Decimal(14, 2)
+  newRent     Decimal  @default(0) @db.Decimal(14, 2)
+  increasePct Float    @default(0)
   renewedBy   String? // userId or 'auto'
   notes       String?
   createdAt   DateTime @default(now())
 
-  lease  Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
-  tenant Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  lease  Lease   @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([leaseId])
-
 }
 
 // ============ T&T PROPERTY RENTAL COMPLIANCE ============
@@ -1420,15 +1393,15 @@ model SecurityDeposit {
   propertyId      String
   unitId          String
   tenantId        String?
-  amount          Decimal   @default(0) @db.Decimal(14,2)
+  amount          Decimal   @default(0) @db.Decimal(14, 2)
   currency        String    @default("TTD")
   status          String    @default("held") // held, partially_returned, fully_returned, deducted
   receivedDate    DateTime  @default(now())
   returnDeadline  DateTime // T&T law: 14 days after vacate
-  returnedAmount  Decimal   @default(0) @db.Decimal(14,2)
+  returnedAmount  Decimal   @default(0) @db.Decimal(14, 2)
   returnedDate    DateTime?
   deductions      String    @default("[]") // JSON: [{description, amount, photoUrl, approvedAt}]
-  deductionTotal  Decimal   @default(0) @db.Decimal(14,2)
+  deductionTotal  Decimal   @default(0) @db.Decimal(14, 2)
   refundMethod    String? // bank_transfer, cash, cheque
   refundReference String?
   notes           String?
@@ -1579,7 +1552,7 @@ model AllergenDeclaration {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   recipe     Recipe?     @relation(fields: [recipeId], references: [id], onDelete: SetNull)
   ingredient Ingredient? @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
 }

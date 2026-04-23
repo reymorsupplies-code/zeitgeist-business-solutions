@@ -14,6 +14,31 @@ export async function GET(req: NextRequest, {params }: { params: Promise<{ tenan
   }
 
   try {
+    const { searchParams } = new URL(req.url);
+    if (searchParams.get('action') === 'summary') {
+      const all = await db.timeEntry.findMany({ where: { tenantId, isDeleted: false } });
+      const billable = all.filter((e: any) => e.billable !== false);
+      const totalHours = all.reduce((sum: number, e: any) => sum + ((parseInt(e.duration || '0') || 0) / 60), 0);
+      const billableHours = billable.reduce((sum: number, e: any) => sum + ((parseInt(e.duration || '0') || 0) / 60), 0);
+      const totalRevenue = billable.reduce((sum: number, e: any) => {
+        const hours = (parseInt(e.duration || '0') || 0) / 60;
+        const rate = parseFloat(e.billingRate || '0');
+        return sum + (hours * rate);
+      }, 0);
+      const now = new Date();
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      const thisWeekHours = all
+        .filter((e: any) => new Date(e.date || e.createdAt || 0) >= weekStart)
+        .reduce((sum: number, e: any) => sum + ((parseInt(e.duration || '0') || 0) / 60), 0);
+      return NextResponse.json({
+        totalHours: Math.round(totalHours * 100) / 100,
+        billableHours: Math.round(billableHours * 100) / 100,
+        totalRevenue: Math.round(totalRevenue * 100) / 100,
+        thisWeekHours: Math.round(thisWeekHours * 100) / 100,
+      });
+    }
     const items = await db.timeEntry.findMany({ where: { tenantId, isDeleted: false }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json(items);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }
