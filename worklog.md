@@ -142,3 +142,22 @@ Stage Summary:
 - 15+ pre-existing TypeScript errors fixed across 8 API routes
 - Build passes cleanly with 0 errors
 - Project is production-ready for all 8 industries
+---
+Task ID: 1
+Agent: Main Agent
+Task: Auto-SQL fix para resetToken/resetTokenExpiry en auth routes
+
+Work Log:
+- Clonado repo fresh desde GitHub (commit 569c261)
+- Leído forgot-password/route.ts, reset-password/route.ts, inventory/route.ts (patrón pgQuery), supabase-add-columns.sql
+- Agregado ALTER TABLE IF NOT EXISTS idempotente en forgot-password/route.ts (líneas 35-38)
+- Agregado ALTER TABLE IF NOT EXISTS idempotente en reset-password/route.ts (líneas 8-10)
+- Eliminado import duplicado de pgQuery en forgot-password
+- Build exitoso: 0 errores, Prisma v6.19.3, Next.js 16.2.3
+- Commit: 7332baa → push a main
+
+Stage Summary:
+- Archivos modificados: src/app/api/auth/forgot-password/route.ts, src/app/api/auth/reset-password/route.ts
+- Las columnas resetToken (TEXT) y resetTokenExpiry (TIMESTAMP) se crean automáticamente en el primer request
+- Patrón idempotente: seguro ejecutar múltiples veces (IF NOT EXISTS)
+- Ya no se necesita ejecutar supabase-add-columns.sql manualmente
