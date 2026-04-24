@@ -8602,7 +8602,7 @@ function CTOwnerReporting({ apiBase = '/api/platform' }: { apiBase?: string } = 
 }
 
 // ============ LANDLORD DASHBOARD (ENHANCED) ============
-function CTLandlordDashboard() {
+function CTLandlordDashboard({ apiBase = '/api/platform' }: { apiBase?: string }) {
   const [properties, setProperties] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [leases, setLeases] = useState<any[]>([]);
@@ -8612,11 +8612,11 @@ function CTLandlordDashboard() {
 
   useEffect(() => {
     Promise.all([
-      authFetch('/api/platform/properties').then(r => r.json()),
-      authFetch('/api/platform/property-units').then(r => r.json()),
-      authFetch('/api/platform/leases').then(r => r.json()),
-      authFetch('/api/platform/maintenance').then(r => r.json()),
-      authFetch('/api/platform/rent-payments').then(r => r.json()),
+      authFetch(`${apiBase}/properties`).then(r => r.json()),
+      authFetch(`${apiBase}/property-units`).then(r => r.json()),
+      authFetch(`${apiBase}/leases`).then(r => r.json()),
+      authFetch(`${apiBase}/maintenance-requests`).then(r => r.json()),
+      authFetch(`${apiBase}/rent-payments`).then(r => r.json()),
     ]).then(([p, u, l, m, rp]) => {
       setProperties(Array.isArray(p) ? p : []);
       setUnits(Array.isArray(u) ? u : []);
@@ -8625,7 +8625,7 @@ function CTLandlordDashboard() {
       setRentPayments(Array.isArray(rp) ? rp : []);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, []);
+  }, [apiBase]);
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
@@ -9890,6 +9890,11 @@ function TenantDashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const industry = currentTenant?.industry?.slug || currentTenant?.industryId || 'bakery';
+
+  // For property-management, show the full landlord dashboard
+  if (industry === 'property-management' && currentTenant?.id) {
+    return <CTLandlordDashboard apiBase={`/api/tenant/${currentTenant.id}`} />;
+  }
 
   useEffect(() => {
     if (currentTenant?.id) {
