@@ -171,6 +171,8 @@ model Tenant {
   propertyVendors          PropertyVendor[]
   systemEvents             SystemEvent[]
   platformInvoices         PlatformInvoice[]
+  renters                  Renter[]
+  notifications            Notification[]
 }
 
 model TenantMembership {
@@ -1146,6 +1148,7 @@ model Property {
   inspections         PropertyInspection[]
   legalNotices        LegalNotice[]
   ownerDisbursements  OwnerDisbursement[]
+  renters             Renter[]
 
   @@index([tenantId])
 }
@@ -1174,6 +1177,7 @@ model PropertyUnit {
   deposits            SecurityDeposit[]
   inspections         PropertyInspection[]
   legalNotices        LegalNotice[]
+  renters             Renter[]
 
   @@unique([propertyId, unitNumber])
 }
@@ -1209,6 +1213,7 @@ model Lease {
   inspections  PropertyInspection[]
   legalNotices LegalNotice[]
   renewalLogs  LeaseRenewalLog[]
+  renters     Renter[]
 
   @@index([tenantId, status])
   @@index([unitId, status])
@@ -1239,11 +1244,13 @@ model MaintenanceRequest {
 
   propertyVendor PropertyVendor? @relation(fields: [vendorId], references: [id])
 
+  renters Renter[]
+
   @@index([tenantId, status])
   @@index([tenantId, propertyId])
 }
 
-// ============ PREMIUM LANDLORD FEATURES ============
+// ============ PREMIUM LANDLORD FEATURES ===========
 
 model RentPayment {
   id            String    @id @default(cuid())
@@ -1270,6 +1277,7 @@ model RentPayment {
   property Property     @relation(fields: [propertyId], references: [id])
   unit     PropertyUnit @relation(fields: [unitId], references: [id])
   tenant   Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  renters  Renter[]
 
   @@index([tenantId, status, dueDate])
   @@index([tenantId, leaseId])
@@ -1316,6 +1324,7 @@ model PropertyDocument {
   unit     PropertyUnit? @relation(fields: [unitId], references: [id])
   lease    Lease?        @relation(fields: [leaseId], references: [id])
   tenant   Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  renters  Renter[]
 }
 
 model JournalEntry {
@@ -1414,6 +1423,7 @@ model SecurityDeposit {
   property Property     @relation(fields: [propertyId], references: [id])
   unit     PropertyUnit @relation(fields: [unitId], references: [id])
   tenant   Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  renters  Renter[]
 }
 
 model PropertyInspection {
@@ -1440,6 +1450,7 @@ model PropertyInspection {
   unit     PropertyUnit? @relation(fields: [unitId], references: [id])
   lease    Lease?        @relation(fields: [leaseId], references: [id])
   tenant   Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  renters  Renter[]
 }
 
 model LegalNotice {
@@ -1467,6 +1478,7 @@ model LegalNotice {
   property Property     @relation(fields: [propertyId], references: [id])
   unit     PropertyUnit @relation(fields: [unitId], references: [id])
   tenant   Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  renters  Renter[]
 }
 
 // ============ RETAIL VAT COMPLIANCE (T&T BIR) ============
@@ -1636,4 +1648,62 @@ model CleaningSanitationLog {
   updatedAt       DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// ============ RENTER (Tenant Portal - Apartment Renter) ============
+model Renter {
+  id          String   @id @default(cuid())
+  tenantId    String   // SaaS business tenant (property management company)
+  leaseId     String?  // Current active lease
+  unitId      String?  // Current unit
+  propertyId  String?  // Current property
+  fullName    String
+  email       String
+  phone       String?
+  idDocument  String?  // National ID, passport, etc.
+  pin         String   // 6-digit PIN for simple login (hashed)
+  status      String   @default("active") // active, inactive, moved_out
+  lastLoginAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lease     Lease?           @relation(fields: [leaseId], references: [id])
+  unit      PropertyUnit?    @relation(fields: [unitId], references: [id])
+  property  Property?        @relation(fields: [propertyId], references: [id])
+  payments  RentPayment[]
+  maintenanceRequests MaintenanceRequest[]
+  deposits  SecurityDeposit[]
+  inspections PropertyInspection[]
+  documents PropertyDocument[]
+  legalNotices LegalNotice[]
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([leaseId])
+}
+
+// ============ NOTIFICATION (In-App Notifications) ============
+model Notification {
+  id          String   @id @default(cuid())
+  tenantId    String   // SaaS business tenant
+  userId      String?  // Optional: specific PlatformUser
+  renterId    String?  // Optional: specific Renter
+  title       String
+  message     String
+  type        String   @default("info") // info, warning, success, error, rent_due, lease_expiring, maintenance, payment_received
+  category    String   @default("general") // property, lease, payment, maintenance, legal, system
+  link        String?  // Optional: page to navigate to when clicked
+  isRead      Boolean  @default(false)
+  readAt      DateTime?
+  expiresAt   DateTime? // Auto-delete after this date
+  metadata    String   @default("{}") // JSON: extra data
+  createdAt   DateTime @default(now())
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, isRead])
+  @@index([userId])
+  @@index([renterId])
+  @@index([createdAt])
 }

@@ -195,3 +195,59 @@ Stage Summary:
 - All platform routes now have authentication
 - SQL injection vulnerability eliminated
 - Full T&T compliance for security deposits, inspections, and legal notices
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: FASE 1 - Enhanced Property Management Dashboard
+
+Work Log:
+- Modified CTLandlordDashboard to accept apiBase prop instead of hardcoded /api/platform/ URLs
+- Connected CTLandlordDashboard as default dashboard when tenant industry is "property-management"
+- Updated all 5 API calls (properties, units, leases, maintenance, rent-payments) to use apiBase
+- Verified zero new lint errors from changes
+
+Stage Summary:
+- Landlord dashboard now renders automatically for property-management tenants
+- Dashboard shows KPIs, occupancy, rent collection, NOI, property performance, maintenance expenses
+- All API calls properly scoped to tenant via apiBase pattern
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: FASE 2 - Tenant (Renter) Portal
+
+Work Log:
+- Created Renter model in Prisma schema with fields: id, tenantId, leaseId, unitId, propertyId, fullName, email, phone, idDocument, pin, status, lastLoginAt
+- Added renters reverse relations to 10 existing models (Tenant, Property, PropertyUnit, Lease, RentPayment, MaintenanceRequest, etc.)
+- Created /api/auth/renter-login API route (email + PIN + tenantId authentication)
+- Created renter-scoped API routes: /api/renter/[renterId]/payments, /maintenance, /documents, /profile
+- Created landlord management API: /api/tenant/[tenantId]/renters (CRUD)
+- Built CTRenterManagement component (landlord side - create/manage renters)
+- Built complete RenterPortalView with: Login screen, Dashboard, Payments, Maintenance, Documents, Profile
+- Added renter_portal to ViewMode in store with token/info/page state
+- Added "Portal del Inquilino" navigation links in public portal navbar and footer
+
+Stage Summary:
+- Full renter portal with login (email + 6-digit PIN), dashboard, payments, maintenance requests, documents, profile editing
+- Landlord can create/manage renters with PIN assignment and lease linking
+- All API routes properly scoped with token-based authentication
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: FASE 3 - In-App Notification System
+
+Work Log:
+- Created Notification model in Prisma schema with fields: id, tenantId, userId, renterId, title, message, type, category, link, isRead, metadata
+- Created /api/tenant/[tenantId]/notifications (GET with unread filter, POST create)
+- Created /api/tenant/[tenantId]/notifications/mark-read (POST mark single/all as read)
+- Created /api/tenant/[tenantId]/notifications/auto-generate (POST - checks overdue payments, expiring leases, resolved maintenance)
+- Built CTNotificationBell component with dropdown panel, unread badge, auto-refresh, click-to-navigate
+- Integrated notification bell into CTLandlordDashboard header
+
+Stage Summary:
+- Complete notification system with auto-generation for 3 event types
+- Bell icon with red badge in dashboard header, dropdown with notifications list
+- Notifications link to relevant pages (rent payments, lease renewal, maintenance)
+- Deduplication logic prevents duplicate notifications

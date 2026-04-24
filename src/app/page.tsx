@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore, TenantPage } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { formatCurrency, CARIBBEAN_CURRENCIES, getCurrencyConfig } from '@/lib/currencies';
@@ -22,7 +22,7 @@ import {
   Layers, Palette, Database, ArrowUpRight, Minus, Copy,
   RefreshCw, CheckCircle, XCircle, AlertCircle, Loader2, MapPin,
   Wrench, Landmark, Banknote, CircleDollarSign, TrendingDown, PiggyBank,
-  Building, Target, Trophy, BarChart2, FileSpreadsheet, Handshake, UserCheck, FileSearch, File as FileIcon,
+  Building, Target, Trophy, BarChart2, FileSpreadsheet, Handshake, UserCheck, UserX, FileSearch, File as FileIcon,
   RotateCcw, ArrowRightLeft, BadgeDollarSign, Percent, EyeOff, CalendarDays,
   Twitter, Linkedin, Instagram, Facebook, Tag,
   KeyRound, LogIn, Languages,
@@ -489,6 +489,7 @@ function getPropertyMgmtNav(locale: string) {
     { label: t('tenant.documents', locale), icon: FileSpreadsheet, page: 'pm-property-documents' as const, available: true },
     { label: t('tenant.inspections', locale), icon: ClipboardCheck, page: 'pm-inspections' as const, available: true },
     { label: t('tenant.legalNotices', locale), icon: ScrollText, page: 'pm-legal-notices' as const, available: true },
+    { label: 'Portal Inquilinos', icon: Users, page: 'pm-renters' as const, available: true },
   ]},
   { section: t('tenant.section.insights', locale), items: [
     { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
@@ -627,6 +628,10 @@ function PortalNavbar() {
               className="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
               {t('portal.nav.signin', locale)}
             </button>
+            <button onClick={() => setView('renter_portal')}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors border border-emerald-500/30">
+              <Users className="w-4 h-4 inline mr-1.5 -mt-0.5" />Portal del Inquilino
+            </button>
             <button onClick={() => { setPortalPage('pricing'); setView('portal'); }}
               className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-blue-700 to-blue-500 text-white hover:from-blue-800 hover:to-blue-700 transition-all shadow-lg shadow-blue-900/30">
               {t('portal.hero.cta', locale)}
@@ -648,6 +653,10 @@ function PortalNavbar() {
                   {item.label}
                 </button>
               ))}
+              <button onClick={() => { setView('renter_portal'); setMobileMenuOpen(false); }}
+                className="w-full text-left px-3 py-2 rounded-lg text-sm text-emerald-400 hover:text-emerald-300 hover:bg-white/5">
+                <Users className="w-4 h-4 inline mr-2 -mt-0.5" />Portal del Inquilino
+              </button>
             </div>
           </motion.div>
         )}
@@ -1718,6 +1727,8 @@ function PortalFooter() {
               <button onClick={() => { setView('portal'); scrollTo('industries'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.industries', locale)}</button><br/>
               <button onClick={() => { setView('portal'); scrollTo('pricing'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.pricing', locale)}</button><br/>
               <button onClick={() => { setView('portal'); setPortalPage && null; }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.features', locale)}</button>
+              <br/>
+              <button onClick={() => setView('renter_portal')} className="hover:text-emerald-400 transition-colors cursor-pointer">Portal del Inquilino</button>
             </div>
           </div>
           <div>
@@ -8601,6 +8612,121 @@ function CTOwnerReporting({ apiBase = '/api/platform' }: { apiBase?: string } = 
   );
 }
 
+// ============ NOTIFICATION BELL ============
+function CTNotificationBell({ apiBase, onNavigate }: { apiBase: string; onNavigate?: (page: string) => void }) {
+  const { setTenantPage } = useAppStore() as any;
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await authFetch(`${apiBase}/notifications?unread=true&limit=20`);
+      const data = await res.json();
+      setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
+      setUnreadCount(data.unreadCount || 0);
+    } catch {}
+  }, [apiBase]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const interval = setInterval(load, 60000);
+    return () => clearInterval(interval);
+  }, [load]);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const markRead = async (id?: string) => {
+    try {
+      await authFetch(`${apiBase}/notifications/mark-read`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(id ? { id } : { markAll: true }),
+      });
+      load();
+    } catch {}
+  };
+
+  const handleNotifClick = (n: any) => {
+    markRead(n.id);
+    setOpen(false);
+    if (n.link) {
+      (onNavigate || setTenantPage)(n.link);
+    }
+  };
+
+  const typeIcons: Record<string, any> = { info: Info, warning: AlertTriangle, success: CheckCircle, error: XCircle, rent_due: Banknote, lease_expiring: FileText, maintenance: Wrench, payment_received: CreditCard };
+  const typeColors: Record<string, string> = { info: 'text-blue-500', warning: 'text-amber-500', success: 'text-green-500', error: 'text-red-500', rent_due: 'text-violet-500', lease_expiring: 'text-orange-500', maintenance: 'text-sky-500', payment_received: 'text-emerald-500' };
+
+  const timeAgo = (date: string) => {
+    const diff = Date.now() - new Date(date).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Ahora';
+    if (mins < 60) return `Hace ${mins}m`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `Hace ${hours}h`;
+    return `Hace ${Math.floor(hours / 24)}d`;
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <Button variant="ghost" size="icon" className="relative" onClick={() => setOpen(!open)}>
+        <Bell className="w-5 h-5" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </Button>
+      {open && (
+        <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute right-0 top-12 w-80 sm:w-96 bg-popover border rounded-xl shadow-xl z-50 max-h-[70vh] flex flex-col">
+          <div className="flex items-center justify-between p-3 border-b">
+            <h3 className="font-bold text-sm">Notificaciones</h3>
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <Button size="sm" variant="ghost" className="text-xs text-blue-600 hover:text-blue-800 h-7" onClick={(e) => { e.stopPropagation(); markRead(); }}>
+                  Marcar todas
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setOpen(false)}><X className="w-3.5 h-3.5" /></Button>
+            </div>
+          </div>
+          <div className="overflow-y-auto flex-1">
+            {notifications.length === 0 ? (
+              <div className="text-center py-8 text-sm text-muted-foreground"><Bell className="w-8 h-8 mx-auto mb-2 text-muted-foreground/40" /><p>Sin notificaciones</p></div>
+            ) : (
+              notifications.map((n: any) => {
+                const Icon = typeIcons[n.type] || Info;
+                return (
+                  <div key={n.id} className={`p-3 border-b hover:bg-muted/50 cursor-pointer transition-colors ${!n.isRead ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''}`} onClick={() => handleNotifClick(n)}>
+                    <div className="flex gap-2">
+                      <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${typeColors[n.type] || 'text-muted-foreground'}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className={`text-sm font-medium ${!n.isRead ? '' : 'text-muted-foreground'}`}>{n.title}</p>
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">{timeAgo(n.createdAt)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                      </div>
+                      {!n.isRead && <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-1.5" />}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
 // ============ LANDLORD DASHBOARD (ENHANCED) ============
 function CTLandlordDashboard({ apiBase = '/api/platform' }: { apiBase?: string }) {
   const [properties, setProperties] = useState<any[]>([]);
@@ -8675,9 +8801,12 @@ function CTLandlordDashboard({ apiBase = '/api/platform' }: { apiBase?: string }
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-700 to-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20"><Building className="w-5 h-5 text-white" /></div>
-        <div><h1 className="text-2xl font-bold">Landlord Dashboard</h1><p className="text-sm text-muted-foreground">Property portfolio overview — rent roll, NOI, vacancy, collection</p></div>
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-700 to-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20"><Building className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Landlord Dashboard</h1><p className="text-sm text-muted-foreground">Property portfolio overview — rent roll, NOI, vacancy, collection</p></div>
+        </div>
+        <CTNotificationBell apiBase={apiBase} />
       </motion.div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
@@ -8768,6 +8897,117 @@ function CTLandlordDashboard({ apiBase = '/api/platform' }: { apiBase?: string }
           ))}</div>
         </CardContent></Card>
       )}
+    </div>
+  );
+}
+
+// ============ RENTER MANAGEMENT (Landlord creates/manages renters) ============
+function CTRenterManagement({ apiBase }: { apiBase?: string }) {
+  const [renters, setRenters] = useState<any[]>([]);
+  const [leases, setLeases] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
+  const [form, setForm] = useState({ fullName: '', email: '', phone: '', idDocument: '', leaseId: '', pin: '', unitId: '', propertyId: '' });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [r, l] = await Promise.all([
+        authFetch(`${apiBase}/renters`).then(r => r.json()),
+        authFetch(`${apiBase}/leases?status=active`).then(r => r.json()),
+      ]);
+      setRenters(Array.isArray(r) ? r : []);
+      setLeases(Array.isArray(l) ? l : []);
+    } catch {}
+    setLoading(false);
+  }, [apiBase]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    if (!form.fullName || !form.email || !form.pin) return;
+    const lease = leases.find((l: any) => l.id === form.leaseId);
+    const body: any = { ...form };
+    if (lease) { body.unitId = lease.unitId; body.propertyId = lease.unit?.propertyId; }
+    await authFetch(`${apiBase}/renters`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    setShowDialog(false);
+    setForm({ fullName: '', email: '', phone: '', idDocument: '', leaseId: '', pin: '', unitId: '', propertyId: '' });
+    load();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Eliminar este inquilino?')) return;
+    await authFetch(`${apiBase}/renters?id=${id}`, { method: 'DELETE' });
+    load();
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+  const statusColors: Record<string, string> = { active: 'bg-green-100 text-green-700', inactive: 'bg-gray-100 text-gray-700', moved_out: 'bg-amber-100 text-amber-700' };
+
+  return (
+    <div className="space-y-6">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-600 to-teal-400 flex items-center justify-center shadow-lg shadow-teal-500/20"><Users className="w-5 h-5 text-white" /></div>
+          <div><h1 className="text-2xl font-bold">Inquilinos</h1><p className="text-sm text-muted-foreground">Gestiona los inquilinos del portal</p></div>
+        </div>
+        <Button onClick={() => setShowDialog(true)} className="bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 text-white shadow-lg shadow-teal-500/20">
+          <Plus className="w-4 h-4 mr-2" />Agregar Inquilino
+        </Button>
+      </motion.div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Inquilinos', value: renters.length, icon: Users, color: 'from-teal-600 to-teal-400' },
+          { label: 'Activos', value: renters.filter((r: any) => r.status === 'active').length, icon: UserCheck, color: 'from-green-600 to-green-400' },
+          { label: 'Con Contrato', value: renters.filter((r: any) => r.leaseId).length, icon: FileText, color: 'from-blue-600 to-blue-400' },
+          { label: 'Sin Contrato', value: renters.filter((r: any) => !r.leaseId).length, icon: UserX, color: 'from-amber-600 to-amber-400' },
+        ].map((s, i) => (
+          <Card key={i}><CardContent className="p-3"><div className="flex items-center gap-2"><div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${s.color} flex items-center justify-center shrink-0`}><s.icon className="w-4 h-4 text-white" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-medium">{s.label}</p><p className="text-lg font-bold">{s.value}</p></div></div></CardContent></Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {renters.length === 0 ? (
+            <div className="text-center py-12"><Users className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" /><p className="text-muted-foreground">No hay inquilinos registrados</p><p className="text-xs text-muted-foreground mt-1">Agrega inquilinos para darles acceso al portal</p></div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b bg-muted/30"><th className="text-left p-3 font-medium">Inquilino</th><th className="text-left p-3 font-medium hidden md:table-cell">Propiedad/Unidad</th><th className="text-left p-3 font-medium hidden lg:table-cell">Contrato</th><th className="text-left p-3 font-medium">Estado</th><th className="text-left p-3 font-medium hidden sm:table-cell">Último Acceso</th><th className="text-right p-3 font-medium">Acciones</th></tr></thead>
+                <tbody>
+                  {renters.map((r: any) => (
+                    <tr key={r.id} className="border-b hover:bg-muted/30 transition-colors">
+                      <td className="p-3"><div><p className="font-medium">{r.fullName}</p><p className="text-xs text-muted-foreground">{r.email}</p></div></td>
+                      <td className="p-3 hidden md:table-cell"><p className="text-sm">{r.property?.name || '—'}</p><p className="text-xs text-muted-foreground">{r.unit?.unitNumber || ''}</p></td>
+                      <td className="p-3 hidden lg:table-cell">{r.lease ? <div><p className="text-sm">{formatCurrency(r.lease.rentAmount, 'TTD')}/mes</p><p className="text-xs text-muted-foreground">Hasta {r.lease.endDate?.slice(0, 10)}</p></div> : <span className="text-xs text-muted-foreground">Sin contrato</span>}</td>
+                      <td className="p-3"><Badge className={`text-[10px] ${statusColors[r.status] || ''}`}>{r.status}</Badge></td>
+                      <td className="p-3 hidden sm:table-cell text-xs text-muted-foreground">{r.lastLoginAt ? new Date(r.lastLoginAt).toLocaleDateString() : 'Nunca'}</td>
+                      <td className="p-3 text-right"><Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(r.id)}><Trash2 className="w-3.5 h-3.5" /></Button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Agregar Inquilino</DialogTitle><DialogDescription>Crea una cuenta de acceso al portal para el inquilino</DialogDescription></DialogHeader>
+          <div className="space-y-3">
+            <div><label className="text-sm font-medium">Nombre Completo *</label><Input placeholder="Juan Pérez" value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} /></div>
+            <div><label className="text-sm font-medium">Email *</label><Input type="email" placeholder="juan@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+            <div><label className="text-sm font-medium">Teléfono</label><Input placeholder="+1 868 123 4567" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+            <div><label className="text-sm font-medium">Documento ID</label><Input placeholder="Número de cédula/pasaporte" value={form.idDocument} onChange={e => setForm({ ...form, idDocument: e.target.value })} /></div>
+            <div><label className="text-sm font-medium">Contrato Asociado</label><Select value={form.leaseId} onValueChange={v => setForm({ ...form, leaseId: v })}><SelectTrigger><SelectValue placeholder="Seleccionar contrato (opcional)" /></SelectTrigger><SelectContent>{leases.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.tenant?.name || 'Inquilino'} — {l.unit?.unitNumber} — {l.unit?.property?.name}</SelectItem>)}</SelectContent></Select></div>
+            <div><label className="text-sm font-medium">PIN de Acceso (6 dígitos) *</label><Input type="password" maxLength={6} placeholder="123456" value={form.pin} onChange={e => setForm({ ...form, pin: e.target.value.replace(/\D/g, '') })} /><p className="text-[10px] text-muted-foreground mt-1">El inquilino usará este PIN para ingresar al portal</p></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setShowDialog(false)}>Cancelar</Button><Button onClick={handleCreate} disabled={!form.fullName || !form.email || !form.pin || form.pin.length < 4} className="bg-gradient-to-r from-teal-600 to-teal-500 text-white">Crear Inquilino</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -21319,6 +21559,7 @@ function TenantAppView() {
       case 'pm-inspections': return <CTInspections apiBase={`/api/tenant/${tid}`} />;
       case 'pm-legal-notices': return <CTLegalNotices apiBase={`/api/tenant/${tid}`} />;
       case 'pm-lease-renewal': return <CTLeaseRenewal apiBase={`/api/tenant/${tid}`} />;
+      case 'pm-renters': return <CTRenterManagement apiBase={`/api/tenant/${tid}`} />;
       default: return <TenantDashboardPage />;
     }
   };
@@ -22460,6 +22701,888 @@ function PageSkeleton({ type = 'list' }: { type?: 'stats' | 'list' | 'table' | '
   );
 }
 
+// ============ RENTER PORTAL ============
+
+const renterFetch = (url: string, options: any = {}) => {
+  const token = useAppStore.getState().renterToken || (typeof window !== 'undefined' ? localStorage.getItem('zbs-renter-token') : null);
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      'Content-Type': 'application/json',
+    },
+  });
+};
+
+const renterFetchJSON = async (url: string, options: any = {}) => {
+  const res = await renterFetch(url, options);
+  if (res.status === 401) {
+    useAppStore.getState().setRenterToken(null);
+    useAppStore.getState().setRenterInfo(null);
+    throw new Error('Sesión expirada. Por favor inicie sesión de nuevo.');
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.error || `Error (${res.status})`);
+  return data;
+};
+
+function RenterPortalLogin() {
+  const { setRenterToken, setRenterInfo, setRenterPage } = useAppStore();
+  const [email, setEmail] = useState('');
+  const [pin, setPin] = useState('');
+  const [tenantId, setTenantId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tId = params.get('tenant');
+    if (tId) setTenantId(tId);
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/renter-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, pin, tenantId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Error al iniciar sesión');
+        return;
+      }
+      setRenterToken(data.token);
+      setRenterInfo(data.renter);
+      setRenterPage('rp-dashboard');
+    } catch {
+      setError('Error de conexión. Intente de nuevo.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <Card className="w-full max-w-md shadow-2xl border-0">
+          <CardHeader className="text-center pb-2 pt-8">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <Building2 className="w-8 h-8 text-white" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-gray-900">Portal del Inquilino</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">ZBS — Gestión de Propiedades</p>
+          </CardHeader>
+          <CardContent className="px-8 pb-8">
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <Label htmlFor="tenant-id">ID del Arrendador</Label>
+                <Input id="tenant-id" placeholder="Ej: clhxxxxx" value={tenantId} onChange={(e) => setTenantId(e.target.value)} required className="mt-1" />
+              </div>
+              <div>
+                <Label htmlFor="renter-email">Correo Electrónico</Label>
+                <Input id="renter-email" type="email" placeholder="su@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="mt-1" />
+              </div>
+              <div>
+                <Label htmlFor="renter-pin">PIN (6 dígitos)</Label>
+                <Input id="renter-pin" type="password" placeholder="••••••" maxLength={6} pattern="[0-9]{6}" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} required className="mt-1 tracking-widest text-center text-lg" />
+              </div>
+              {error && <p className="text-sm text-red-500 bg-red-50 rounded-lg p-2 text-center">{error}</p>}
+              <Button type="submit" disabled={loading || !email || !pin || !tenantId} className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg h-11">
+                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <LogIn className="w-4 h-4 mr-2" />}
+                Iniciar Sesión
+              </Button>
+            </form>
+            <div className="mt-6 text-center">
+              <button onClick={() => useAppStore.getState().setView('portal')} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                ← Volver al inicio
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}
+
+function RenterSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { renterPage, setRenterPage, setRenterToken, setRenterInfo, setView } = useAppStore();
+  const { renterInfo } = useAppStore();
+
+  const navItems = [
+    { page: 'rp-dashboard', label: 'Dashboard', icon: Home },
+    { page: 'rp-payments', label: 'Mis Pagos', icon: Banknote },
+    { page: 'rp-maintenance', label: 'Solicitar Mantenimiento', icon: Wrench },
+    { page: 'rp-documents', label: 'Mis Documentos', icon: FileText },
+    { page: 'rp-profile', label: 'Mi Perfil', icon: User },
+  ];
+
+  const handleLogout = () => {
+    setRenterToken(null);
+    setRenterInfo(null);
+    setRenterPage('rp-dashboard');
+    setView('portal');
+  };
+
+  return (
+    <>
+      {/* Mobile overlay */}
+      {open && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onClose} />}
+      {/* Sidebar */}
+      <aside className={`fixed top-0 left-0 z-50 h-full w-64 bg-white border-r border-border shadow-xl transform transition-transform duration-300 lg:translate-x-0 lg:static lg:z-auto lg:shadow-none ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-border">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                <Building2 className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="font-bold text-sm text-foreground">ZBS Inquilino</p>
+                <p className="text-xs text-muted-foreground truncate max-w-[140px]">
+                  {renterInfo?.property?.name || 'Propiedad'}
+                </p>
+              </div>
+            </div>
+            <button onClick={onClose} className="lg:hidden p-1 rounded-md hover:bg-muted">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+            {navItems.map(item => {
+              const Icon = item.icon;
+              const isActive = renterPage === item.page;
+              return (
+                <button
+                  key={item.page}
+                  onClick={() => { setRenterPage(item.page); onClose(); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isActive ? 'bg-emerald-50 text-emerald-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Footer */}
+          <div className="p-3 border-t border-border">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+              Cerrar Sesión
+            </button>
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+// --- Renter Dashboard Page ---
+function RenterDashboard() {
+  const { renterInfo } = useAppStore();
+  const [payments, setPayments] = useState<any[]>([]);
+  const [maintenance, setMaintenance] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!renterInfo?.id) return;
+    (async () => {
+      try {
+        const [p, m] = await Promise.all([
+          renterFetchJSON(`/api/renter/${renterInfo.id}/payments`).catch(() => []),
+          renterFetchJSON(`/api/renter/${renterInfo.id}/maintenance`).catch(() => []),
+        ]);
+        setPayments(p || []);
+        setMaintenance(m || []);
+      } catch {}
+      setLoading(false);
+    })();
+  }, [renterInfo?.id]);
+
+  const nextPayment = payments.find(p => p.status !== 'paid');
+  const openRequests = maintenance.filter(m => m.status === 'open' || m.status === 'in_progress');
+  const paidTotal = payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + Number(p.amountPaid || 0), 0);
+  const currency = renterInfo?.lease?.rentCurrency || 'USD';
+
+  return (
+    <div className="space-y-6">
+      {/* Welcome */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">¡Bienvenido, {renterInfo?.fullName || 'Inquilino'}!</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {renterInfo?.property?.name} — Unidad {renterInfo?.unit?.unitNumber || '—'}
+        </p>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Renta Mensual</p>
+                <p className="text-xl font-bold mt-1">{renterInfo?.lease?.rentAmount ? `${Number(renterInfo.lease.rentAmount).toLocaleString()} ${currency}` : '—'}</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                <Banknote className="w-5 h-5 text-emerald-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Próximo Pago</p>
+                <p className="text-xl font-bold mt-1">{nextPayment ? new Date(nextPayment.dueDate).toLocaleDateString('es', { day: 'numeric', month: 'short' }) : '—'}</p>
+                {nextPayment && <p className="text-xs text-amber-600 mt-1">Vence pronto</p>}
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-amber-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Solicitudes Abiertas</p>
+                <p className="text-xl font-bold mt-1">{loading ? '...' : openRequests.length}</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                <Wrench className="w-5 h-5 text-orange-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Pagado</p>
+                <p className="text-xl font-bold mt-1">{paidTotal.toLocaleString()} {currency}</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Next Payment Info */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Próximo Pago de Renta</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {nextPayment ? (
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Período</span><span className="font-medium">{new Date(nextPayment.periodStart).toLocaleDateString('es', { day: 'numeric', month: 'short' })} — {new Date(nextPayment.periodEnd).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Monto</span><span className="font-bold text-lg">{Number(nextPayment.amountDue).toLocaleString()} {nextPayment.currency}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Fecha Límite</span><span className="font-medium">{new Date(nextPayment.dueDate).toLocaleDateString('es')}</span></div>
+                <Badge variant={nextPayment.status === 'late' || nextPayment.status === 'overdue' ? 'destructive' : 'secondary'}>
+                  {nextPayment.status === 'pending' ? 'Pendiente' : nextPayment.status === 'partial' ? 'Parcial' : nextPayment.status === 'late' ? 'Atrasado' : 'Vencido'}
+                </Badge>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No hay pagos pendientes</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Maintenance */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Solicitudes Recientes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex items-center justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+            ) : maintenance.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No hay solicitudes de mantenimiento</p>
+            ) : (
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {maintenance.slice(0, 5).map(req => (
+                  <div key={req.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{req.title}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(req.requestedAt).toLocaleDateString('es')}</p>
+                    </div>
+                    <Badge className={
+                      req.status === 'open' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                      req.status === 'in_progress' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                      req.status === 'resolved' ? 'bg-green-100 text-green-700 border-green-200' :
+                      'bg-gray-100 text-gray-700 border-gray-200'
+                    }>
+                      {req.status === 'open' ? 'Abierta' : req.status === 'in_progress' ? 'En Progreso' : req.status === 'resolved' ? 'Resuelta' : 'Cerrada'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Action */}
+      <Button
+        onClick={() => useAppStore.getState().setRenterPage('rp-maintenance')}
+        className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
+      >
+        <Wrench className="w-4 h-4 mr-2" /> Solicitar Mantenimiento
+      </Button>
+    </div>
+  );
+}
+
+// --- Renter Payments Page ---
+function RenterPayments() {
+  const { renterInfo } = useAppStore();
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!renterInfo?.id) return;
+    renterFetchJSON(`/api/renter/${renterInfo.id}/payments`).then(setPayments).catch(() => {}).finally(() => setLoading(false));
+  }, [renterInfo?.id]);
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case 'paid': return <Badge className="bg-green-100 text-green-700 border-green-200">Pagado</Badge>;
+      case 'partial': return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Parcial</Badge>;
+      case 'pending': return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Pendiente</Badge>;
+      case 'late': return <Badge className="bg-red-100 text-red-700 border-red-200">Atrasado</Badge>;
+      case 'overdue': return <Badge className="bg-red-100 text-red-700 border-red-200">Vencido</Badge>;
+      default: return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const totalPaid = payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amountPaid || 0), 0);
+  const totalPending = payments.filter(p => p.status === 'pending' || p.status === 'late' || p.status === 'overdue').reduce((s, p) => s + Number(p.amountDue || 0), 0);
+  const currency = payments[0]?.currency || 'USD';
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">Mis Pagos</h1>
+
+      {/* Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card><CardContent className="p-5"><p className="text-xs text-muted-foreground uppercase tracking-wider">Total Pagado</p><p className="text-xl font-bold text-green-600 mt-1">{totalPaid.toLocaleString()} {currency}</p></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-xs text-muted-foreground uppercase tracking-wider">Total Pendiente</p><p className="text-xl font-bold text-amber-600 mt-1">{totalPending.toLocaleString()} {currency}</p></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-xs text-muted-foreground uppercase tracking-wider">Total Registros</p><p className="text-xl font-bold mt-1">{payments.length}</p></CardContent></Card>
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+          ) : payments.length === 0 ? (
+            <div className="py-12 text-center"><FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No hay pagos registrados</p></div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Período</TableHead>
+                    <TableHead>Monto</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Fecha Pago</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {payments.map(p => (
+                    <TableRow key={p.id}>
+                      <TableCell className="text-sm">{new Date(p.periodStart).toLocaleDateString('es', { month: 'short', year: 'numeric' })}</TableCell>
+                      <TableCell className="text-sm font-medium">{Number(p.amountDue).toLocaleString()} {p.currency}</TableCell>
+                      <TableCell>{statusBadge(p.status)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{p.paidAt ? new Date(p.paidAt).toLocaleDateString('es') : '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// --- Renter Maintenance Page ---
+function RenterMaintenance() {
+  const { renterInfo } = useAppStore();
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({ title: '', description: '', category: 'general', priority: 'medium' });
+
+  const loadRequests = async () => {
+    if (!renterInfo?.id) return;
+    try {
+      const data = await renterFetchJSON(`/api/renter/${renterInfo.id}/maintenance`);
+      setRequests(data || []);
+    } catch {}
+    setLoading(false);
+  };
+
+  useEffect(() => { loadRequests(); }, [renterInfo?.id]);
+
+  const handleSubmit = async () => {
+    if (!form.title.trim()) return;
+    setSubmitting(true);
+    try {
+      await renterFetchJSON(`/api/renter/${renterInfo.id}/maintenance`, {
+        method: 'POST',
+        body: JSON.stringify(form),
+      });
+      toast.success('Solicitud creada exitosamente');
+      setForm({ title: '', description: '', category: 'general', priority: 'medium' });
+      setDialogOpen(false);
+      loadRequests();
+    } catch (e: any) {
+      toast.error(e.message || 'Error al crear solicitud');
+    }
+    setSubmitting(false);
+  };
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case 'open': return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Abierta</Badge>;
+      case 'in_progress': return <Badge className="bg-blue-100 text-blue-700 border-blue-200">En Progreso</Badge>;
+      case 'resolved': return <Badge className="bg-green-100 text-green-700 border-green-200">Resuelta</Badge>;
+      case 'closed': return <Badge className="bg-gray-100 text-gray-700 border-gray-200">Cerrada</Badge>;
+      default: return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const priorityBadge = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return <Badge className="bg-red-100 text-red-700 border-red-200">Urgente</Badge>;
+      case 'high': return <Badge className="bg-orange-100 text-orange-700 border-orange-200">Alta</Badge>;
+      case 'medium': return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Media</Badge>;
+      case 'low': return <Badge className="bg-gray-100 text-gray-700 border-gray-200">Baja</Badge>;
+      default: return <Badge variant="secondary">{priority}</Badge>;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Mantenimiento</h1>
+        <Button onClick={() => setDialogOpen(true)} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
+          <Plus className="w-4 h-4 mr-2" /> Nueva Solicitud
+        </Button>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+          ) : requests.length === 0 ? (
+            <div className="py-12 text-center"><Wrench className="w-10 h-10 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No hay solicitudes de mantenimiento</p></div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Título</TableHead>
+                    <TableHead className="hidden sm:table-cell">Categoría</TableHead>
+                    <TableHead className="hidden md:table-cell">Prioridad</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="hidden sm:table-cell">Fecha</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {requests.map(req => (
+                    <TableRow key={req.id}>
+                      <TableCell className="text-sm font-medium">
+                        <div>{req.title}</div>
+                        {req.description && <div className="text-xs text-muted-foreground truncate max-w-[200px] mt-0.5">{req.description}</div>}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-sm capitalize">{req.category}</TableCell>
+                      <TableCell className="hidden md:table-cell">{priorityBadge(req.priority)}</TableCell>
+                      <TableCell>{statusBadge(req.status)}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{new Date(req.requestedAt).toLocaleDateString('es')}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Create Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nueva Solicitud de Mantenimiento</DialogTitle>
+            <DialogDescription>Describa el problema o servicio que necesita</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Título</Label>
+              <Input placeholder="Ej: Fuga en el grifo de la cocina" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="mt-1" />
+            </div>
+            <div>
+              <Label>Descripción</Label>
+              <Textarea placeholder="Detalle adicional sobre el problema..." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="mt-1" rows={3} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Categoría</Label>
+                <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="plumbing">Fontanería</SelectItem>
+                    <SelectItem value="electrical">Eléctrico</SelectItem>
+                    <SelectItem value="structural">Estructural</SelectItem>
+                    <SelectItem value="hvac">HVAC / Aire</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Prioridad</Label>
+                <Select value={form.priority} onValueChange={v => setForm({ ...form, priority: v })}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Baja</SelectItem>
+                    <SelectItem value="medium">Media</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                    <SelectItem value="urgent">Urgente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSubmit} disabled={submitting || !form.title.trim()} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
+              {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Crear Solicitud
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// --- Renter Documents Page ---
+function RenterDocuments() {
+  const { renterInfo } = useAppStore();
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!renterInfo?.id) return;
+    renterFetchJSON(`/api/renter/${renterInfo.id}/documents`).then(setDocuments).catch(() => {}).finally(() => setLoading(false));
+  }, [renterInfo?.id]);
+
+  const typeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      lease_agreement: 'Contrato de Arrendamiento',
+      insurance: 'Seguro',
+      inspection: 'Inspección',
+      invoice: 'Factura',
+      receipt: 'Recibo',
+      tax_doc: 'Documento Fiscal',
+      certificate: 'Certificado',
+      other: 'Otro',
+    };
+    return labels[type] || type;
+  };
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">Mis Documentos</h1>
+
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+          ) : documents.length === 0 ? (
+            <div className="py-12 text-center"><FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No hay documentos disponibles</p></div>
+          ) : (
+            <div className="divide-y divide-border">
+              {documents.map(doc => (
+                <div key={doc.id} className="flex items-center gap-4 p-4 hover:bg-muted/30 transition-colors">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{doc.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="outline" className="text-xs">{typeLabel(doc.type)}</Badge>
+                      <span className="text-xs text-muted-foreground">{new Date(doc.createdAt).toLocaleDateString('es')}</span>
+                    </div>
+                  </div>
+                  <Badge className={
+                    doc.status === 'active' ? 'bg-green-100 text-green-700 border-green-200' :
+                    doc.status === 'expired' ? 'bg-red-100 text-red-700 border-red-200' :
+                    'bg-gray-100 text-gray-700 border-gray-200'
+                  }>
+                    {doc.status === 'active' ? 'Activo' : doc.status === 'expired' ? 'Expirado' : 'Archivado'}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// --- Renter Profile Page ---
+function RenterProfile() {
+  const { renterInfo, setRenterInfo } = useAppStore();
+  const [editPhone, setEditPhone] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [pinSaving, setPinSaving] = useState(false);
+
+  useEffect(() => {
+    if (renterInfo) {
+      setEditPhone(renterInfo.phone || '');
+      setEditEmail(renterInfo.email || '');
+    }
+  }, [renterInfo]);
+
+  const handleSaveProfile = async () => {
+    if (!renterInfo?.id) return;
+    setSaving(true);
+    try {
+      const updated = await renterFetchJSON(`/api/renter/${renterInfo.id}/profile`, {
+        method: 'PATCH',
+        body: JSON.stringify({ phone: editPhone, email: editEmail }),
+      });
+      setRenterInfo({ ...renterInfo, phone: updated.phone, email: updated.email });
+      toast.success('Perfil actualizado exitosamente');
+    } catch (e: any) {
+      toast.error(e.message || 'Error al actualizar perfil');
+    }
+    setSaving(false);
+  };
+
+  const handleChangePin = async () => {
+    if (newPin.length !== 6 || newPin !== confirmPin) {
+      toast.error('El PIN debe tener 6 dígitos y coincidir');
+      return;
+    }
+    setPinSaving(true);
+    try {
+      // Use profile endpoint to change PIN (backend needs to support this)
+      await renterFetchJSON(`/api/renter/${renterInfo?.id}/profile`, {
+        method: 'PATCH',
+        body: JSON.stringify({ pin: newPin }),
+      });
+      toast.success('PIN actualizado exitosamente');
+      setNewPin('');
+      setConfirmPin('');
+    } catch (e: any) {
+      toast.error(e.message || 'Error al cambiar PIN');
+    }
+    setPinSaving(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">Mi Perfil</h1>
+
+      {/* Info Card */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Información Personal</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Nombre Completo</Label>
+              <p className="text-sm font-medium mt-0.5">{renterInfo?.fullName || '—'}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Estado</Label>
+              <p className="text-sm font-medium mt-0.5 capitalize">{renterInfo?.status || '—'}</p>
+            </div>
+          </div>
+          <Separator />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Correo Electrónico</Label>
+              <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Teléfono</Label>
+              <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} className="mt-1" />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={handleSaveProfile} disabled={saving} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
+              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Guardar Cambios
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Property Info */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Información de la Propiedad</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Propiedad</Label>
+              <p className="text-sm font-medium mt-0.5">{renterInfo?.property?.name || '—'}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Unidad</Label>
+              <p className="text-sm font-medium mt-0.5">{renterInfo?.unit?.unitNumber || '—'}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Inicio de Contrato</Label>
+              <p className="text-sm font-medium mt-0.5">{renterInfo?.lease?.startDate ? new Date(renterInfo.lease.startDate).toLocaleDateString('es') : '—'}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Fin de Contrato</Label>
+              <p className="text-sm font-medium mt-0.5">{renterInfo?.lease?.endDate ? new Date(renterInfo.lease.endDate).toLocaleDateString('es') : '—'}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Renta Mensual</Label>
+              <p className="text-sm font-medium mt-0.5">{renterInfo?.lease?.rentAmount ? `${Number(renterInfo.lease.rentAmount).toLocaleString()} ${renterInfo.lease.rentCurrency || 'USD'}` : '—'}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Change PIN */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Cambiar PIN</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Nuevo PIN (6 dígitos)</Label>
+              <Input type="password" maxLength={6} value={newPin} onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••" className="mt-1 tracking-widest text-center" />
+            </div>
+            <div>
+              <Label>Confirmar PIN</Label>
+              <Input type="password" maxLength={6} value={confirmPin} onChange={e => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••" className="mt-1 tracking-widest text-center" />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={handleChangePin} disabled={pinSaving || newPin.length !== 6 || newPin !== confirmPin} variant="outline">
+              {pinSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Cambiar PIN
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// --- Renter Portal Shell ---
+function RenterPortalView() {
+  const { renterToken, renterInfo, renterPage, setRenterInfo, setRenterToken } = useAppStore();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [validating, setValidating] = useState(true);
+
+  // Validate existing token on mount
+  useEffect(() => {
+    if (!renterToken) { setValidating(false); return; }
+    (async () => {
+      try {
+        const payload = JSON.parse(Buffer.from(renterToken, 'base64').toString());
+        if (payload.exp < Date.now()) {
+          setRenterToken(null);
+          setRenterInfo(null);
+        }
+      } catch {
+        setRenterToken(null);
+        setRenterInfo(null);
+      }
+      setValidating(false);
+    })();
+  }, []);
+
+  // If no token, show login
+  if (validating) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!renterToken) {
+    return <RenterPortalLogin />;
+  }
+
+  const renderPage = () => {
+    switch (renterPage) {
+      case 'rp-dashboard': return <RenterDashboard />;
+      case 'rp-payments': return <RenterPayments />;
+      case 'rp-maintenance': return <RenterMaintenance />;
+      case 'rp-documents': return <RenterDocuments />;
+      case 'rp-profile': return <RenterProfile />;
+      default: return <RenterDashboard />;
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex bg-gray-50">
+      <RenterSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Bar */}
+        <header className="sticky top-0 z-30 bg-white border-b border-border px-4 sm:px-6 h-14 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-1.5 rounded-lg hover:bg-muted">
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="hidden sm:block">
+              <p className="text-sm font-semibold text-gray-900">{renterInfo?.property?.name || 'Mi Propiedad'}</p>
+              <p className="text-xs text-muted-foreground">Unidad {renterInfo?.unit?.unitNumber || '—'}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-sm font-bold">
+              {renterInfo?.fullName?.charAt(0)?.toUpperCase() || 'I'}
+            </div>
+          </div>
+        </header>
+        {/* Main Content */}
+        <main className="flex-1 p-4 sm:p-6 overflow-auto">
+          <AnimatePresence mode="wait">
+            <motion.div key={renterPage} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
+              {renderPage()}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
+    </div>
+  );
+}
+
 function CTLoading() {
   return <PageSkeleton type="dashboard" />;
 }
@@ -22586,6 +23709,7 @@ export default function ZBSApp() {
         {view === 'pending_approval' && <PendingApprovalView key="pending" />}
         {view === 'control_tower' && <ControlTowerView key="ct" />}
         {view === 'tenant_app' && <TenantAppView key="tenant" />}
+        {view === 'renter_portal' && <RenterPortalView key="renter" />}
       </AnimatePresence>
     </TooltipProvider>
   );
