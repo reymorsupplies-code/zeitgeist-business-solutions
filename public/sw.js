@@ -252,15 +252,168 @@ function offlineFallback() {
 }
 
 // ---------------------------------------------------------------------------
-// 8. Background Sync placeholder
+// 8. Background Sync — replay queued mutations from IndexedDB
 // ---------------------------------------------------------------------------
+// When the browser fires a `sync` event for the 'zbs-data-sync' tag, we open
+// the 'zbs-offline-db' IndexedDB, read all pending mutations from the
+// `pendingMutations` store (ordered by timestamp), and replay each one as a
+// fetch call against the server.  Successful mutations are removed from the
+// queue; failed mutations get their `retryCount` incremented.  After 5 failed
+// retries a mutation is discarded.
+//
+// Flow:
+//   1. Client goes offline → mutations stored in IndexedDB via offline-store.ts
+//   2. Client registers background sync tag 'zbs-data-sync'
+//   3. Browser fires sync event when connectivity returns
+//   4. SW reads queue → replays each mutation → removes on success
+//   5. As a fallback, SW also POSTs remaining mutations to /api/sync for
+//      server-side processing (best-effort — idempotent endpoints assumed)
+// ---------------------------------------------------------------------------
+const SYNC_DB_NAME = 'zbs-offline-db';
+const SYNC_DB_VERSION = 1;
+const MAX_SYNC_RETRIES = 5;
+
+/**
+ * Open the offline IndexedDB (same schema as the client-side offline-store).
+ */
+function openSyncDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(SYNC_DB_NAME, SYNC_DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('pendingMutations')) {
+        db.createObjectStore('pendingMutations', { keyPath: 'id' }).createIndex('timestamp', 'timestamp');
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * Read all pending mutations ordered by timestamp (oldest first).
+ */
+async function getAllPendingMutations(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pendingMutations', 'readonly');
+    const store = tx.objectStore('pendingMutations');
+    const index = store.index('timestamp');
+    const request = index.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * Delete a mutation from the store by ID.
+ */
+async function deleteMutation(db, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pendingMutations', 'readwrite');
+    tx.objectStore('pendingMutations').delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/**
+ * Update a mutation's retryCount by re-adding it with an incremented value.
+ */
+async function incrementRetryCount(db, mutation) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pendingMutations', 'readwrite');
+    const updated = { ...mutation, retryCount: mutation.retryCount + 1 };
+    tx.objectStore('pendingMutations').put(updated);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/**
+ * Replay a single mutation via fetch. Uses the original method, URL, and body.
+ * Auth headers from the queued mutation are forwarded.
+ */
+async function replayMutation(mutation) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(mutation.headers || {}),
+  };
+
+  const fetchOptions = {
+    method: mutation.method,
+    headers,
+  };
+
+  if (mutation.method !== 'DELETE' && mutation.body != null) {
+    fetchOptions.body = typeof mutation.body === 'string'
+      ? mutation.body
+      : JSON.stringify(mutation.body);
+  }
+
+  const response = await fetch(mutation.url, fetchOptions);
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  return response;
+}
+
 self.addEventListener('sync', (event) => {
   if (event.tag === 'zbs-data-sync') {
     event.waitUntil(
       (async () => {
-        // TODO: Implement actual background sync logic here.
-        // Example: replay queued API mutations stored in IndexedDB.
         console.log('[ZBS SW] Background sync triggered — tag:', event.tag);
+
+        let db;
+        try {
+          db = await openSyncDB();
+        } catch (err) {
+          console.error('[ZBS SW] Failed to open IndexedDB for sync:', err);
+          return;
+        }
+
+        const mutations = await getAllPendingMutations(db);
+        if (mutations.length === 0) {
+          console.log('[ZBS SW] No pending mutations to sync.');
+          return;
+        }
+
+        console.log(`[ZBS SW] Processing ${mutations.length} pending mutation(s)...`);
+
+        const results = [];
+        for (const mutation of mutations) {
+          try {
+            await replayMutation(mutation);
+            await deleteMutation(db, mutation.id);
+            results.push({ id: mutation.id, status: 'success' });
+            console.log(`[ZBS SW] Mutation replayed OK: ${mutation.method} ${mutation.url}`);
+          } catch (err) {
+            if (mutation.retryCount >= MAX_SYNC_RETRIES) {
+              console.warn(`[ZBS SW] Mutation ${mutation.id} exceeded ${MAX_SYNC_RETRIES} retries — discarding.`);
+              await deleteMutation(db, mutation.id);
+              results.push({ id: mutation.id, status: 'discarded', error: err.message });
+            } else {
+              console.warn(`[ZBS SW] Mutation ${mutation.id} failed (attempt ${mutation.retryCount + 1}):`, err.message);
+              await incrementRetryCount(db, mutation);
+              results.push({ id: mutation.id, status: 'retry', retryCount: mutation.retryCount + 1 });
+            }
+          }
+        }
+
+        // Best-effort: POST batch results to /api/sync for server-side awareness.
+        // This is a fire-and-forget call — failures here are non-critical.
+        try {
+          await fetch('/api/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ results, syncSource: 'service-worker', syncedAt: new Date().toISOString() }),
+          });
+        } catch {
+          // Ignore — the mutations were already replayed individually above.
+        }
+
+        console.log(`[ZBS SW] Background sync complete. Processed: ${results.length}`);
       })()
     );
   }

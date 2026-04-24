@@ -349,8 +349,145 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       return NextResponse.json({ ...template, variables: variableNames }, { status: 201 });
     }
 
+    // ── Action: sendMessage (real Meta API integration) ──
+    if (data._action === 'sendMessage') {
+      const { templateName, to, variables } = data;
+
+      if (!templateName) {
+        return NextResponse.json({ error: 'Template name (templateName) is required' }, { status: 400 });
+      }
+      if (!to) {
+        return NextResponse.json({ error: 'Recipient phone number (to) is required' }, { status: 400 });
+      }
+      if (!isValidPhone(to)) {
+        return NextResponse.json({ error: 'Invalid phone number. Use E.164 format: +1234567890' }, { status: 400 });
+      }
+
+      // Look up template by name
+      const template = await pgQueryOne(
+        `SELECT * FROM "WhatsAppTemplate" WHERE "name" = $1 AND "tenantId" = $2 AND "active" = true`,
+        [templateName, tenantId]
+      );
+      if (!template) {
+        return NextResponse.json({ error: `Template "${templateName}" not found or inactive` }, { status: 404 });
+      }
+
+      // Resolve WhatsApp credentials from tenant settings
+      const tenant = await pgQueryOne(
+        `SELECT settings FROM "Tenant" WHERE id = $1`,
+        [tenantId]
+      );
+      if (!tenant) {
+        return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+      }
+
+      let tenantSettings: any = {};
+      try {
+        tenantSettings = typeof tenant.settings === 'string'
+          ? JSON.parse(tenant.settings)
+          : tenant.settings;
+      } catch {
+        // Malformed settings
+      }
+
+      const accessToken = tenantSettings.whatsappAccessToken;
+      const phoneNumberId = tenantSettings.whatsappPhoneNumberId;
+
+      if (!accessToken || !phoneNumberId) {
+        return NextResponse.json(
+          { error: 'WhatsApp not configured. Set whatsappAccessToken and whatsappPhoneNumberId in tenant settings.' },
+          { status: 400 }
+        );
+      }
+
+      // Build template components for Meta API
+      const bodyText = renderTemplate(template.body, variables || {});
+      const components: any[] = [
+        {
+          type: 'body',
+          parameters: [{ type: 'text', text: bodyText }],
+        },
+      ];
+
+      // Create the message record in DB first (status: queued)
+      const id = generateId();
+      const now = new Date().toISOString();
+      const renderedBody = bodyText;
+
+      await pgQueryOne(
+        `INSERT INTO "WhatsAppMessage" ("id", "tenantId", "templateId", "to", "body", "variables", "status", "waMessageId", "errorMessage", "sentAt", "deliveredAt", "readAt", "createdAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         RETURNING *`,
+        [id, tenantId, template.id, to, renderedBody, JSON.stringify(variables || {}), 'queued', '', '', '', '', '', now]
+      );
+
+      // Call Meta WhatsApp Business API
+      try {
+        const metaResponse = await fetch(
+          `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messaging_product: 'whatsapp',
+              to: to,
+              type: 'template',
+              template: {
+                name: templateName,
+                language: { code: template.language || 'en' },
+                components: components,
+              },
+            }),
+          }
+        );
+
+        const metaResult = await metaResponse.json();
+
+        if (!metaResponse.ok) {
+          // Meta API returned an error — update message status to failed
+          const errorMsg = metaResult.error?.message || metaResult.error?.title || JSON.stringify(metaResult.error || metaResult);
+          await pgQuery(
+            `UPDATE "WhatsAppMessage" SET "status" = $1, "errorMessage" = $2 WHERE id = $3`,
+            ['failed', errorMsg, id]
+          );
+
+          const failedMsg = await pgQueryOne(`SELECT * FROM "WhatsAppMessage" WHERE id = $1`, [id]);
+          return NextResponse.json(
+            { error: `Meta API error: ${errorMsg}`, message: failedMsg },
+            { status: 502 }
+          );
+        }
+
+        // Success — update message status to sent with the WhatsApp message ID
+        const waMessageId = metaResult.messages?.[0]?.id || '';
+        await pgQuery(
+          `UPDATE "WhatsAppMessage" SET "status" = 'sent', "waMessageId" = $1, "sentAt" = $2 WHERE id = $3`,
+          [waMessageId, new Date().toISOString(), id]
+        );
+
+        const sentMessage = await pgQueryOne(`SELECT * FROM "WhatsAppMessage" WHERE id = $1`, [id]);
+        return NextResponse.json(sentMessage, { status: 201 });
+      } catch (apiError: any) {
+        // Network or fetch error
+        const errorMsg = apiError.message || 'Failed to reach Meta WhatsApp API';
+        await pgQuery(
+          `UPDATE "WhatsAppMessage" SET "status" = $1, "errorMessage" = $2 WHERE id = $3`,
+          ['failed', errorMsg, id]
+        );
+
+        const failedMsg = await pgQueryOne(`SELECT * FROM "WhatsAppMessage" WHERE id = $1`, [id]);
+        return NextResponse.json(
+          { error: `Failed to send message: ${errorMsg}`, message: failedMsg },
+          { status: 502 }
+        );
+      }
+    }
+
     return NextResponse.json(
-      { error: 'Invalid action. Use _action: "send" or _action: "create_template"' },
+      { error: 'Invalid action. Use _action: "send", "sendMessage", or _action: "create_template"' },
       { status: 400 }
     );
   } catch (error: any) {
