@@ -160,7 +160,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     for (const tpl of PROPERTY_TEMPLATES) {
       // Check if template already exists for this tenant
       const existing = await pgQueryOne(
-        `SELECT id, name FROM "WhatsAppTemplate" WHERE "tenantId" = $1 AND "name" = $2`,
+        `SELECT id, name, body FROM "WhatsAppTemplate" WHERE "tenantId" = $1 AND "name" = $2`,
         [tenantId, tpl.name]
       );
 

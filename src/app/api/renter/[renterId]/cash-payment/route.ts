@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { extractBearerToken, verifyToken } from '@/lib/auth';
 
 // ── Cash Payment Recording (Renter Portal) ──
 // Allows authenticated renters to record that they have made a cash payment.
@@ -8,13 +9,9 @@ import { NextRequest, NextResponse } from 'next/server';
 //   Body: { rentPaymentId, amount, reference, notes }
 
 function verifyRenterToken(req: NextRequest): any {
-  const auth = req.headers.get('authorization')?.replace('Bearer ', '');
-  if (!auth) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(auth, 'base64').toString());
-    if (payload.exp < Date.now()) return null;
-    return payload;
-  } catch { return null; }
+  const token = extractBearerToken(req);
+  if (!token) return null;
+  return verifyToken(token);
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ renterId: string }> }) {

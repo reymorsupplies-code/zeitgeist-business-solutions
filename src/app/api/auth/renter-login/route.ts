@@ -41,15 +41,19 @@ export async function POST(req: NextRequest) {
       data: { lastLoginAt: new Date() },
     });
 
-    // Create a simple token (JWT-like but simpler for renter portal)
-    const token = Buffer.from(JSON.stringify({
-      renterId: renter.id,
+    // Create a proper JWT token for renter portal (cryptographically signed)
+    const { signToken } = await import('@/lib/auth');
+    const token = signToken({
+      userId: renter.id,
+      email: renter.email,
+      role: 'renter',
       tenantId: renter.tenantId,
+      // Custom claims for renter context
+      renterId: renter.id,
       propertyId: renter.propertyId,
       unitId: renter.unitId,
       leaseId: renter.leaseId,
-      exp: Date.now() + 24 * 60 * 60 * 1000, // 24h expiry
-    })).toString('base64');
+    } as any);
 
     return NextResponse.json({
       token,

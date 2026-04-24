@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { extractBearerToken, verifyToken } from '@/lib/auth';
 import { pgQuery, pgQueryOne } from '@/lib/pg-query';
 
-// ── Renter token verification (base64-encoded JSON) ──
+// ── Renter token verification (JWT) ──
 function verifyRenterToken(req: NextRequest): any {
-  const auth = req.headers.get('authorization')?.replace('Bearer ', '');
-  if (!auth) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(auth, 'base64').toString());
-    if (payload.exp < Date.now()) return null;
-    return payload;
-  } catch { return null; }
+  const token = extractBearerToken(req);
+  if (!token) return null;
+  return verifyToken(token);
 }
 
 // ── GET: List conversations for this renter ──
@@ -42,8 +39,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ rent
       ) "unread" ON "unread"."conversationId" = "c"."id"
       WHERE "c"."renterId" = $1 AND "c"."tenantId" = $2 AND "c"."status" != 'archived'
       ORDER BY "c"."lastMessageAt" DESC NULLS LAST
-      LIMIT ${limit}`,
-      [renterId, session.tenantId]
+      LIMIT $3`,
+      [renterId, session.tenantId, limit]
     );
 
     return NextResponse.json({ conversations });

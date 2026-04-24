@@ -105,12 +105,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
     const whereClause = conditions.join(' AND ');
 
+    // Add LIMIT and OFFSET as parameterized values
+    const limitParamIdx = paramIdx;
+    const offsetParamIdx = paramIdx + 1;
+    params.push(Math.max(limit + 1, 0), Math.max(offset, 0));
+
     // Get transactions
     const transactions = await pgQuery(
       `SELECT * FROM "WiPayTransaction"
        WHERE ${whereClause}
        ORDER BY "createdAt" DESC
-       LIMIT ${Math.max(limit + 1, 0)} OFFSET ${Math.max(offset, 0)}`,
+       LIMIT $${limitParamIdx} OFFSET $${offsetParamIdx}`,
       params
     );
 
@@ -130,7 +135,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     );
 
     return NextResponse.json({
-      transactions,
+      transactions: transactions.slice(0, limit),
       stats: stats || {
         total: 0, completed: 0, pending: 0, failed: 0, refunded: 0,
         totalAmount: 0, totalFees: 0,

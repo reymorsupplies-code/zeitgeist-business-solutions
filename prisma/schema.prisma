@@ -173,6 +173,9 @@ model Tenant {
   platformInvoices         PlatformInvoice[]
   renters                  Renter[]
   notifications            Notification[]
+  chatConversations        ChatConversation[]
+  surchargeConfigs         SurchargeConfig[]
+  surchargeRecords         SurchargeRecord[]
 }
 
 model TenantMembership {
@@ -1214,6 +1217,7 @@ model Lease {
   legalNotices LegalNotice[]
   renewalLogs  LeaseRenewalLog[]
   renters     Renter[]
+  surchargeRecords SurchargeRecord[]
 
   @@index([tenantId, status])
   @@index([unitId, status])
@@ -1711,58 +1715,65 @@ model Notification {
 // ============ PHASE 4: LANDLORD↔TENANT MESSAGING ============
 
 model ChatConversation {
-  id            String   @id @default(cuid())
-  tenantId      String   // SaaS business tenant (property mgmt company)
-  propertyId    String?  // Related property
-  unitId        String?  // Related unit
-  leaseId       String?  // Related lease
-  landlordId    String?  // PlatformUser who is landlord
-  renterId      String?  // Renter participant
-  lastMessageAt DateTime @default(now())
+  id                String    @id @default(cuid())
+  tenantId          String    // SaaS business tenant (property mgmt company)
+  renterId          String?   // SQL is NOT NULL but kept optional for Prisma compat
+  propertyId        String?   // Related property
+  unitId            String?   // Related unit
+  leaseId           String?   // Related lease
+  subject           String?   // Conversation subject
+  status            String    @default("active") // active, archived, closed
+  lastMessageAt     DateTime? // Denormalized for list views
   lastMessagePreview String?
-  isArchived    Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  lastMessageFrom   String?   // "landlord" or "renter"
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   messages  ChatMessage[]
 
   @@index([tenantId, lastMessageAt])
   @@index([renterId])
-  @@index([landlordId])
+  @@index([propertyId])
+  @@index([status])
 }
 
 model ChatMessage {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   conversationId  String
-  senderType      String   // "landlord" or "renter"
-  senderId        String?  // PlatformUser.id or Renter.id
+  tenantId        String    // Tenant scoping
+  senderType      String    // "landlord" or "renter"
+  senderId        String?   // PlatformUser.id or Renter.id
   content         String
-  messageType     String   @default("text") // text, image, document, system
+  messageType     String    @default("text") // text, image, document, system
   fileUrl         String?
   fileName        String?
-  isRead          Boolean  @default(false)
-  readAt          DateTime?
-  createdAt       DateTime @default(now())
+  landlordReadAt  DateTime? // When landlord read this message
+  renterReadAt    DateTime? // When renter read this message
+  createdAt       DateTime  @default(now())
 
   conversation ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
-  @@index([senderType, senderId])
+  @@index([tenantId])
+  @@index([conversationId, senderType])
 }
 
 // ============ PHASE 7: LANDLORD SURCHARGE COMPLIANCE (T&T Jan 2026) ============
 
 model SurchargeConfig {
-  id              String   @id @default(cuid())
-  tenantId        String   @unique // One config per tenant
-  surchargeRate   Float    @default(0.05) // 5% default, configurable
-  effectiveDate   DateTime @default("2026-01-01T00:00:00")
-  isActive        Boolean  @default(true)
-  exemptionTypes  String   @default("[]") // JSON: ["social_housing", "government", "non_profit"]
+  id              String    @id @default(cuid())
+  tenantId        String    @unique // One config per tenant
+  surchargeRate   Float     @default(0) // Surcharge rate as decimal (e.g. 0.05 = 5%)
+  effectiveDate   DateTime  @default("2026-01-01T00:00:00Z")
+  isApplicable    Boolean   @default(false) // Whether surcharge is being collected
+  currency        String    @default("TTD")
+  exemptions      String    @default("[]") // JSON array of exempt lease IDs or property types
+  capAmount       Decimal?  @db.Decimal(14, 2) // Max surcharge per period (null = no cap)
+  floorAmount     Decimal?  @db.Decimal(14, 2) // Min surcharge per period (null = no floor)
   notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   records   SurchargeRecord[]
@@ -1775,18 +1786,24 @@ model SurchargeRecord {
   tenantId        String
   configId        String
   leaseId         String
-  rentPaymentId   String?
+  rentPaymentId   String?   // Link to rent payment if applicable
   propertyId      String
   unitId          String
   periodStart     DateTime
   periodEnd       DateTime
+  periodLabel     String?   // e.g. "Jan 2026", "Q1 2026"
   baseRent        Decimal   @default(0) @db.Decimal(14, 2)
-  surchargeRate   Float     @default(0.05)
+  surchargeRate   Float     @default(0)
   surchargeAmount Decimal   @default(0) @db.Decimal(14, 2)
+  capAmount       Decimal?  @db.Decimal(14, 2)
+  floorAmount     Decimal?  @db.Decimal(14, 2)
   currency        String    @default("TTD")
-  status          String    @default("pending") // pending, calculated, collected, waived, exempt
-  exemptionReason String?
+  status          String    @default("pending") // pending, collected, waived, overdue, remitted
+  exemptionReason String?   // Reason for waiver/exemption (API reference, add to SQL later)
   collectedAt     DateTime?
+  remittedAt      DateTime? // When remitted to BIR
+  remittanceRef   String?   // BIR remittance reference
+  notes           String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -1794,40 +1811,54 @@ model SurchargeRecord {
   config       SurchargeConfig @relation(fields: [configId], references: [id])
   lease        Lease           @relation(fields: [leaseId], references: [id])
 
+  @@unique([leaseId, periodStart, periodEnd])
   @@index([tenantId, periodStart])
   @@index([leaseId])
-  @@index([status])
+  @@index([configId])
+  @@index([propertyId])
+  @@index([tenantId, status])
 }
 
 // ============ PHASE 9: WiPay PAYMENT TRANSACTIONS ============
 
 model WiPayTransaction {
-  id                String   @id @default(cuid())
-  tenantId          String
-  rentPaymentId     String?  // Link to RentPayment if applicable
-  renterId          String?
-  propertyId        String?
-  unitId            String?
-  transactionId     String?  // WiPay transaction ID
-  orderId           String?  // ZBS order reference
-  amount            Decimal  @default(0) @db.Decimal(14, 2)
-  currency          String   @default("TTD")
-  fee               Decimal  @default(0) @db.Decimal(14, 2) // WiPay processing fee
-  netAmount         Decimal  @default(0) @db.Decimal(14, 2)
-  status            String   @default("pending") // pending, processing, completed, failed, refunded
-  paymentMethod     String   @default("card") // card, online_banking, mobile_money
-  cardLast4         String?
-  authorizationCode String?
-  customerId        String?  // WiPay customer ID
-  returnUrl         String?
-  webhookData       String?  @db.Text // Raw webhook response from WiPay
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String    @id @default(cuid())
+  tenantId            String
+  rentPaymentId       String?   // Link to RentPayment if applicable
+  renterId            String?   // Renter who initiated the payment
+  paymentMethod       String    @default("wipay") // wipay (online) or cash (manual recording)
+  status              String    @default("initiated") // initiated, processing, completed, failed, refunded, expired
+  amount              Decimal   @default(0) @db.Decimal(14, 2)
+  currency            String    @default("TTD")
+  processingFee       Decimal   @default(0) @db.Decimal(14, 2)
+  wipayOrderId        String?   // WiPay order reference
+  wipayTransactionId  String?   @unique // Unique WiPay transaction ID
+  wipayFee            Decimal   @default(0) @db.Decimal(14, 2) // Fee charged by WiPay
+  wipayCurrency       String?   // Currency returned by WiPay
+  cardType            String?   // visa, mastercard, etc.
+  cardLast4           String?   // Last 4 digits of card
+  customerName        String?   // Customer name snapshot
+  customerEmail       String?   // Customer email snapshot
+  customerPhone       String?   // Customer phone snapshot
+  cashReference       String?   // Receipt number when paymentMethod is cash
+  cashNotes           String?   // Notes from landlord or renter
+  refundAmount        Decimal   @default(0) @db.Decimal(14, 2)
+  refundReason        String?
+  refundedAt          DateTime?
+  ipAddress           String?   // For fraud audit
+  initiatedAt         DateTime  @default(now())
+  completedAt         DateTime?
+  webhookData         String?   @db.Text // Raw webhook response from WiPay
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  @@index([tenantId, createdAt])
-  @@index([transactionId])
-  @@index([status])
+  @@index([tenantId])
   @@index([rentPaymentId])
+  @@index([renterId])
+  @@index([status])
+  @@index([tenantId, status])
+  @@index([tenantId, paymentMethod])
+  @@index([tenantId, createdAt])
 }
 
 // ============ PHASE 10: TENANT SCREENING / APPLICATION ============
@@ -1888,6 +1919,9 @@ model TenantApplication {
   @@index([tenantId, status])
   @@index([email])
   @@index([unitId])
+  @@index([propertyId])
+  @@index([status])
+  @@index([tenantId, createdAt])
 }
 
 // ============ PHASE 5: ACCOUNTANT ROLE ============

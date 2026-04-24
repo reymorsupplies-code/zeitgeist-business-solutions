@@ -56,8 +56,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       ) "unread" ON "unread"."conversationId" = "c"."id"
       WHERE ${where}
       ORDER BY "c"."lastMessageAt" DESC NULLS LAST
-      LIMIT ${limit}`,
-      queryParams
+      LIMIT $${paramIdx}`,
+      [...queryParams, limit]
     );
 
     return NextResponse.json({ conversations });
