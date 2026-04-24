@@ -102,9 +102,9 @@ const authFetchJSON = async (url: string, options: any = {}) => {
 const INDUSTRIES_DATA: { name: string; slug: string; icon: any; color: string; desc: string; status: string }[] = [
   { name: 'Bakery & Pastry', slug: 'bakery', icon: ChefHat, color: '#F59E0B', desc: 'Complete bakery management with orders, POS, recipes, and cake design', status: 'active' },
   { name: 'Salon & Spa', slug: 'salon-spa', icon: Scissors, color: '#EC4899', desc: 'Appointment booking, stylist management, and client relations', status: 'active' },
-  { name: 'Medical & Clinics', slug: 'clinics', icon: Stethoscope, color: '#10B981', desc: 'Patient management, scheduling, and medical billing', status: 'active' },
-  { name: 'Legal Services', slug: 'legal', icon: Scale, color: '#6366F1', desc: 'Case management, time tracking, and client billing', status: 'active' },
-  { name: 'Insurance', slug: 'insurance', icon: Shield, color: '#3B82F6', desc: 'Policy management, claims processing, and client portal', status: 'active' },
+  { name: 'Medical & Clinics', slug: 'clinics', icon: Stethoscope, color: '#10B981', desc: 'Patient management, scheduling, and medical billing', status: 'coming_soon' },
+  { name: 'Legal Services', slug: 'legal', icon: Scale, color: '#6366F1', desc: 'Case management, time tracking, and client billing', status: 'coming_soon' },
+  { name: 'Insurance', slug: 'insurance', icon: Shield, color: '#3B82F6', desc: 'Policy management, claims processing, and client portal', status: 'coming_soon' },
   { name: 'Retail', slug: 'retail', icon: ShoppingBag, color: '#8B5CF6', desc: 'Inventory, POS, and customer management', status: 'active' },
   { name: 'Events & Hospitality', slug: 'events', icon: PartyPopper, color: '#F59E0B', desc: 'Event planning, venue management, and catering', status: 'active' },
   { name: 'Property Management', slug: 'property-management', icon: Building2, color: '#059669', desc: 'Properties, leases, rent collection, maintenance, and owner reports', status: 'active' },
@@ -359,8 +359,8 @@ function getProfessionalNav(locale: string) {
   return [
   { section: t('tenant.section.workspace', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
-    { label: t('tenant.projects', locale), icon: Briefcase, page: 'projects' as const, available: true },
-    { label: t('tenant.timeTracking', locale), icon: Clock, page: 'time-tracking' as const, available: true },
+    { label: t('tenant.projects', locale), icon: Briefcase, page: 'legal-cases' as const, available: true },
+    { label: t('tenant.timeTracking', locale), icon: Clock, page: 'legal-time-entries' as const, available: true },
   ]},
   { section: t('tenant.section.clients', locale), items: [
     { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
@@ -443,17 +443,17 @@ function getClinicsNav(locale: string) {
   { section: t('tenant.section.clinic', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
     { label: t('tenant.appointments', locale), icon: Calendar, page: 'clinic-appointments' as const, available: true },
-    { label: t('tenant.doctors', locale), icon: UsersIcon, page: 'stylists' as const, available: true },
-    { label: t('tenant.salonServices', locale), icon: Stethoscope, page: 'salon-services' as const, available: true },
+    { label: t('tenant.doctors', locale), icon: UsersIcon, page: 'salon-services' as const, available: true },
+    { label: t('tenant.salonServices', locale), icon: Stethoscope, page: 'clinic-patients' as const, available: true },
   ]},
   { section: t('tenant.section.patients', locale), items: [
     { label: t('tenant.patientRecords', locale), icon: Users, page: 'clinic-patients' as const, available: true },
     { label: t('tenant.medicalHistory', locale), icon: FileText, page: 'documents' as const, available: true },
-    { label: t('tenant.prescriptions', locale), icon: FileSpreadsheet, page: 'design_gallery' as const, available: true },
+    { label: t('tenant.prescriptions', locale), icon: FileSpreadsheet, page: 'invoices' as const, available: true },
   ]},
   { section: t('tenant.section.finance', locale), items: [
     { label: t('tenant.billing', locale), icon: Receipt, page: 'invoices' as const, available: true },
-    { label: t('tenant.claims', locale), icon: Shield, page: 'expenses' as const, available: true },
+    { label: t('tenant.claims', locale), icon: Shield, page: 'insurance-claims' as const, available: true },
     { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
   { section: t('tenant.section.insights', locale), items: [
@@ -1914,11 +1914,13 @@ function LoginView() {
                     if (!forgotEmail.trim()) return;
                     setForgotSending(true);
                     try {
-                      await authFetch('/api/contact', {
+                      const res = await fetch('/api/auth/forgot-password', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name: 'Password Reset', email: forgotEmail, message: 'PASSWORD_RESET_REQUEST', subject: 'ZBS Password Reset Request' })
+                        body: JSON.stringify({ email: forgotEmail })
                       });
+                      const data = await res.json();
+                      if (!res.ok) { toast.error(data.error); setForgotSending(false); return; }
                       setForgotSent(true);
                     } catch { setError(t('login.forgotError', locale)); }
                     setForgotSending(false);
@@ -2126,7 +2128,7 @@ function OnboardingView() {
                   <Select value={form.industryId} onValueChange={v => setForm(f => ({ ...f, industryId: v }))}>
                     <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue placeholder="Select industry" /></SelectTrigger>
                     <SelectContent>
-                      {INDUSTRIES_DATA.map(ind => <SelectItem key={ind.slug} value={ind.slug}>{ind.name}</SelectItem>)}
+                      {INDUSTRIES_DATA.filter(i => i.status === 'active').map(ind => <SelectItem key={ind.slug} value={ind.slug}>{ind.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -9346,28 +9348,28 @@ function TenantDashboardPage() {
       { title: 'Pending Tasks', value: stats?.orders?.pending || 0, subtitle: 'Action items', icon: ClipboardList, gradient: 'from-red-500 to-red-600', page: 'events-calendar' },
     ],
     professional: [
-      { title: 'Active Projects', value: stats?.orders?.total || 0, subtitle: `${stats?.orders?.pending || 0} in progress`, icon: Briefcase, gradient: 'from-blue-500 to-blue-600', page: 'projects' },
-      { title: 'Billable Hours', value: stats?.revenue?.total || 0, subtitle: `This week: ${stats?.revenue?.thisMonth || 0}h`, icon: Clock, gradient: 'from-amber-500 to-orange-500', page: 'time-tracking' },
+      { title: 'Active Projects', value: stats?.orders?.total || 0, subtitle: `${stats?.orders?.pending || 0} in progress`, icon: Briefcase, gradient: 'from-blue-500 to-blue-600', page: 'legal-cases' },
+      { title: 'Billable Hours', value: stats?.revenue?.total || 0, subtitle: `This week: ${stats?.revenue?.thisMonth || 0}h`, icon: Clock, gradient: 'from-amber-500 to-orange-500', page: 'legal-time-entries' },
       { title: 'Revenue', value: formatCurrency(stats?.revenue?.total || 0, currency), subtitle: `This month: ${formatCurrency(stats?.revenue?.thisMonth || 0, currency)}`, icon: TrendingUp, gradient: 'from-green-500 to-emerald-600' },
-      { title: 'Deadlines', value: stats?.orders?.pending || 0, subtitle: 'Due this week', icon: AlertCircle, gradient: 'from-red-500 to-red-600', page: 'projects' },
+      { title: 'Deadlines', value: stats?.orders?.pending || 0, subtitle: 'Due this week', icon: AlertCircle, gradient: 'from-red-500 to-red-600', page: 'legal-cases' },
     ],
     legal: [
-      { title: 'Active Cases', value: stats?.orders?.total || 0, subtitle: `${stats?.orders?.pending || 0} in progress`, icon: Briefcase, gradient: 'from-indigo-500 to-indigo-600', page: 'projects' },
-      { title: 'Billable Hours', value: stats?.revenue?.total || 0, subtitle: `This week: ${stats?.revenue?.thisMonth || 0}h`, icon: Clock, gradient: 'from-amber-500 to-orange-500', page: 'time-tracking' },
+      { title: 'Active Cases', value: stats?.orders?.total || 0, subtitle: `${stats?.orders?.pending || 0} in progress`, icon: Briefcase, gradient: 'from-indigo-500 to-indigo-600', page: 'legal-cases' },
+      { title: 'Billable Hours', value: stats?.revenue?.total || 0, subtitle: `This week: ${stats?.revenue?.thisMonth || 0}h`, icon: Clock, gradient: 'from-amber-500 to-orange-500', page: 'legal-time-entries' },
       { title: 'Revenue', value: formatCurrency(stats?.revenue?.total || 0, currency), subtitle: `This month: ${formatCurrency(stats?.revenue?.thisMonth || 0, currency)}`, icon: TrendingUp, gradient: 'from-green-500 to-emerald-600' },
-      { title: 'Upcoming Deadlines', value: stats?.orders?.pending || 0, subtitle: 'Court dates & filings', icon: AlertCircle, gradient: 'from-red-500 to-red-600', page: 'projects' },
+      { title: 'Upcoming Deadlines', value: stats?.orders?.pending || 0, subtitle: 'Court dates & filings', icon: AlertCircle, gradient: 'from-red-500 to-red-600', page: 'legal-cases' },
     ],
     insurance: [
-      { title: 'Active Policies', value: stats?.catalog?.total || 0, subtitle: `${stats?.catalog?.topSelling || 0} new this month`, icon: Shield, gradient: 'from-blue-500 to-blue-600', page: 'catalog' },
-      { title: 'Open Claims', value: stats?.orders?.total || 0, subtitle: `${stats?.orders?.pending || 0} pending review`, icon: ClipboardList, gradient: 'from-red-500 to-red-600', page: 'orders' },
+      { title: 'Active Policies', value: stats?.catalog?.total || 0, subtitle: `${stats?.catalog?.topSelling || 0} new this month`, icon: Shield, gradient: 'from-blue-500 to-blue-600', page: 'insurance-policies' },
+      { title: 'Open Claims', value: stats?.orders?.total || 0, subtitle: `${stats?.orders?.pending || 0} pending review`, icon: ClipboardList, gradient: 'from-red-500 to-red-600', page: 'insurance-claims' },
       { title: 'Premium Revenue', value: formatCurrency(stats?.revenue?.total || 0, currency), subtitle: `This month: ${formatCurrency(stats?.revenue?.thisMonth || 0, currency)}`, icon: TrendingUp, gradient: 'from-amber-500 to-orange-500' },
       { title: 'Active Clients', value: stats?.clients?.total || 0, subtitle: 'Policyholders', icon: Users, gradient: 'from-purple-500 to-violet-600', page: 'clients' },
     ],
     clinics: [
-      { title: "Today's Appointments", value: stats?.orders?.total || 0, subtitle: `${stats?.orders?.pending || 0} remaining`, icon: Calendar, gradient: 'from-emerald-500 to-emerald-600', page: 'appointments' },
+      { title: "Today's Appointments", value: stats?.orders?.total || 0, subtitle: `${stats?.orders?.pending || 0} remaining`, icon: Calendar, gradient: 'from-emerald-500 to-emerald-600', page: 'clinic-appointments' },
       { title: 'Revenue', value: formatCurrency(stats?.revenue?.total || 0, currency), subtitle: `This month: ${formatCurrency(stats?.revenue?.thisMonth || 0, currency)}`, icon: TrendingUp, gradient: 'from-blue-500 to-blue-600' },
       { title: 'Active Patients', value: stats?.clients?.total || 0, subtitle: 'Total registered', icon: Users, gradient: 'from-purple-500 to-violet-600', page: 'clients' },
-      { title: 'Pending Claims', value: stats?.orders?.pending || 0, subtitle: 'Insurance submissions', icon: FileText, gradient: 'from-amber-500 to-orange-500', page: 'expenses' },
+      { title: 'Pending Claims', value: stats?.orders?.pending || 0, subtitle: 'Insurance submissions', icon: FileText, gradient: 'from-amber-500 to-orange-500', page: 'invoices' },
     ],
     'property-management': [
       { title: 'Total Properties', value: stats?.catalog?.total || 0, subtitle: `${stats?.catalog?.topSelling || 0} units occupied`, icon: Home, gradient: 'from-emerald-500 to-emerald-600', page: 'catalog' },
@@ -9403,26 +9405,26 @@ function TenantDashboardPage() {
       { icon: BookOpen, label: 'Bookkeeping', page: 'bookkeeping' },
     ],
     professional: [
-      { icon: Plus, label: 'New Project', page: 'projects' },
-      { icon: Clock, label: 'Time Tracking', page: 'time-tracking' },
+      { icon: Plus, label: 'New Case', page: 'legal-cases' },
+      { icon: Clock, label: 'Log Hours', page: 'legal-time-entries' },
       { icon: FileText, label: 'Invoices', page: 'invoices' },
       { icon: ScrollText, label: 'Contracts', page: 'contracts' },
     ],
     legal: [
-      { icon: Plus, label: 'New Case', page: 'projects' },
-      { icon: Clock, label: 'Log Hours', page: 'time-tracking' },
+      { icon: Plus, label: 'New Case', page: 'legal-cases' },
+      { icon: Clock, label: 'Log Hours', page: 'legal-time-entries' },
       { icon: FileText, label: 'New Invoice', page: 'invoices' },
       { icon: Users, label: 'Client Directory', page: 'clients' },
     ],
     insurance: [
-      { icon: Plus, label: 'New Policy', page: 'catalog' },
-      { icon: ClipboardList, label: 'File Claim', page: 'orders' },
+      { icon: Plus, label: 'New Policy', page: 'insurance-policies' },
+      { icon: ClipboardList, label: 'File Claim', page: 'insurance-claims' },
       { icon: Users, label: 'Clients', page: 'clients' },
       { icon: Receipt, label: 'Premiums', page: 'invoices' },
     ],
     clinics: [
-      { icon: Plus, label: 'New Appointment', page: 'appointments' },
-      { icon: Users, label: 'Patient Records', page: 'clients' },
+      { icon: Plus, label: 'New Appointment', page: 'clinic-appointments' },
+      { icon: Users, label: 'Patient Records', page: 'clinic-patients' },
       { icon: FileText, label: 'Billing', page: 'invoices' },
       { icon: BookOpen, label: 'Bookkeeping', page: 'bookkeeping' },
     ],

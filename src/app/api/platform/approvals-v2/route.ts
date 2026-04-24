@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest } from '@/lib/auth';
 import { pgQuery, pgQueryOne } from '@/lib/pg-query';
+import { sendEmail } from '@/lib/email';
+import { registrationApproved, registrationRejected } from '@/lib/email/templates';
 
 // ─── GET: List all tenants awaiting super admin approval ───
 
@@ -170,6 +172,21 @@ export async function POST(req: NextRequest) {
         [tenantId]
       );
 
+      // Send approval email to tenant user
+      const registeringUser = await pgQueryOne<any>(
+        `SELECT u.email, u."fullName" FROM "PlatformUser" u
+         JOIN "TenantMembership" tm ON tm."userId" = u.id AND tm."tenantId" = $1
+         WHERE tm.role = 'admin' LIMIT 1`,
+        [tenantId]
+      );
+      if (registeringUser?.email) {
+        sendEmail(
+          registeringUser.email,
+          `Approved! Your ${tenant.name} trial has started`,
+          registrationApproved({ name: registeringUser.fullName || tenant.name, companyName: tenant.name, trialDays: days }),
+        ).catch(() => {});
+      }
+
       return NextResponse.json({
         success: true,
         message: `Tenant "${tenant.name}" approved. Trial started for ${days} days.`,
@@ -213,6 +230,21 @@ export async function POST(req: NextRequest) {
         `SELECT id, name, slug, status, settings, "updatedAt" FROM "Tenant" WHERE id = $1`,
         [tenantId]
       );
+
+      // Send rejection email to tenant user
+      const registeringUser = await pgQueryOne<any>(
+        `SELECT u.email, u."fullName" FROM "PlatformUser" u
+         JOIN "TenantMembership" tm ON tm."userId" = u.id AND tm."tenantId" = $1
+         WHERE tm.role = 'admin' LIMIT 1`,
+        [tenantId]
+      );
+      if (registeringUser?.email) {
+        sendEmail(
+          registeringUser.email,
+          `Update on your ${tenant.name} application`,
+          registrationRejected({ name: registeringUser.fullName || tenant.name, companyName: tenant.name, reason: reason || undefined }),
+        ).catch(() => {});
+      }
 
       return NextResponse.json({
         success: true,

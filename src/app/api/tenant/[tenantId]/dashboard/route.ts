@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { authenticateRequest } from '@/lib/auth';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
+
+  // Auth check
+  const auth = authenticateRequest(_req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+
   try {
     const orders = await db.order.findMany({ where: { tenantId, isDeleted: false }, orderBy: { createdAt: 'desc' } });
     const invoices = await db.invoice.findMany({ where: { tenantId, isDeleted: false }, orderBy: { createdAt: 'desc' } });

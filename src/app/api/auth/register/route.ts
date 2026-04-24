@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { hashPassword, signToken, checkAuthRateLimit, isValidEmail } from '@/lib/auth';
+import { sendEmail, ADMIN_EMAIL } from '@/lib/email';
+import { registrationPending, newRegistrationAdmin } from '@/lib/email/templates';
 
 export async function POST(req: NextRequest) {
   try {
@@ -95,6 +97,20 @@ export async function POST(req: NextRequest) {
     await db.auditLog.create({
       data: { action: 'tenant_registered_pending', details: `New registration: ${companyName} by ${normalizedEmail} — awaiting approval`, severity: 'info' }
     });
+
+    // Send email to registering user: "Application received"
+    sendEmail(
+      normalizedEmail,
+      `Application Received — ${companyName}`,
+      registrationPending({ name: fullName, email: normalizedEmail, companyName }),
+    ).catch(() => {});
+
+    // Send email to admin: "New registration pending"
+    sendEmail(
+      ADMIN_EMAIL,
+      `New Registration: ${companyName} — Pending Approval`,
+      newRegistrationAdmin({ name: fullName, email: normalizedEmail, companyName, industry: industryId || undefined }),
+    ).catch(() => {});
 
     // Issue JWT with pending status
     const token = signToken({

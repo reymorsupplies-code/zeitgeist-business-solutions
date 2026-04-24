@@ -123,3 +123,7 @@ DO $$ BEGIN
 END $$;
 
 COMMIT;
+
+-- Password reset columns for PlatformUser
+ALTER TABLE "PlatformUser" ADD COLUMN IF NOT EXISTS "resetToken" TEXT;
+ALTER TABLE "PlatformUser" ADD COLUMN IF NOT EXISTS "resetTokenExpiry" TIMESTAMP;

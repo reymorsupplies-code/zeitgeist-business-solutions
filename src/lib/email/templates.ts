@@ -325,7 +325,108 @@ export function generateInvoiceEmail(data: {
   );
 }
 
-// ─── 10. Platform Receipt Email ─────────────────────────────
+// ─── 10. Registration Pending (User Notification) ──────────
+
+export function registrationPending(data: { name: string; email: string; companyName: string }): string {
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#0F1A2E;">Application Received! 📋</h1>
+      <p>Hi ${data.name},</p>
+      <p>Thank you for registering <strong>${data.companyName}</strong> on Zeitgeist Business Solutions.</p>
+      <p>Your application is currently <strong style="color:#B45309;">under review</strong>. Our team will verify your information and get back to you within <strong>24–48 hours</strong> during business days.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:#FFFBEB;border-radius:8px;border:1px solid #FDE68A;">
+        <tr><td style="padding:16px 20px;font-size:14px;color:#92400E;">
+          <strong>What happens next?</strong><br/>
+          <ol style="margin:8px 0 0 0;padding-left:20px;">
+            <li style="margin-bottom:4px;">We review your application</li>
+            <li style="margin-bottom:4px;">You receive an approval email</li>
+            <li style="margin-bottom:4px;">Your free trial begins immediately</li>
+          </ol>
+        </td></tr>
+      </table>
+      <p>No payment is required at this time. You will not be charged until your free trial ends and you choose to subscribe.</p>
+    `)}
+    ${footer()}`,
+    'Your ZBS application has been received. We will review it shortly.'
+  );
+}
+
+// ─── 11. New Registration (Admin Notification) ─────────────
+
+export function newRegistrationAdmin(data: { name: string; email: string; companyName: string; industry?: string; plan?: string }): string {
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#0F1A2E;">🔔 New Registration Pending Approval</h1>
+      <p>A new business has registered and is waiting for your review:</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:#F8FAFC;border-radius:8px;border:1px solid #E2E8F0;">
+        <tr><td style="padding:16px 20px;font-size:14px;">
+          <strong style="color:#0F1A2E;">Registration Details</strong><br/><br/>
+          <strong>Business:</strong> ${data.companyName}<br/>
+          <strong>Contact:</strong> ${data.name}<br/>
+          <strong>Email:</strong> <a href="mailto:${data.email}" style="color:#1D4ED8;">${data.email}</a><br/>
+          ${data.industry ? `<strong>Industry:</strong> ${data.industry}<br/>` : ''}
+          ${data.plan ? `<strong>Plan:</strong> ${data.plan}<br/>` : ''}
+          <strong>Submitted:</strong> ${new Date().toLocaleString()}
+        </td></tr>
+      </table>
+    `)}
+    ${button('Open Control Tower', 'https://zeitgeist.business')}
+    ${footer()}`,
+    `New registration: ${data.companyName} — pending approval`
+  );
+}
+
+// ─── 12. Registration Approved (User) ──────────────────────
+
+export function registrationApproved(data: { name: string; companyName: string; trialDays: number }): string {
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#16A34A;">Approved! Your Trial Has Started 🎉</h1>
+      <p>Hi ${data.name},</p>
+      <p>Great news! Your application for <strong>${data.companyName}</strong> has been <strong style="color:#16A34A;">approved</strong>.</p>
+      <p>Your <strong>${data.trialDays}-day free trial</strong> starts now. Log in and start exploring every module — no restrictions, no commitments.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:#F0FDF4;border-radius:8px;border:1px solid #BBF7D0;">
+        <tr><td style="padding:16px 20px;font-size:14px;color:#166534;">
+          <strong>Trial Details</strong><br/>
+          Duration: ${data.trialDays} days<br/>
+          Access: All features unlocked<br/>
+          Cost: $0.00 — no payment required during trial
+        </td></tr>
+      </table>
+    `)}
+    ${button('Log In Now', 'https://zeitgeist.business')}
+    ${footer()}`,
+    'Your ZBS trial has been approved! Log in to get started.'
+  );
+}
+
+// ─── 13. Registration Rejected (User) ──────────────────────
+
+export function registrationRejected(data: { name: string; companyName: string; reason?: string }): string {
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#DC2626;">Application Update</h1>
+      <p>Hi ${data.name},</p>
+      <p>We have reviewed the application for <strong>${data.companyName}</strong> and unfortunately, we were unable to approve it at this time.</p>
+      ${data.reason ? `<p><strong>Reason:</strong> ${data.reason}</p>` : ''}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:#FEF2F2;border-radius:8px;border:1px solid #FECACA;">
+        <tr><td style="padding:16px 20px;font-size:14px;color:#991B1B;">
+          <strong>What can I do?</strong><br/>
+          If you believe this is an error, or if you have additional information to provide, please reply to this email or contact us at <a href="mailto:admin@zeitgeist.business" style="color:#1D4ED8;">admin@zeitgeist.business</a>.
+        </td></tr>
+      </table>
+    `)}
+    ${button('Contact Support', 'mailto:admin@zeitgeist.business', '#DC2626')}
+    ${footer()}`,
+    'Update on your ZBS application'
+  );
+}
+
+// ─── 14. Platform Receipt Email ─────────────────────────────
 
 export function generateReceiptEmail(data: {
   tenantName: string;
