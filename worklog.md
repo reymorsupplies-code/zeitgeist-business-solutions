@@ -161,3 +161,37 @@ Stage Summary:
 - Las columnas resetToken (TEXT) y resetTokenExpiry (TIMESTAMP) se crean automáticamente en el primer request
 - Patrón idempotente: seguro ejecutar múltiples veces (IF NOT EXISTS)
 - Ya no se necesita ejecutar supabase-add-columns.sql manualmente
+---
+Task ID: 1
+Agent: Main Agent
+Task: Complete Bienes Raíces Property Module - Phases 1-3
+
+Work Log:
+- Explored full property module: 14 Prisma models, 21 platform API routes, 8 tenant-scoped routes, 8 CT components
+- Identified 5 security/gap issues: SQL injection, 4 routes without auth, 5 missing tenant-scoped routes, 4 missing CT components
+- FASE 1: Fixed SQL injection in /platform/lease-renewal (3 string interpolation vulnerabilities replaced with parameterized queries $1-$9)
+- FASE 1: Added authenticateRequest to 4 platform routes: lease-renewal, property-documents, vendors, rent-payments/generate
+- FASE 2: Created 5 new tenant-scoped API routes with full auth + verifyTenantAccess + ownership verification:
+  - security-deposits (T&T compliance: max 1 month rent, 14-day return, overdue monitoring)
+  - inspections (8-area T&T checklist templates for move_in/move_out, dual sign-off)
+  - legal-notices (6 T&T legal templates, auto-generate for expiring leases, jurisdiction support)
+  - lease-renewal (tenant-scoped renewal tracking, log creation with ownership chain)
+  - rent-payments/generate (bulk generate for tenant's active leases only)
+- FASE 3: Created 4 professional CT components in page.tsx:
+  - CTSecurityDeposits: Status tabs, overdue alerts, create/process return dialogs, compliance monitoring
+  - CTInspections: Type tabs, checklist viewer with 8-area grouping, dual sign-off buttons
+  - CTLegalNotices: Auto-generate button, status workflow (draft→sent→acknowledged), 6 notice types
+  - CTLeaseRenewal: Stats cards, expiring leases table, renewal dialog with rent adjustment, history log
+- Updated store.ts TenantPage union with 4 new page types
+- Updated page.tsx nav (4 new items in Portfolio/Finance/Operations sections)
+- Updated page.tsx router (4 new case entries)
+- Added EN + ES translations for 4 new nav items in i18n.ts
+
+Stage Summary:
+- Build: 0 errors, 0 warnings
+- Commit: f9b3198 pushed to main
+- Files changed: 12 files, 1701 insertions, 133 deletions
+- 5 new route files created, 7 existing files modified
+- All platform routes now have authentication
+- SQL injection vulnerability eliminated
+- Full T&T compliance for security deposits, inspections, and legal notices
