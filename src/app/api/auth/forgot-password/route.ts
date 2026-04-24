@@ -32,6 +32,11 @@ This email was sent by Zeitgeist Business Solutions.<br/>If you did not expect t
 
 export async function POST(req: NextRequest) {
   try {
+    // ─── Ensure reset columns exist (idempotent) ───
+    const { pgQuery } = await import('@/lib/pg-query');
+    await pgQuery(`ALTER TABLE "PlatformUser" ADD COLUMN IF NOT EXISTS "resetToken" TEXT`);
+    await pgQuery(`ALTER TABLE "PlatformUser" ADD COLUMN IF NOT EXISTS "resetTokenExpiry" TIMESTAMP`);
+
     const { email } = await req.json();
 
     if (!email || !isValidEmail(email)) {
@@ -61,8 +66,7 @@ export async function POST(req: NextRequest) {
       },
     }).catch(() => {});
 
-    // Store in a more reliable way using raw query
-    const { pgQuery } = await import('@/lib/pg-query');
+    // Store token via raw query
     await pgQuery(
       `UPDATE "PlatformUser" SET "resetToken" = $1, "resetTokenExpiry" = $2 WHERE id = $3`,
       [resetToken, resetExpiry.toISOString(), user.id]

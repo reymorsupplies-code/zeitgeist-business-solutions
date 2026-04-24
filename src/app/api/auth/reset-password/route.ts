@@ -5,6 +5,10 @@ import { hashPassword } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
+    // ─── Ensure reset columns exist (idempotent) ───
+    await pgQuery(`ALTER TABLE "PlatformUser" ADD COLUMN IF NOT EXISTS "resetToken" TEXT`);
+    await pgQuery(`ALTER TABLE "PlatformUser" ADD COLUMN IF NOT EXISTS "resetTokenExpiry" TIMESTAMP`);
+
     const { token, email, newPassword } = await req.json();
 
     if (!token || !email || !newPassword) {
