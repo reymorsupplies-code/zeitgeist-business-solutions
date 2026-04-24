@@ -475,9 +475,11 @@ function getPropertyMgmtNav(locale: string) {
     { label: t('tenant.properties', locale), icon: Home, page: 'pm-property' as const, available: true },
     { label: t('tenant.units', locale), icon: MapPin, page: 'pm-property-units' as const, available: true },
     { label: t('tenant.leases', locale), icon: FileText, page: 'pm-leases' as const, available: true },
+    { label: t('tenant.leaseRenewal', locale), icon: RotateCcw, page: 'pm-lease-renewal' as const, available: true },
   ]},
   { section: t('tenant.section.finance', locale), items: [
     { label: t('tenant.rentCollection', locale), icon: Banknote, page: 'pm-rent-payments' as const, available: true },
+    { label: t('tenant.securityDeposits', locale), icon: Shield, page: 'pm-security-deposits' as const, available: true },
     { label: t('tenant.expenses', locale), icon: Receipt, page: 'expenses' as const, available: true },
     { label: t('tenant.bookkeeping', locale), icon: BookOpen, page: 'bookkeeping' as const, available: true },
   ]},
@@ -485,6 +487,8 @@ function getPropertyMgmtNav(locale: string) {
     { label: t('tenant.maintenance', locale), icon: Wrench, page: 'pm-maintenance' as const, available: true },
     { label: t('tenant.vendors', locale), icon: Truck, page: 'pm-vendors' as const, available: true },
     { label: t('tenant.documents', locale), icon: FileSpreadsheet, page: 'pm-property-documents' as const, available: true },
+    { label: t('tenant.inspections', locale), icon: ClipboardCheck, page: 'pm-inspections' as const, available: true },
+    { label: t('tenant.legalNotices', locale), icon: ScrollText, page: 'pm-legal-notices' as const, available: true },
   ]},
   { section: t('tenant.section.insights', locale), items: [
     { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
@@ -6652,6 +6656,578 @@ function CTMaintenance({ apiBase = '/api/platform' }: { apiBase?: string } = {})
             <div><Label>Notas</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setShowDialog(false)}>Cancelar</Button><Button onClick={handleSave}>{editItem ? 'Actualizar' : 'Crear'}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ SECURITY DEPOSITS (T&T Compliance) ============
+function CTSecurityDeposits({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [leases, setLeases] = useState<any[]>([]);
+  const [properties, setProperties] = useState<any[]>([]);
+  const [units, setUnits] = useState<any[]>([]);
+  const [statusTab, setStatusTab] = useState('all');
+  const [form, setForm] = useState({ leaseId: '', propertyId: '', unitId: '', amount: '', currency: 'TTD', vacateDate: '', notes: '' });
+  const [processForm, setProcessForm] = useState({ returnedAmount: '', deductionTotal: '', deductions: '', refundMethod: '', refundReference: '', notes: '' });
+  const [processId, setProcessId] = useState<string | null>(null);
+  const [showProcessDialog, setShowProcessDialog] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    const params = statusTab === 'all' ? '' : `?status=${statusTab}`;
+    authFetch(`${apiBase}/security-deposits${params}`).then(r => r.json()).then(d => { setItems(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, [statusTab]);
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    Promise.all([
+      authFetch(`${apiBase}/leases`).then(r => r.json()),
+      authFetch(`${apiBase}/properties`).then(r => r.json()),
+      authFetch(`${apiBase}/property-units`).then(r => r.json()),
+    ]).then(([l, p, u]) => {
+      setLeases(Array.isArray(l) ? l.filter((x: any) => x.status === 'active') : []);
+      setProperties(Array.isArray(p) ? p : []);
+      setUnits(Array.isArray(u) ? u : []);
+    }).catch(() => {});
+  }, []);
+
+  const filteredUnits = units.filter((u: any) => u.propertyId === form.propertyId);
+  const filteredLeases = leases.filter((l: any) => l.unitId === form.unitId);
+
+  const handleSubmit = async () => {
+    if (!form.leaseId || !form.propertyId || !form.unitId) return toast.error('Lease, Property, and Unit are required');
+    const res = await authFetch(`${apiBase}/security-deposits`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, amount: Number(form.amount) || 0 }) });
+    if (res.ok) { toast.success('Deposit created'); setShowDialog(false); setForm({ leaseId: '', propertyId: '', unitId: '', amount: '', currency: 'TTD', vacateDate: '', notes: '' }); load(); }
+    else { const e = await res.json(); toast.error(e.error || 'Error'); }
+  };
+
+  const openProcess = (item: any) => {
+    setProcessId(item.id);
+    setProcessForm({ returnedAmount: String(item.returnedAmount || 0), deductionTotal: String(item.deductionTotal || 0), deductions: item.deductions || '[]', refundMethod: item.refundMethod || '', refundReference: item.refundReference || '', notes: item.notes || '' });
+    setShowProcessDialog(true);
+  };
+
+  const handleProcess = async () => {
+    if (!processId) return;
+    const res = await authFetch(`${apiBase}/security-deposits?id=${processId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...processForm, returnedAmount: Number(processForm.returnedAmount) || 0, deductionTotal: Number(processForm.deductionTotal) || 0 }) });
+    if (res.ok) { toast.success('Deposit updated'); setShowProcessDialog(false); load(); }
+    else { const e = await res.json(); toast.error(e.error || 'Error'); }
+  };
+
+  const handleDelete = async (id: string) => { if (!confirm('Delete this deposit?')) return; await authFetch(`${apiBase}/security-deposits?id=${id}`, { method: 'DELETE' }); toast.success('Deleted'); load(); };
+
+  const statusColor = (s: string) => s === 'held' ? 'bg-blue-100 text-blue-800' : s === 'partially_returned' ? 'bg-yellow-100 text-yellow-800' : s === 'fully_returned' ? 'bg-green-100 text-green-800' : s === 'deducted' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
+  const totalHeld = items.filter((d: any) => d.status === 'held').reduce((s: number, d: any) => s + Number(d.amount || 0), 0);
+  const overdueCount = items.filter((d: any) => d.pastReturnDeadline).length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Security Deposits</h2>
+          <p className="text-sm text-muted-foreground">T&T compliant deposit management (max 1 month rent, 14-day return)</p>
+        </div>
+        <div className="flex gap-2">
+          {overdueCount > 0 && <Badge className="bg-red-500 text-white">{overdueCount} overdue</Badge>}
+          <Button onClick={() => setShowDialog(true)}><Plus className="w-4 h-4 mr-1" />New Deposit</Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total Held</p><p className="text-xl font-bold">${totalHeld.toLocaleString()}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total Deposits</p><p className="text-xl font-bold">{items.length}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Overdue Returns</p><p className="text-xl font-bold text-red-600">{overdueCount}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">T&T Max Rule</p><p className="text-sm font-semibold">1 month rent max</p></CardContent></Card>
+      </div>
+
+      <Tabs value={statusTab} onValueChange={setStatusTab}>
+        <TabsList>
+          {['all', 'held', 'partially_returned', 'fully_returned', 'deducted'].map(s => (
+            <TabsTrigger key={s} value={s}>{s === 'all' ? 'All' : s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      {loading ? <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div> : (
+        <div className="rounded-lg border overflow-auto">
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Lease / Unit</TableHead><TableHead>Amount</TableHead><TableHead>Status</TableHead><TableHead>Received</TableHead><TableHead>Return Deadline</TableHead><TableHead>Days Left</TableHead><TableHead>Actions</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {items.length === 0 ? <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No deposits found</TableCell></TableRow> : items.map((d: any) => (
+                <TableRow key={d.id} className={d.pastReturnDeadline ? 'bg-red-50' : ''}>
+                  <TableCell className="font-medium">{d.lease?.unit?.unitNumber || 'N/A'} / {d.lease?.unit?.property?.name || 'N/A'}</TableCell>
+                  <TableCell>${Number(d.amount || 0).toFixed(2)} {d.currency || 'TTD'}</TableCell>
+                  <TableCell><Badge className={statusColor(d.status)}>{d.status.replace(/_/g, ' ')}</Badge></TableCell>
+                  <TableCell className="text-sm">{new Date(d.receivedDate).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm">{d.returnDeadline ? new Date(d.returnDeadline).toLocaleDateString() : '-'}</TableCell>
+                  <TableCell>{d.daysUntilDeadline !== null ? <span className={d.pastReturnDeadline ? 'text-red-600 font-bold' : ''}>{d.pastReturnDeadline ? 'OVERDUE' : d.daysUntilDeadline + 'd'}</span> : '-'}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {d.status === 'held' && <Button size="sm" variant="outline" onClick={() => openProcess(d)}>Process</Button>}
+                      <Button size="sm" variant="ghost" onClick={() => handleDelete(d.id)}><Trash2 className="w-3 h-3" /></Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Create Dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent><DialogHeader><DialogTitle>New Security Deposit</DialogTitle></DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="grid gap-1"><Label>Property</Label><Select value={form.propertyId} onValueChange={v => setForm({ ...form, propertyId: v, unitId: '', leaseId: '' })}><SelectTrigger><SelectValue placeholder="Select property" /></SelectTrigger><SelectContent>{properties.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid gap-1"><Label>Unit</Label><Select value={form.unitId} onValueChange={v => setForm({ ...form, unitId: v, leaseId: '' })}><SelectTrigger><SelectValue placeholder="Select unit" /></SelectTrigger><SelectContent>{filteredUnits.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.unitNumber}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid gap-1"><Label>Lease</Label><Select value={form.leaseId} onValueChange={v => setForm({ ...form, leaseId: v })}><SelectTrigger><SelectValue placeholder="Select lease" /></SelectTrigger><SelectContent>{filteredLeases.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.id.substring(0, 8)}...</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1"><Label>Amount (TTD)</Label><Input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="0.00" /></div>
+              <div className="grid gap-1"><Label>Vacate Date</Label><Input type="date" value={form.vacateDate} onChange={e => setForm({ ...form, vacateDate: e.target.value })} /></div>
+            </div>
+            <div className="grid gap-1"><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
+            <Button onClick={handleSubmit}>Create Deposit</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Process Return Dialog */}
+      <Dialog open={showProcessDialog} onOpenChange={setShowProcessDialog}>
+        <DialogContent><DialogHeader><DialogTitle>Process Deposit Return</DialogTitle></DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1"><Label>Returned Amount</Label><Input type="number" value={processForm.returnedAmount} onChange={e => setProcessForm({ ...processForm, returnedAmount: e.target.value })} /></div>
+              <div className="grid gap-1"><Label>Deduction Total</Label><Input type="number" value={processForm.deductionTotal} onChange={e => setProcessForm({ ...processForm, deductionTotal: e.target.value })} /></div>
+            </div>
+            <div className="grid gap-1"><Label>Deductions (JSON)</Label><Textarea value={processForm.deductions} onChange={e => setProcessForm({ ...processForm, deductions: e.target.value })} rows={2} placeholder='[{"item":"Paint repair","amount":500}]' /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1"><Label>Refund Method</Label><Input value={processForm.refundMethod} onChange={e => setProcessForm({ ...processForm, refundMethod: e.target.value })} placeholder="bank_transfer" /></div>
+              <div className="grid gap-1"><Label>Refund Reference</Label><Input value={processForm.refundReference} onChange={e => setProcessForm({ ...processForm, refundReference: e.target.value })} /></div>
+            </div>
+            <Button onClick={handleProcess}>Update Deposit</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ PROPERTY INSPECTIONS ============
+function CTInspections({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [properties, setProperties] = useState<any[]>([]);
+  const [units, setUnits] = useState<any[]>([]);
+  const [typeTab, setTypeTab] = useState('all');
+  const [form, setForm] = useState({ propertyId: '', unitId: '', leaseId: '', type: 'move_in', scheduledDate: '', inspectorName: '', overallScore: '8', notes: '' });
+  const [checklist, setChecklist] = useState<any[]>([]);
+  const [viewChecklist, setViewChecklist] = useState<any[] | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    const params = typeTab === 'all' ? '' : `?type=${typeTab}`;
+    authFetch(`${apiBase}/inspections${params}`).then(r => r.json()).then(d => { setItems(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, [typeTab]);
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    Promise.all([authFetch(`${apiBase}/properties`).then(r => r.json()), authFetch(`${apiBase}/property-units`).then(r => r.json())]).then(([p, u]) => {
+      setProperties(Array.isArray(p) ? p : []); setUnits(Array.isArray(u) ? u : []);
+    }).catch(() => {});
+  }, []);
+
+  const filteredUnits = units.filter((u: any) => u.propertyId === form.propertyId);
+
+  const loadChecklistTemplate = async (type: string) => {
+    const res = await authFetch(`${apiBase}/inspections?template=${type}`);
+    if (res.ok) { const d = await res.json(); if (d.items) setChecklist(d.items); }
+  };
+
+  useEffect(() => { if (showDialog && (form.type === 'move_in' || form.type === 'move_out')) loadChecklistTemplate(form.type); }, [showDialog, form.type]);
+
+  const handleSubmit = async () => {
+    if (!form.propertyId) return toast.error('Property is required');
+    const res = await authFetch(`${apiBase}/inspections`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, overallScore: Number(form.overallScore) || 8, checklistItems: checklist.length > 0 ? checklist : undefined }) });
+    if (res.ok) { toast.success('Inspection created'); setShowDialog(false); setForm({ propertyId: '', unitId: '', leaseId: '', type: 'move_in', scheduledDate: '', inspectorName: '', overallScore: '8', notes: '' }); setChecklist([]); load(); }
+    else { const e = await res.json(); toast.error(e.error || 'Error'); }
+  };
+
+  const handleSign = async (id: string, field: 'signedByTenant' | 'signedByLandlord') => {
+    const res = await authFetch(`${apiBase}/inspections?id=${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [field]: true }) });
+    if (res.ok) { toast.success(`Signed off: ${field === 'signedByTenant' ? 'Tenant' : 'Landlord'}`); load(); }
+  };
+
+  const handleDelete = async (id: string) => { if (!confirm('Delete this inspection?')) return; await authFetch(`${apiBase}/inspections?id=${id}`, { method: 'DELETE' }); toast.success('Deleted'); load(); };
+
+  const typeColor = (t: string) => t === 'move_in' ? 'bg-green-100 text-green-800' : t === 'move_out' ? 'bg-orange-100 text-orange-800' : t === 'routine' ? 'bg-blue-100 text-blue-800' : t === 'emergency' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Property Inspections</h2>
+          <p className="text-sm text-muted-foreground">Move-in/move-out checklists, routine inspections, dual sign-off</p>
+        </div>
+        <Button onClick={() => setShowDialog(true)}><Plus className="w-4 h-4 mr-1" />New Inspection</Button>
+      </div>
+
+      <Tabs value={typeTab} onValueChange={setTypeTab}>
+        <TabsList>
+          {['all', 'move_in', 'move_out', 'routine', 'emergency'].map(s => (
+            <TabsTrigger key={s} value={s}>{s === 'all' ? 'All' : s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      {loading ? <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div> : (
+        <div className="rounded-lg border overflow-auto">
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Type</TableHead><TableHead>Property / Unit</TableHead><TableHead>Inspector</TableHead><TableHead>Date</TableHead><TableHead>Score</TableHead><TableHead>Tenant Sign</TableHead><TableHead>Landlord Sign</TableHead><TableHead>Actions</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {items.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No inspections found</TableCell></TableRow> : items.map((d: any) => (
+                <TableRow key={d.id}>
+                  <TableCell><Badge className={typeColor(d.type)}>{d.type.replace(/_/g, ' ')}</Badge></TableCell>
+                  <TableCell className="font-medium">{d.property?.name || 'N/A'} / {d.unit?.unitNumber || '-'}</TableCell>
+                  <TableCell>{d.inspectorName || '-'}</TableCell>
+                  <TableCell className="text-sm">{new Date(d.inspectedAt).toLocaleDateString()}</TableCell>
+                  <TableCell><span className="font-semibold">{d.scoreTotal || '-'}/10</span></TableCell>
+                  <TableCell>{d.signedByTenant ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-gray-300" />}</TableCell>
+                  <TableCell>{d.signedByLandlord ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-gray-300" />}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {d.checklist && <Button size="sm" variant="outline" onClick={() => setViewChecklist(JSON.parse(d.checklist))}>View</Button>}
+                      {!d.signedByTenant && <Button size="sm" variant="ghost" onClick={() => handleSign(d.id, 'signedByTenant')}>T</Button>}
+                      {!d.signedByLandlord && <Button size="sm" variant="ghost" onClick={() => handleSign(d.id, 'signedByLandlord')}>L</Button>}
+                      <Button size="sm" variant="ghost" onClick={() => handleDelete(d.id)}><Trash2 className="w-3 h-3" /></Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Create Dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>New Inspection</DialogTitle></DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1"><Label>Property</Label><Select value={form.propertyId} onValueChange={v => setForm({ ...form, propertyId: v, unitId: '' })}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{properties.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
+              <div className="grid gap-1"><Label>Type</Label><Select value={form.type} onValueChange={v => setForm({ ...form, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{['move_in', 'move_out', 'routine', 'emergency'].map(t => <SelectItem key={t} value={t}>{t.replace(/_/g, ' ')}</SelectItem>)}</SelectContent></Select></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1"><Label>Unit</Label><Select value={form.unitId} onValueChange={v => setForm({ ...form, unitId: v })}><SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger><SelectContent>{filteredUnits.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.unitNumber}</SelectItem>)}</SelectContent></Select></div>
+              <div className="grid gap-1"><Label>Scheduled Date</Label><Input type="date" value={form.scheduledDate} onChange={e => setForm({ ...form, scheduledDate: e.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1"><Label>Inspector Name</Label><Input value={form.inspectorName} onChange={e => setForm({ ...form, inspectorName: e.target.value })} /></div>
+              <div className="grid gap-1"><Label>Overall Score (1-10)</Label><Input type="number" min="1" max="10" value={form.overallScore} onChange={e => setForm({ ...form, overallScore: e.target.value })} /></div>
+            </div>
+            <div className="grid gap-1"><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
+            {(form.type === 'move_in' || form.type === 'move_out') && <p className="text-xs text-muted-foreground">8-area T&T checklist template will auto-generate ({checklist.length} items)</p>}
+            <Button onClick={handleSubmit}>Create Inspection</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Checklist Dialog */}
+      <Dialog open={!!viewChecklist} onOpenChange={() => setViewChecklist(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto"><DialogHeader><DialogTitle>Inspection Checklist</DialogTitle></DialogHeader>
+          {viewChecklist && (
+            <div className="space-y-4">
+              {Object.entries(viewChecklist.reduce((acc: any, item: any) => { if (!acc[item.area]) acc[item.area] = []; acc[item.area].push(item); return acc; }, {})).map(([area, items]: any) => (
+                <div key={area}><h4 className="font-semibold text-sm uppercase text-muted-foreground mb-1">{area.replace(/_/g, ' ')}</h4>
+                  {items.map((item: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between py-1 border-b text-sm">
+                      <span>{item.item}</span>
+                      <Badge variant="outline" className={item.condition === 'good' ? 'border-green-500 text-green-700' : item.condition === 'fair' ? 'border-yellow-500 text-yellow-700' : 'border-red-500 text-red-700'}>{item.condition}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ LEGAL NOTICES (T&T Compliance) ============
+function CTLegalNotices({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
+  const [leases, setLeases] = useState<any[]>([]);
+  const [properties, setProperties] = useState<any[]>([]);
+  const [statusTab, setStatusTab] = useState('all');
+  const [form, setForm] = useState({ leaseId: '', propertyId: '', unitId: '', type: 'lease_renewal', title: '', content: '', sentMethod: '' });
+  const [autoGenResult, setAutoGenResult] = useState<any>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    const params = statusTab === 'all' ? '' : `?status=${statusTab}`;
+    authFetch(`${apiBase}/legal-notices${params}`).then(r => r.json()).then(d => { setItems(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, [statusTab]);
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    Promise.all([authFetch(`${apiBase}/leases`).then(r => r.json()), authFetch(`${apiBase}/properties`).then(r => r.json())]).then(([l, p]) => {
+      setLeases(Array.isArray(l) ? l.filter((x: any) => x.status === 'active') : []);
+      setProperties(Array.isArray(p) ? p : []);
+    }).catch(() => {});
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!form.type) return toast.error('Notice type is required');
+    const res = await authFetch(`${apiBase}/legal-notices`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    if (res.ok) { toast.success('Notice created'); setShowDialog(false); setForm({ leaseId: '', propertyId: '', unitId: '', type: 'lease_renewal', title: '', content: '', sentMethod: '' }); load(); }
+    else { const e = await res.json(); toast.error(e.error || 'Error'); }
+  };
+
+  const handleAutoGenerate = async () => {
+    toast.info('Checking for expiring leases...');
+    const res = await authFetch(`${apiBase}/legal-notices?generate=true&daysAhead=60&noticeType=lease_renewal`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ generate: true }) });
+    if (res.ok) { const d = await res.json(); setAutoGenResult(d); toast.success(`${d.generated} notices generated`); load(); }
+    else { const e = await res.json(); toast.error(e.error || 'Error'); }
+  };
+
+  const handleStatusUpdate = async (id: string, status: string, sentMethod?: string) => {
+    const body: any = { status };
+    if (sentMethod) body.sentMethod = sentMethod;
+    const res = await authFetch(`${apiBase}/legal-notices?id=${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (res.ok) { toast.success('Updated'); load(); }
+    else { const e = await res.json(); toast.error(e.error || 'Error'); }
+  };
+
+  const handleDelete = async (id: string) => { if (!confirm('Delete this notice?')) return; await authFetch(`${apiBase}/legal-notices?id=${id}`, { method: 'DELETE' }); toast.success('Deleted'); load(); };
+
+  const statusColor = (s: string) => s === 'draft' ? 'bg-gray-100 text-gray-800' : s === 'sent' ? 'bg-blue-100 text-blue-800' : s === 'acknowledged' ? 'bg-green-100 text-green-800' : s === 'disputed' ? 'bg-red-100 text-red-800' : s === 'resolved' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800';
+  const noticeTypes: Record<string, string> = { rent_increase: 'Rent Increase', lease_renewal: 'Lease Renewal', lease_termination: 'Termination', eviction: 'Eviction', late_payment: 'Late Payment', vacate_notice: 'Vacate Notice' };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Legal Notices</h2>
+          <p className="text-sm text-muted-foreground">T&T legal templates: rent increase, renewal, termination, eviction, late payment, vacate</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleAutoGenerate}><Sparkles className="w-4 h-4 mr-1" />Auto-Generate</Button>
+          <Button onClick={() => setShowDialog(true)}><Plus className="w-4 h-4 mr-1" />New Notice</Button>
+        </div>
+      </div>
+
+      {autoGenResult && (
+        <Card className="bg-blue-50 border-blue-200"><CardContent className="pt-4">
+          <p className="font-semibold text-blue-800">Auto-Generation Result</p>
+          <p className="text-sm text-blue-600">Generated: {autoGenResult.generated} | Skipped (existing): {autoGenResult.skipped} | Total checked: {autoGenResult.totalChecked}</p>
+          <Button size="sm" variant="ghost" className="mt-1" onClick={() => setAutoGenResult(null)}>Dismiss</Button>
+        </CardContent></Card>
+      )}
+
+      <Tabs value={statusTab} onValueChange={setStatusTab}>
+        <TabsList>
+          {['all', 'draft', 'sent', 'acknowledged', 'disputed', 'resolved'].map(s => (
+            <TabsTrigger key={s} value={s}>{s === 'all' ? 'All' : s.replace(/\b\w/g, l => l.toUpperCase())}</TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      {loading ? <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div> : (
+        <div className="rounded-lg border overflow-auto">
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Type</TableHead><TableHead>Title</TableHead><TableHead>Property / Unit</TableHead><TableHead>Status</TableHead><TableHead>Jurisdiction</TableHead><TableHead>Effective</TableHead><TableHead>Expires</TableHead><TableHead>Actions</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {items.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No notices found</TableCell></TableRow> : items.map((d: any) => (
+                <TableRow key={d.id}>
+                  <TableCell><Badge variant="outline">{noticeTypes[d.type] || d.type}</Badge></TableCell>
+                  <TableCell className="font-medium text-sm">{d.title}</TableCell>
+                  <TableCell className="text-sm">{d.property?.name || 'N/A'} / {d.unit?.unitNumber || '-'}</TableCell>
+                  <TableCell><Badge className={statusColor(d.status)}>{d.status}</Badge></TableCell>
+                  <TableCell className="text-sm">{d.jurisdiction || 'TT'}</TableCell>
+                  <TableCell className="text-sm">{d.effectiveDate ? new Date(d.effectiveDate).toLocaleDateString() : '-'}</TableCell>
+                  <TableCell className="text-sm">{d.expiresAt ? new Date(d.expiresAt).toLocaleDateString() : '-'}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {d.status === 'draft' && <Button size="sm" variant="outline" onClick={() => handleStatusUpdate(d.id, 'sent', 'email')}>Send</Button>}
+                      {d.status === 'sent' && <Button size="sm" variant="outline" onClick={() => handleStatusUpdate(d.id, 'acknowledged')}>Ack</Button>}
+                      <Button size="sm" variant="ghost" onClick={() => handleDelete(d.id)}><Trash2 className="w-3 h-3" /></Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent><DialogHeader><DialogTitle>New Legal Notice</DialogTitle></DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1"><Label>Type</Label><Select value={form.type} onValueChange={v => setForm({ ...form, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(noticeTypes).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
+              <div className="grid gap-1"><Label>Property</Label><Select value={form.propertyId} onValueChange={v => setForm({ ...form, propertyId: v })}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{properties.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
+            </div>
+            <div className="grid gap-1"><Label>Lease</Label><Select value={form.leaseId} onValueChange={v => setForm({ ...form, leaseId: v })}><SelectTrigger><SelectValue placeholder="Optional - auto-fills recipient" /></SelectTrigger><SelectContent>{leases.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.unit?.unitNumber || l.id.substring(0, 8)} - {l.unit?.property?.name || ''}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid gap-1"><Label>Title</Label><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Notice subject" /></div>
+            <div className="grid gap-1"><Label>Content</Label><Textarea value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} rows={4} placeholder="Notice content (leave blank for template)" /></div>
+            <div className="grid gap-1"><Label>Send Method</Label><Select value={form.sentMethod} onValueChange={v => setForm({ ...form, sentMethod: v })}><SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger><SelectContent>{['email', 'mail', 'hand_delivered', 'posted'].map(m => <SelectItem key={m} value={m}>{m.replace(/_/g, ' ')}</SelectItem>)}</SelectContent></Select></div>
+            <Button onClick={handleSubmit}>Create Notice</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ LEASE RENEWAL ============
+function CTLeaseRenewal({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const [data, setData] = useState<any>({ renewalsNeeded: [], renewalLogs: [], stats: { totalActive: 0, renewing: 0, expiredThisMonth: 0 } });
+  const [loading, setLoading] = useState(true);
+  const [showRenewDialog, setShowRenewDialog] = useState(false);
+  const [selectedLease, setSelectedLease] = useState<any>(null);
+  const [renewForm, setRenewForm] = useState({ newEndDate: '', newRent: '', notes: '' });
+
+  const load = useCallback(() => {
+    setLoading(true);
+    authFetch(`${apiBase}/lease-renewal`).then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const openRenew = (lease: any) => {
+    setSelectedLease(lease);
+    const currentEnd = new Date(lease.endDate);
+    const newEnd = new Date(currentEnd);
+    newEnd.setFullYear(newEnd.getFullYear() + 1);
+    setRenewForm({ newEndDate: newEnd.toISOString().split('T')[0], newRent: String(lease.proposedNewRent || lease.rentAmount || ''), notes: '' });
+    setShowRenewDialog(true);
+  };
+
+  const handleRenew = async () => {
+    if (!selectedLease || !renewForm.newEndDate) return toast.error('End date is required');
+    const res = await authFetch(`${apiBase}/lease-renewal`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leaseId: selectedLease.id, newEndDate: renewForm.newEndDate, newRent: Number(renewForm.newRent) || undefined, notes: renewForm.notes, renewedBy: 'tenant_user' }),
+    });
+    if (res.ok) { const d = await res.json(); toast.success(`Lease renewed! New rent: $${d.newRent}, Increase: ${d.increasePct}%`); setShowRenewDialog(false); load(); }
+    else { const e = await res.json(); toast.error(e.error || 'Error'); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Lease Renewals</h2>
+          <p className="text-sm text-muted-foreground">Track expiring leases, renew with rent adjustments, view history</p>
+        </div>
+        <Button variant="outline" onClick={load}><RefreshCw className="w-4 h-4 mr-1" />Refresh</Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Active Leases</p><p className="text-2xl font-bold">{data.stats.totalActive}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Need Renewal</p><p className="text-2xl font-bold text-amber-600">{data.stats.renewing}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Expired This Month</p><p className="text-2xl font-bold text-red-600">{data.stats.expiredThisMonth}</p></CardContent></Card>
+      </div>
+
+      {loading ? <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div> : (
+        <>
+          {/* Leases Needing Renewal */}
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Leases Needing Renewal ({data.renewalsNeeded.length})</h3>
+            {data.renewalsNeeded.length === 0 ? (
+              <Card><CardContent className="py-8 text-center text-muted-foreground">No leases need renewal right now</CardContent></Card>
+            ) : (
+              <div className="rounded-lg border overflow-auto">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>Unit</TableHead><TableHead>Property</TableHead><TableHead>Tenant</TableHead><TableHead>Current Rent</TableHead><TableHead>End Date</TableHead><TableHead>Days Left</TableHead><TableHead>Auto-Renew</TableHead><TableHead>Proposed New</TableHead><TableHead>Action</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {data.renewalsNeeded.map((l: any) => (
+                      <TableRow key={l.id}>
+                        <TableCell className="font-medium">{l.unit?.unitNumber || 'N/A'}</TableCell>
+                        <TableCell>{l.unit?.property?.name || 'N/A'}</TableCell>
+                        <TableCell>{l.tenant?.name || '-'}</TableCell>
+                        <TableCell>${Number(l.rentAmount || 0).toFixed(2)} {l.rentCurrency || 'TTD'}</TableCell>
+                        <TableCell className="text-sm">{new Date(l.endDate).toLocaleDateString()}</TableCell>
+                        <TableCell><Badge className={l.daysLeft <= 7 ? 'bg-red-100 text-red-800' : l.daysLeft <= 14 ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}>{l.daysLeft}d</Badge></TableCell>
+                        <TableCell>{l.autoRenew ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-gray-300" />}</TableCell>
+                        <TableCell className="font-semibold">${Number(l.proposedNewRent || 0).toFixed(2)}</TableCell>
+                        <TableCell><Button size="sm" onClick={() => openRenew(l)}>Renew</Button></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          {/* Renewal History */}
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Renewal History ({data.renewalLogs.length})</h3>
+            {data.renewalLogs.length === 0 ? (
+              <Card><CardContent className="py-8 text-center text-muted-foreground">No renewal history</CardContent></Card>
+            ) : (
+              <div className="rounded-lg border overflow-auto">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>Lease</TableHead><TableHead>Previous End</TableHead><TableHead>New Period</TableHead><TableHead>Old Rent</TableHead><TableHead>New Rent</TableHead><TableHead>Increase</TableHead><TableHead>Renewed By</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {data.renewalLogs.map((l: any) => (
+                      <TableRow key={l.id}>
+                        <TableCell className="font-mono text-xs">{l.leaseId?.substring(0, 8)}...</TableCell>
+                        <TableCell className="text-sm">{new Date(l.previousEnd).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-sm">{new Date(l.newStart).toLocaleDateString()} - {new Date(l.newEnd).toLocaleDateString()}</TableCell>
+                        <TableCell>${Number(l.oldRent || 0).toFixed(2)}</TableCell>
+                        <TableCell className="font-semibold">${Number(l.newRent || 0).toFixed(2)}</TableCell>
+                        <TableCell><Badge variant={l.increasePct > 0 ? 'destructive' : 'secondary'}>{l.increasePct > 0 ? '+' : ''}{l.increasePct}%</Badge></TableCell>
+                        <TableCell className="text-sm">{l.renewedBy || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Renew Dialog */}
+      <Dialog open={showRenewDialog} onOpenChange={setShowRenewDialog}>
+        <DialogContent><DialogHeader><DialogTitle>Renew Lease - {selectedLease?.unit?.unitNumber}</DialogTitle></DialogHeader>
+          <div className="grid gap-3 py-2">
+            {selectedLease && (
+              <div className="bg-muted p-3 rounded-lg text-sm space-y-1">
+                <p>Property: <strong>{selectedLease.unit?.property?.name}</strong></p>
+                <p>Tenant: <strong>{selectedLease.tenant?.name || 'N/A'}</strong></p>
+                <p>Current Rent: <strong>${Number(selectedLease.rentAmount || 0).toFixed(2)} {selectedLease.rentCurrency || 'TTD'}</strong></p>
+                <p>Current End: <strong>{new Date(selectedLease.endDate).toLocaleDateString()}</strong></p>
+                <p>Renewals Done: <strong>{selectedLease.renewalCount || 0}</strong></p>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1"><Label>New End Date</Label><Input type="date" value={renewForm.newEndDate} onChange={e => setRenewForm({ ...renewForm, newEndDate: e.target.value })} /></div>
+              <div className="grid gap-1"><Label>New Monthly Rent</Label><Input type="number" value={renewForm.newRent} onChange={e => setRenewForm({ ...renewForm, newRent: e.target.value })} /></div>
+            </div>
+            <div className="grid gap-1"><Label>Notes</Label><Textarea value={renewForm.notes} onChange={e => setRenewForm({ ...renewForm, notes: e.target.value })} rows={2} /></div>
+            <Button onClick={handleRenew}>Renew Lease</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
@@ -20734,6 +21310,10 @@ function TenantAppView() {
       case 'pm-vendors': return <CTVendors apiBase={`/api/tenant/${tid}`} />;
       case 'pm-property-documents': return <CTPropertyDocuments apiBase={`/api/tenant/${tid}`} />;
       case 'pm-owner-reporting': return <CTOwnerReporting apiBase={`/api/tenant/${tid}`} />;
+      case 'pm-security-deposits': return <CTSecurityDeposits apiBase={`/api/tenant/${tid}`} />;
+      case 'pm-inspections': return <CTInspections apiBase={`/api/tenant/${tid}`} />;
+      case 'pm-legal-notices': return <CTLegalNotices apiBase={`/api/tenant/${tid}`} />;
+      case 'pm-lease-renewal': return <CTLeaseRenewal apiBase={`/api/tenant/${tid}`} />;
       default: return <TenantDashboardPage />;
     }
   };

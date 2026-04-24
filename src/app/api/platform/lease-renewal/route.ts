@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { pgQuery } from '@/lib/pg-query';
+import { authenticateRequest } from '@/lib/auth';
 
 // GET: Get leases needing renewal attention + renewal logs
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const now = new Date();
     const results: any = { renewalsNeeded: [], renewalLogs: [], autoRenewals: [], stats: { totalActive: 0, renewing: 0, expiredThisMonth: 0 } };
@@ -77,6 +80,8 @@ export async function GET() {
 
 // POST: Renew a lease
 export async function POST(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const { leaseId, newStartDate, newEndDate, newRent, notes, renewedBy } = await req.json();
     if (!leaseId || !newEndDate) return NextResponse.json({ error: 'leaseId and newEndDate required' }, { status: 400 });
@@ -85,7 +90,7 @@ export async function POST(req: NextRequest) {
     try {
       currentLease = await db.lease.findUnique({ where: { id: leaseId } });
     } catch {
-      const rows = await pgQuery<any>(`SELECT * FROM "Lease" WHERE id = '${leaseId}'`);
+      const rows = await pgQuery<any>(`SELECT * FROM "Lease" WHERE id = $1`, [leaseId]);
       currentLease = rows[0] || null;
     }
     if (!currentLease) return NextResponse.json({ error: 'Lease not found' }, { status: 404 });
@@ -111,7 +116,8 @@ export async function POST(req: NextRequest) {
       });
     } catch {
       await pgQuery(
-        `UPDATE "Lease" SET "startDate"='${new Date(start).toISOString()}',"endDate"='${new Date(newEndDate).toISOString()}',"rentAmount"=${effectiveNewRent},"lastRenewedAt"=NOW(),"renewalCount"=${(currentLease.renewalCount||0)+1},"originalStartDate"='${(currentLease.originalStartDate||currentLease.startDate).toISOString()}',"originalEndDate"='${(currentLease.originalEndDate||currentLease.endDate).toISOString()}',status='active',"updatedAt"=NOW() WHERE id='${leaseId}'`
+        `UPDATE "Lease" SET "startDate"=$1,"endDate"=$2,"rentAmount"=$3,"lastRenewedAt"=NOW(),"renewalCount"=$4,"originalStartDate"=$5,"originalEndDate"=$6,status='active',"updatedAt"=NOW() WHERE id=$7`,
+        [new Date(start).toISOString(), new Date(newEndDate).toISOString(), effectiveNewRent, (currentLease.renewalCount || 0) + 1, (currentLease.originalStartDate || currentLease.startDate).toISOString(), (currentLease.originalEndDate || currentLease.endDate).toISOString(), leaseId]
       );
     }
 
@@ -121,7 +127,8 @@ export async function POST(req: NextRequest) {
       });
     } catch {
       await pgQuery(
-        `INSERT INTO "LeaseRenewalLog" ("leaseId","previousEnd","newStart","newEnd","oldRent","newRent","increasePct","renewedBy","notes","createdAt") VALUES ('${leaseId}','${currentLease.endDate}','${new Date(start).toISOString()}','${new Date(newEndDate).toISOString()}',${oldRent},${effectiveNewRent},${Math.round(increasePct*100)/100},${renewedBy?`'${renewedBy}'`:'NULL'},${notes?`'${notes.replace(/'/g,"''")}'`:'NULL'},NOW())`
+        `INSERT INTO "LeaseRenewalLog" ("leaseId","previousEnd","newStart","newEnd","oldRent","newRent","increasePct","renewedBy","notes","createdAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
+        [leaseId, currentLease.endDate instanceof Date ? currentLease.endDate.toISOString() : String(currentLease.endDate), new Date(start).toISOString(), new Date(newEndDate).toISOString(), oldRent, effectiveNewRent, Math.round(increasePct * 100) / 100, renewedBy || null, notes || null]
       );
     }
 

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { authenticateRequest } from '@/lib/auth';
 
 // GET - List property documents
 export async function GET(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const { searchParams } = new URL(req.url);
     const propertyId = searchParams.get('propertyId');
@@ -29,6 +32,8 @@ export async function GET(req: NextRequest) {
 
 // POST - Create document
 export async function POST(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const body = await req.json();
     const doc = await db.propertyDocument.create({
@@ -55,6 +60,8 @@ export async function POST(req: NextRequest) {
 
 // PATCH - Update document
 export async function PATCH(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
@@ -83,6 +90,8 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE - Delete document
 export async function DELETE(req: NextRequest) {
+  const auth = authenticateRequest(req);
+  if (!auth.success) return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
