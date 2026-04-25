@@ -40,6 +40,10 @@ export async function POST(req: NextRequest, {params }: { params: Promise<{ tena
 
   try {
     const data = await req.json();
+    // Auto-populate performedBy from authenticated user
+    if (!data.performedBy) {
+      data.performedBy = auth.payload?.email || auth.payload?.userId || 'System';
+    }
     const item = await db.claimActivity.create({ data: { ...data, tenantId } });
     return NextResponse.json(item);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }

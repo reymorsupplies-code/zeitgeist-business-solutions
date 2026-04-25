@@ -123,7 +123,15 @@ export default function InsuranceQuotesPage() {
     ]).then(([data, productsData, summaryData]) => {
       setItems(Array.isArray(data) ? data : []);
       setProducts(Array.isArray(productsData) ? productsData : []);
-      setSummary(summaryData);
+      // Map byStatus object to individual fields expected by UI
+      const byStatus = summaryData?.byStatus || {};
+      setSummary({
+        totalQuotes: summaryData?.totalQuotes || 0,
+        draftQuotes: byStatus.draft || 0,
+        sentQuotes: byStatus.sent || 0,
+        acceptedQuotes: byStatus.accepted || 0,
+        convertedQuotes: byStatus.converted || 0,
+      });
       setLoading(false);
     });
   }, []);
@@ -181,10 +189,10 @@ export default function InsuranceQuotesPage() {
     if (!confirm(t('insurance.quotes.convertToPolicy', locale) + '?')) return;
     const tid = getTenant();
     try {
-      await authFetch(`/api/tenant/${tid}/quotes/convert`, {
-        method: 'POST',
+      await authFetch(`/api/tenant/${tid}/quotes`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteId: row.id }),
+        body: JSON.stringify({ id: row.id, action: 'convert' }),
       });
       load(); toast.success(t('insurance.quotes.converted', locale));
     } catch { toast.error(t('common.error', locale)); }

@@ -38,6 +38,12 @@ export async function POST(req: NextRequest, {params }: { params: Promise<{ tena
 
   try {
     const data = await req.json();
+    // Auto-populate author from authenticated user
+    if (!data.author) {
+      const email = auth.payload?.email || '';
+      const userId = auth.payload?.userId || '';
+      data.author = email || userId || 'System';
+    }
     const item = await db.claimNote.create({ data: { ...data, tenantId } });
     return NextResponse.json(item);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }

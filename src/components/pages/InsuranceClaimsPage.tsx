@@ -187,7 +187,13 @@ export default function InsuranceClaimsPage() {
     ]).then(([claimsData, policiesData, summaryData]) => {
       setClaims(Array.isArray(claimsData) ? claimsData : []);
       setPolicies(Array.isArray(policiesData) ? policiesData : []);
-      setSummary(summaryData);
+      const byStatus = summaryData?.byStatus || {};
+      setSummary({
+        totalClaims: summaryData?.totalClaims || 0,
+        pendingClaims: (byStatus.submitted || 0) + (byStatus.acknowledged || 0) + (byStatus.under_review || 0) + (byStatus.assessment || 0),
+        approvedClaims: byStatus.approved || 0,
+        totalAmount: 0, // Calculated from individual claims if needed
+      });
       setLoading(false);
     });
   }, []);
@@ -196,13 +202,18 @@ export default function InsuranceClaimsPage() {
   const loadClaimDetail = useCallback((claim: Claim) => {
     setSelectedClaim(claim);
     setDetailTab('notes');
-    setClaimNotes(claim.id ? [
-      { content: 'Claim submitted for review.', author: 'System', isInternal: false, createdAt: claim.dateReported },
-    ] : []);
-    setClaimDocuments([]);
-    setActivityLog(claim.dateReported ? [
-      { action: 'Claim Created', detail: `Claim ${claim.claimNumber} submitted`, createdAt: claim.dateReported },
-    ] : []);
+    if (!claim.id) return;
+    const tid = getTenant();
+    if (!tid) return;
+    Promise.all([
+      authFetch(`/api/tenant/${tid}/claim-notes?claimId=${claim.id}`).then(r => r.json()).catch(() => []),
+      authFetch(`/api/tenant/${tid}/claim-documents?claimId=${claim.id}`).then(r => r.json()).catch(() => []),
+      authFetch(`/api/tenant/${tid}/claim-activities?claimId=${claim.id}`).then(r => r.json()).catch(() => []),
+    ]).then(([notesData, docsData, activitiesData]) => {
+      setClaimNotes(Array.isArray(notesData) ? notesData.map((n: any) => ({ id: n.id, content: n.content, author: n.author, isInternal: n.isInternal, createdAt: n.createdAt })) : []);
+      setClaimDocuments(Array.isArray(docsData) ? docsData.map((d: any) => ({ id: d.id, fileName: d.fileName, fileType: d.fileType, category: d.category, description: d.description, createdAt: d.createdAt })) : []);
+      setActivityLog(Array.isArray(activitiesData) ? activitiesData.map((a: any) => ({ id: a.id, action: a.action, detail: a.description, createdAt: a.createdAt })) : []);
+    });
   }, []);
 
   const openCreate = () => { setEditing(null); setForm({ ...defaultForm }); setShowForm(true); };
@@ -248,31 +259,36 @@ export default function InsuranceClaimsPage() {
     } catch { toast.error(t('common.error', locale)); }
   };
 
-  const handleAddNote = () => {
-    if (!newNote.content.trim()) return;
-    const note: ClaimNote = {
-      content: newNote.content,
-      author: 'Current User',
-      isInternal: newNote.isInternal,
-      createdAt: new Date().toISOString(),
-    };
-    setClaimNotes([...claimNotes, note]);
-    setActivityLog([...activityLog, { action: 'Note Added', detail: newNote.isInternal ? 'Internal note' : 'External note', createdAt: note.createdAt }]);
-    setNewNote({ content: '', isInternal: false });
+  const handleAddNote = async () => {
+    if (!newNote.content.trim() || !selectedClaim?.id) return;
+    const tid = getTenant();
+    try {
+      const res = await authFetch(`/api/tenant/${tid}/claim-notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimId: selectedClaim.id, content: newNote.content, isInternal: newNote.isInternal }),
+      });
+      const saved = await res.json();
+      setClaimNotes([...claimNotes, { id: saved.id, content: saved.content, author: saved.author, isInternal: saved.isInternal, createdAt: saved.createdAt }]);
+      setActivityLog([...activityLog, { action: 'Note Added', detail: newNote.isInternal ? 'Internal note' : 'External note', createdAt: saved.createdAt }]);
+      setNewNote({ content: '', isInternal: false });
+    } catch { toast.error(t('common.error', locale)); }
   };
 
-  const handleAddDocument = () => {
-    if (!newDoc.fileName.trim()) return;
-    const doc: ClaimDocument = {
-      fileName: newDoc.fileName,
-      fileType: newDoc.fileType,
-      category: newDoc.category,
-      description: newDoc.description,
-      createdAt: new Date().toISOString(),
-    };
-    setClaimDocuments([...claimDocuments, doc]);
-    setActivityLog([...activityLog, { action: 'Document Uploaded', detail: newDoc.fileName, createdAt: doc.createdAt }]);
-    setNewDoc({ fileName: '', fileType: '', category: 'report', description: '' });
+  const handleAddDocument = async () => {
+    if (!newDoc.fileName.trim() || !selectedClaim?.id) return;
+    const tid = getTenant();
+    try {
+      const res = await authFetch(`/api/tenant/${tid}/claim-documents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimId: selectedClaim.id, fileName: newDoc.fileName, fileType: newDoc.fileType || 'unknown', category: newDoc.category, description: newDoc.description }),
+      });
+      const saved = await res.json();
+      setClaimDocuments([...claimDocuments, { id: saved.id, fileName: saved.fileName, fileType: saved.fileType, category: saved.category, description: saved.description, createdAt: saved.createdAt }]);
+      setActivityLog([...activityLog, { action: 'Document Uploaded', detail: newDoc.fileName, createdAt: saved.createdAt }]);
+      setNewDoc({ fileName: '', fileType: '', category: 'report', description: '' });
+    } catch { toast.error(t('common.error', locale)); }
   };
 
   const handleKanbanStatusChange = (claim: Claim, newStatus: string) => {
@@ -280,7 +296,7 @@ export default function InsuranceClaimsPage() {
     authFetch(`/api/tenant/${tid}/claims`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: claim.id, status: newStatus }),
+      body: JSON.stringify({ id: claim.id, action: 'update-status', status: newStatus }),
     }).then(() => {
       load();
       toast.success(t('common.updated', locale));
