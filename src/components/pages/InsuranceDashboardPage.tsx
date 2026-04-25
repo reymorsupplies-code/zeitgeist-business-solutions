@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Shield, ClipboardList, DollarSign, RefreshCw, Plus, FileText, KeyRound, BarChart3, TrendingUp, Users, Clock } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -152,7 +153,7 @@ export default function InsuranceDashboardPage() {
         <BarChart3 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
         <p className="text-muted-foreground">No dashboard data available.</p>
         <Button className="mt-4" variant="outline" onClick={load}>
-          <RefreshCw className="w-4 h-4 mr-2" />Retry
+          <RefreshCw className="w-4 h-4 mr-2" />{t('common.retry', locale)}
         </Button>
       </Card>
     );
@@ -167,12 +168,12 @@ export default function InsuranceDashboardPage() {
             <BarChart3 className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Insurance Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Overview of your insurance operations</p>
+            <h1 className="text-2xl font-bold">{t('insurance.dashboard.title', locale)}</h1>
+            <p className="text-sm text-muted-foreground">{t('insurance.dashboard.claimsOverview', locale)}</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={load}>
-          <RefreshCw className="w-4 h-4 mr-2" />Refresh
+          <RefreshCw className="w-4 h-4 mr-2" />{t('common.refresh', locale)}
         </Button>
       </div>
 
@@ -187,7 +188,7 @@ export default function InsuranceDashboardPage() {
             </span>
           </div>
           <div className="text-2xl font-bold">{data.policies.active}</div>
-          <div className="text-xs text-muted-foreground">Active Policies</div>
+          <div className="text-xs text-muted-foreground">{t('insurance.dashboard.activePolicies', locale)}</div>
           <div className="text-xs font-medium text-emerald-600 mt-1">
             {formatCurrency(data.premium.totalCoverage)} coverage
           </div>
@@ -202,7 +203,7 @@ export default function InsuranceDashboardPage() {
             </span>
           </div>
           <div className="text-2xl font-bold">{data.claims.open}</div>
-          <div className="text-xs text-muted-foreground">Open Claims</div>
+          <div className="text-xs text-muted-foreground">{t('insurance.dashboard.openClaims', locale)}</div>
           <div className="text-xs font-medium text-amber-600 mt-1">
             {formatCurrency(data.claims.totalReserves)} reserves
           </div>
@@ -217,7 +218,7 @@ export default function InsuranceDashboardPage() {
             </span>
           </div>
           <div className="text-2xl font-bold">{formatCurrency(data.premium.totalMonthly)}</div>
-          <div className="text-xs text-muted-foreground">Monthly Premium</div>
+          <div className="text-xs text-muted-foreground">{t('insurance.dashboard.monthlyPremium', locale)}</div>
           <div className="text-xs font-medium text-blue-600 mt-1">
             {formatCurrency(data.premium.totalPaid)} paid of {formatCurrency(data.premium.totalDue)}
           </div>
@@ -232,7 +233,7 @@ export default function InsuranceDashboardPage() {
             </span>
           </div>
           <div className="text-2xl font-bold">{data.renewals.upcoming}</div>
-          <div className="text-xs text-muted-foreground">Upcoming Renewals</div>
+          <div className="text-xs text-muted-foreground">{t('insurance.dashboard.upcomingRenewals', locale)}</div>
           <div className="text-xs font-medium text-violet-600 mt-1">
             {data.quotes.pending} pending quotes
           </div>
@@ -245,7 +246,7 @@ export default function InsuranceDashboardPage() {
         <Card className="p-4">
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
             <ClipboardList className="w-4 h-4 text-muted-foreground" />
-            Claims by Status
+            {t('insurance.dashboard.claimsByStatus', locale)}
           </h3>
           {data.claims.byStatus.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No claims data</p>
@@ -285,7 +286,7 @@ export default function InsuranceDashboardPage() {
         <Card className="p-4">
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-muted-foreground" />
-            Monthly Trend (Last 6 Months)
+            {t('insurance.dashboard.monthlyTrend', locale)}
           </h3>
           {data.monthlyTrend.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No trend data</p>
@@ -328,15 +329,15 @@ export default function InsuranceDashboardPage() {
               <div className="flex gap-4 pt-2 border-t">
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
-                  <span className="text-xs text-muted-foreground">Policies</span>
+                  <span className="text-xs text-muted-foreground">{t('tenant.policies', locale)}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-sm bg-amber-500" />
-                  <span className="text-xs text-muted-foreground">Claims</span>
+                  <span className="text-xs text-muted-foreground">{t('tenant.claims', locale)}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-sm bg-blue-500" />
-                  <span className="text-xs text-muted-foreground">Premium Collected</span>
+                  <span className="text-xs text-muted-foreground">{t('insurance.dashboard.premiumCollected', locale)}</span>
                 </div>
               </div>
             </div>
@@ -350,7 +351,7 @@ export default function InsuranceDashboardPage() {
         <Card className="p-4">
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
             <Users className="w-4 h-4 text-muted-foreground" />
-            Top Agents
+            {t('insurance.dashboard.topAgents', locale)}
           </h3>
           {data.agents.top.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No agent data</p>
@@ -386,7 +387,7 @@ export default function InsuranceDashboardPage() {
         <Card className="p-4">
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
             <Shield className="w-4 h-4 text-muted-foreground" />
-            Policies by Type
+            {t('insurance.dashboard.policiesByType', locale)}
           </h3>
           {data.policies.byType.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No policy type data</p>
@@ -418,7 +419,7 @@ export default function InsuranceDashboardPage() {
       <Card className="p-4">
         <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
           <ClipboardList className="w-4 h-4 text-muted-foreground" />
-          Claims Overview
+          {t('insurance.dashboard.claimsOverview', locale)}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Claims by type */}
@@ -450,11 +451,11 @@ export default function InsuranceDashboardPage() {
           <div className="space-y-2">
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Financial</div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Total Reserves</span>
+              <span className="text-sm text-muted-foreground">{t('insurance.dashboard.totalReserves', locale)}</span>
               <span className="text-sm font-semibold text-amber-600">{formatCurrency(data.claims.totalReserves)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Total Settlements</span>
+              <span className="text-sm text-muted-foreground">{t('insurance.dashboard.totalSettlements', locale)}</span>
               <span className="text-sm font-semibold text-emerald-600">{formatCurrency(data.claims.totalSettlements)}</span>
             </div>
           </div>
@@ -465,7 +466,7 @@ export default function InsuranceDashboardPage() {
       <Card className="p-4">
         <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
           <Plus className="w-4 h-4 text-muted-foreground" />
-          Quick Actions
+          {t('insurance.dashboard.quickActions', locale)}
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Button
@@ -474,7 +475,7 @@ export default function InsuranceDashboardPage() {
             onClick={() => navigate('insurance-policies')}
           >
             <Shield className="w-5 h-5 text-emerald-600" />
-            <span className="text-sm font-medium">New Policy</span>
+            <span className="text-sm font-medium">{t('insurance.policy.new', locale)}</span>
           </Button>
           <Button
             variant="outline"
@@ -482,7 +483,7 @@ export default function InsuranceDashboardPage() {
             onClick={() => navigate('insurance-claims')}
           >
             <ClipboardList className="w-5 h-5 text-amber-600" />
-            <span className="text-sm font-medium">File Claim</span>
+            <span className="text-sm font-medium">{t('insurance.claim.new', locale)}</span>
           </Button>
           <Button
             variant="outline"
@@ -490,7 +491,7 @@ export default function InsuranceDashboardPage() {
             onClick={() => navigate('insurance-reports')}
           >
             <FileText className="w-5 h-5 text-blue-600" />
-            <span className="text-sm font-medium">Generate Report</span>
+            <span className="text-sm font-medium">{t('insurance.reports.generate', locale)}</span>
           </Button>
           <Button
             variant="outline"
@@ -498,7 +499,7 @@ export default function InsuranceDashboardPage() {
             onClick={() => navigate('insurance-portal-tokens')}
           >
             <KeyRound className="w-5 h-5 text-violet-600" />
-            <span className="text-sm font-medium">View Portal Tokens</span>
+            <span className="text-sm font-medium">{t('insurance.portal.tokens.title', locale)}</span>
           </Button>
         </div>
       </Card>

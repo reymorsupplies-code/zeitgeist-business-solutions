@@ -6,6 +6,7 @@ import {
   FileText, Download, Plus, Trash2, Edit, ChevronDown, CheckCircle, Clock, Send, AlertCircle, Shield, Users, TrendingUp, BarChart3, RefreshCw,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -608,8 +609,8 @@ export default function InsuranceReportsPage() {
             <FileText className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Insurance Reports</h1>
-            <p className="text-sm text-muted-foreground">Generate operational reports and manage regulatory filings</p>
+            <h1 className="text-2xl font-bold">{t('insurance.reports.title', locale)}</h1>
+            <p className="text-sm text-muted-foreground">{t('insurance.reports.subtitle', locale)}</p>
           </div>
         </div>
       </div>
@@ -618,10 +619,10 @@ export default function InsuranceReportsPage() {
       <Tabs defaultValue="operational" className="space-y-4">
         <TabsList>
           <TabsTrigger value="operational">
-            <BarChart3 className="w-4 h-4 mr-2" />Operational Reports
+            <BarChart3 className="w-4 h-4 mr-2" />{t('insurance.reports.title', locale)}
           </TabsTrigger>
           <TabsTrigger value="regulatory">
-            <Shield className="w-4 h-4 mr-2" />Regulatory Filings
+            <Shield className="w-4 h-4 mr-2" />{t('insurance.reports.regulatoryFilings', locale)}
           </TabsTrigger>
         </TabsList>
 
@@ -649,11 +650,11 @@ export default function InsuranceReportsPage() {
             {currentConfig?.hasDateFilter && (
               <>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Start Date</Label>
+                  <Label className="text-xs text-muted-foreground">{t('insurance.reports.startDate', locale)}</Label>
                   <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-40" />
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">End Date</Label>
+                  <Label className="text-xs text-muted-foreground">{t('insurance.reports.endDate', locale)}</Label>
                   <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-40" />
                 </div>
               </>
@@ -664,7 +665,7 @@ export default function InsuranceReportsPage() {
               ) : (
                 <Download className="w-4 h-4 mr-2" />
               )}
-              Generate Report
+              {t('insurance.reports.generate', locale)}
             </Button>
             {reportData && (
               <span className="text-xs text-muted-foreground self-center pb-1">
@@ -698,7 +699,7 @@ export default function InsuranceReportsPage() {
         <TabsContent value="regulatory" className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold">Regulatory Filings</h3>
+              <h3 className="text-sm font-semibold">{t('insurance.reports.regulatoryFilings', locale)}</h3>
               <p className="text-xs text-muted-foreground">Manage FSC submissions for Trinidad & Tobago</p>
             </div>
             <Button size="sm" onClick={openNewFiling} className="bg-gradient-to-r from-blue-600 to-cyan-500">
@@ -730,7 +731,7 @@ export default function InsuranceReportsPage() {
                       <TableHead>Created</TableHead>
                       <TableHead>Submitted</TableHead>
                       <TableHead>Notes</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
+                      <TableHead className="text-center">{t('common.actions', locale)}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -759,9 +760,9 @@ export default function InsuranceReportsPage() {
                             <Select value={f.status} onValueChange={(v) => handleUpdateFilingStatus(f, v)}>
                               <SelectTrigger className="h-7 w-24 text-xs"><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="draft">Draft</SelectItem>
-                                <SelectItem value="reviewed">Reviewed</SelectItem>
-                                <SelectItem value="submitted">Submitted</SelectItem>
+                                <SelectItem value="draft">{t('insurance.reports.draft', locale)}</SelectItem>
+                                <SelectItem value="reviewed">{t('insurance.reports.reviewed', locale)}</SelectItem>
+                                <SelectItem value="submitted">{t('insurance.reports.submitted', locale)}</SelectItem>
                               </SelectContent>
                             </Select>
                             <Button variant="ghost" size="sm" onClick={() => openEditFiling(f)}>

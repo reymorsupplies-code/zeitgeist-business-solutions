@@ -233,12 +233,12 @@ export default function InsurancePortalTokensPage() {
             <KeyRound className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Portal Tokens</h1>
-            <p className="text-sm text-muted-foreground">Manage portal access tokens for insured persons</p>
+            <h1 className="text-2xl font-bold">{t('insurance.portal.tokens.title', locale)}</h1>
+            <p className="text-sm text-muted-foreground">{t('insurance.portal.tokens.subtitle', locale)}</p>
           </div>
         </div>
         <Button onClick={openGenerate} className="bg-gradient-to-r from-violet-600 to-purple-500">
-          <Plus className="w-4 h-4 mr-2" />Generate Token
+          <Plus className="w-4 h-4 mr-2" />{t('insurance.portal.tokens.generate', locale)}
         </Button>
       </div>
 
@@ -248,28 +248,28 @@ export default function InsurancePortalTokensPage() {
           <Card className="p-4">
             <div className="flex items-center gap-2 mb-1">
               <KeyRound className="w-4 h-4 text-violet-500" />
-              <div className="text-xs text-muted-foreground">Total Tokens</div>
+              <div className="text-xs text-muted-foreground">{t('insurance.portal.tokens.totalTokens', locale)}</div>
             </div>
             <div className="text-2xl font-bold text-violet-600">{summary.totalTokens || 0}</div>
           </Card>
           <Card className="p-4">
             <div className="flex items-center gap-2 mb-1">
               <Shield className="w-4 h-4 text-emerald-500" />
-              <div className="text-xs text-muted-foreground">Active Tokens</div>
+              <div className="text-xs text-muted-foreground">{t('insurance.portal.tokens.active', locale)}</div>
             </div>
             <div className="text-2xl font-bold text-emerald-600">{summary.activeTokens || 0}</div>
           </Card>
           <Card className="p-4">
             <div className="flex items-center gap-2 mb-1">
               <Clock className="w-4 h-4 text-amber-500" />
-              <div className="text-xs text-muted-foreground">Expired Tokens</div>
+              <div className="text-xs text-muted-foreground">{t('insurance.portal.tokens.expired', locale)}</div>
             </div>
             <div className="text-2xl font-bold text-amber-600">{summary.expiredTokens || 0}</div>
           </Card>
           <Card className="p-4">
             <div className="flex items-center gap-2 mb-1">
               <BarChart3 className="w-4 h-4 text-sky-500" />
-              <div className="text-xs text-muted-foreground">Total Uses</div>
+              <div className="text-xs text-muted-foreground">{t('insurance.portal.tokens.totalUses', locale)}</div>
             </div>
             <div className="text-2xl font-bold text-sky-600">{summary.totalUses || 0}</div>
           </Card>
@@ -288,9 +288,9 @@ export default function InsurancePortalTokensPage() {
       {filtered.length === 0 ? (
         <Card className="p-12 text-center">
           <KeyRound className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground">No portal tokens found</p>
+          <p className="text-muted-foreground">{t('common.noData', locale)}</p>
           <Button className="mt-4" variant="outline" onClick={openGenerate}>
-            <Plus className="w-4 h-4 mr-2" />Generate Token
+            <Plus className="w-4 h-4 mr-2" />{t('insurance.portal.tokens.generate', locale)}
           </Button>
         </Card>
       ) : (
@@ -299,14 +299,14 @@ export default function InsurancePortalTokensPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Insured</TableHead>
+                  <TableHead>{t('insurance.insured', locale)}</TableHead>
                   <TableHead>Token</TableHead>
-                  <TableHead>Purpose</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t('insurance.portal.tokens.purpose', locale)}</TableHead>
+                  <TableHead>{t('common.status', locale)}</TableHead>
                   <TableHead>Expires At</TableHead>
-                  <TableHead>Uses</TableHead>
+                  <TableHead>{t('insurance.portal.tokens.totalUses', locale)}</TableHead>
                   <TableHead>Last Used</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
+                  <TableHead className="text-center">{t('common.actions', locale)}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -367,14 +367,14 @@ export default function InsurancePortalTokensPage() {
       <Dialog open={showGenerate} onOpenChange={(open) => { if (!open) { setShowGenerate(false); setGeneratedToken(null); setGeneratedUrl(null); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Generate Portal Token</DialogTitle>
-            <DialogDescription>Create a new access token for an insured person to access the portal.</DialogDescription>
+            <DialogTitle>{t('insurance.portal.tokens.generate', locale)}</DialogTitle>
+            <DialogDescription>{t('insurance.portal.tokens.subtitle', locale)}</DialogDescription>
           </DialogHeader>
 
           {generatedToken ? (
             <div className="space-y-4 mt-2">
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 p-4 space-y-3">
-                <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">Token generated successfully!</p>
+                <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">{t('insurance.portal.tokens.tokenGenerated', locale)}</p>
                 <div>
                   <Label className="text-xs text-muted-foreground">Token</Label>
                   <div className="flex items-center gap-2 mt-1">
@@ -403,9 +403,9 @@ export default function InsurancePortalTokensPage() {
           ) : (
             <div className="space-y-4 mt-2">
               <div>
-                <Label>Insured Person *</Label>
+                <Label>{t('insurance.portal.tokens.selectInsured', locale)} *</Label>
                 <Select value={form.insuredId} onValueChange={v => setForm(f => ({ ...f, insuredId: v }))}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select insured person" /></SelectTrigger>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder={t('insurance.portal.tokens.selectInsured', locale)} /></SelectTrigger>
                   <SelectContent>
                     {insuredList.map((i) => (
                       <SelectItem key={i.id} value={i.id}>{i.firstName} {i.lastName} — {i.email}</SelectItem>
@@ -414,7 +414,7 @@ export default function InsurancePortalTokensPage() {
                 </Select>
               </div>
               <div>
-                <Label>Purpose</Label>
+                <Label>{t('insurance.portal.tokens.purpose', locale)}</Label>
                 <Select value={form.purpose} onValueChange={v => setForm(f => ({ ...f, purpose: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -426,7 +426,7 @@ export default function InsurancePortalTokensPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Expires In</Label>
+                  <Label>{t('insurance.portal.tokens.expiresIn', locale)}</Label>
                   <Select value={form.expiresIn} onValueChange={v => setForm(f => ({ ...f, expiresIn: v }))}>
                     <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -437,7 +437,7 @@ export default function InsurancePortalTokensPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Max Uses</Label>
+                  <Label>{t('insurance.portal.tokens.maxUses', locale)}</Label>
                   <Select value={String(form.maxUses)} onValueChange={v => setForm(f => ({ ...f, maxUses: Number(v) }))}>
                     <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -457,7 +457,7 @@ export default function InsurancePortalTokensPage() {
             </Button>
             {!generatedToken && (
               <Button onClick={handleGenerate} disabled={!form.insuredId || generating} className="bg-gradient-to-r from-violet-600 to-purple-500">
-                {generating ? 'Generating...' : 'Generate Token'}
+                {generating ? t('common.loading', locale) : t('insurance.portal.tokens.generate', locale)}
               </Button>
             )}
           </DialogFooter>

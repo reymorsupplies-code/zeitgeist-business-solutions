@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -176,6 +178,7 @@ const premiumStatusColors: Record<string, string> = {
 
 export default function InsurancePortalPage() {
   // ─── State ───
+  const locale = useAppStore((s) => s.locale);
   const [token, setToken] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
@@ -504,13 +507,13 @@ export default function InsurancePortalPage() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-500 shadow-lg flex items-center justify-center">
                 <Shield className="w-8 h-8 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">Insurance Client Portal</h1>
-              <p className="text-sm text-gray-500 mt-1">Access your policies, claims, and account</p>
+              <h1 className="text-2xl font-bold text-gray-900">{t('insurance.portal.title', locale)}</h1>
+              <p className="text-sm text-gray-500 mt-1">{t('insurance.portal.subtitle', locale)}</p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <Label htmlFor="portal-token">Access Token</Label>
+                <Label htmlFor="portal-token">{t('insurance.portal.enterToken', locale)}</Label>
                 <div className="relative mt-1.5">
                   <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -536,7 +539,7 @@ export default function InsurancePortalPage() {
                 {authenticating ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Authenticating...</>
                 ) : (
-                  <><LogIn className="w-4 h-4 mr-2" />Access Portal</>
+                  <><LogIn className="w-4 h-4 mr-2" />{t('insurance.portal.accessPortal', locale)}</>
                 )}
               </Button>
             </div>
@@ -574,7 +577,7 @@ export default function InsurancePortalPage() {
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">Insurance Client Portal</p>
+                <p className="text-xs text-muted-foreground">{t('insurance.portal.title', locale)}</p>
               </div>
             </div>
 
@@ -587,10 +590,10 @@ export default function InsurancePortalPage() {
           {/* Tab Navigation */}
           <div className="flex gap-1 -mb-px overflow-x-auto">
             {[
-              { key: 'policies', label: 'Policies', icon: Shield },
-              { key: 'claims', label: 'Claims', icon: FileText },
-              { key: 'premiums', label: 'Premiums', icon: CreditCard },
-              { key: 'profile', label: 'My Profile', icon: User },
+              { key: 'policies', label: t('insurance.portal.myPolicies', locale), icon: Shield },
+              { key: 'claims', label: t('insurance.portal.myClaims', locale), icon: FileText },
+              { key: 'premiums', label: t('insurance.portal.myPremiums', locale), icon: CreditCard },
+              { key: 'profile', label: t('insurance.portal.myProfile', locale), icon: User },
             ].map(tab => (
               <button
                 key={tab.key}
@@ -625,13 +628,13 @@ export default function InsurancePortalPage() {
                   <Card className="bg-white rounded-xl border border-gray-200 shadow-sm">
                     <CardContent className="p-4">
                       <div className="text-2xl font-bold text-indigo-600">{policies.length}</div>
-                      <div className="text-xs text-muted-foreground">Total Policies</div>
+                      <div className="text-xs text-muted-foreground">{t('insurance.policies.total', locale)}</div>
                     </CardContent>
                   </Card>
                   <Card className="bg-white rounded-xl border border-gray-200 shadow-sm">
                     <CardContent className="p-4">
                       <div className="text-2xl font-bold text-emerald-600">{activePolicies.length}</div>
-                      <div className="text-xs text-muted-foreground">Active</div>
+                      <div className="text-xs text-muted-foreground">{t('common.active', locale)}</div>
                     </CardContent>
                   </Card>
                   <Card className="bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -652,7 +655,7 @@ export default function InsurancePortalPage() {
                 {policies.length === 0 ? (
                   <Card className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
                     <Shield className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">No policies found.</p>
+                    <p className="text-muted-foreground">{t('insurance.portal.noPolicies', locale)}</p>
                   </Card>
                 ) : (
                   <div className="space-y-3">
@@ -799,7 +802,7 @@ export default function InsurancePortalPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold">Claims</h2>
+                    <h2 className="text-lg font-semibold">{t('insurance.portal.myClaims', locale)}</h2>
                     <p className="text-sm text-muted-foreground">View and manage your insurance claims</p>
                   </div>
                   <Button
@@ -809,7 +812,7 @@ export default function InsurancePortalPage() {
                     }}
                     className="bg-gradient-to-r from-indigo-600 to-blue-500"
                   >
-                    <Plus className="w-4 h-4 mr-2" />File New Claim
+                    <Plus className="w-4 h-4 mr-2" />{t('insurance.portal.fileClaim', locale)}
                   </Button>
                 </div>
 
@@ -817,7 +820,7 @@ export default function InsurancePortalPage() {
                 {claims.length === 0 ? (
                   <Card className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
                     <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">No claims found.</p>
+                    <p className="text-muted-foreground">{t('insurance.portal.noClaims', locale)}</p>
                     <Button className="mt-4" variant="outline" onClick={() => { setClaimForm({ ...claimFormDefaults }); setShowFileClaimDialog(true); }}>
                       <Plus className="w-4 h-4 mr-2" />File Your First Claim
                     </Button>
@@ -884,13 +887,13 @@ export default function InsurancePortalPage() {
                   <Card className="bg-white rounded-xl border border-gray-200 shadow-sm">
                     <CardContent className="p-4">
                       <div className="text-2xl font-bold text-indigo-600">{formatCurrency(totalDue)}</div>
-                      <div className="text-xs text-muted-foreground">Total Due</div>
+                      <div className="text-xs text-muted-foreground">{t('insurance.portal.totalDue', locale)}</div>
                     </CardContent>
                   </Card>
                   <Card className="bg-white rounded-xl border border-gray-200 shadow-sm">
                     <CardContent className="p-4">
                       <div className="text-2xl font-bold text-emerald-600">{formatCurrency(totalPaid)}</div>
-                      <div className="text-xs text-muted-foreground">Total Paid</div>
+                      <div className="text-xs text-muted-foreground">{t('insurance.portal.totalPaid', locale)}</div>
                     </CardContent>
                   </Card>
                   <Card className="bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -898,7 +901,7 @@ export default function InsurancePortalPage() {
                       <div className={`text-2xl font-bold ${outstanding > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                         {formatCurrency(outstanding)}
                       </div>
-                      <div className="text-xs text-muted-foreground">Outstanding</div>
+                      <div className="text-xs text-muted-foreground">{t('insurance.portal.outstanding', locale)}</div>
                     </CardContent>
                   </Card>
                 </div>
@@ -907,7 +910,7 @@ export default function InsurancePortalPage() {
                 {premiums.length === 0 ? (
                   <Card className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
                     <CreditCard className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">No premium schedules found.</p>
+                    <p className="text-muted-foreground">{t('insurance.portal.noPremiums', locale)}</p>
                   </Card>
                 ) : (
                   <Card className="bg-white rounded-xl border border-gray-200 shadow-sm">

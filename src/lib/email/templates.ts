@@ -485,3 +485,478 @@ export function generateReceiptEmail(data: {
     `Receipt ${data.receiptNumber} — Payment confirmed`
   );
 }
+
+// ─── 15. Insurance Claim Acknowledged ──────────────────────
+
+export function insuranceClaimAcknowledged(data: {
+  insuredName: string;
+  claimNumber: string;
+  policyNumber: string;
+  claimType: string;
+  incidentDate: string;
+  assignedTo: string;
+  companyName: string;
+  portalUrl: string;
+}): string {
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#0F1A2E;">Claim Acknowledged 📋</h1>
+      <p>Dear ${data.insuredName},</p>
+      <p>We confirm that your claim has been received and is now being reviewed by our claims team. Your claim has been assigned to <strong>${data.assignedTo}</strong>, who will be your dedicated adjuster throughout the process.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:#F8FAFC;border-radius:8px;border:1px solid #E2E8F0;">
+        <tr><td style="padding:16px 20px;font-size:14px;">
+          <strong style="color:#0F1A2E;">Claim Details</strong><br/><br/>
+          <strong>Claim Number:</strong> ${data.claimNumber}<br/>
+          <strong>Policy Number:</strong> ${data.policyNumber}<br/>
+          <strong>Claim Type:</strong> ${data.claimType}<br/>
+          <strong>Incident Date:</strong> ${data.incidentDate}<br/>
+          <strong>Assigned Adjuster:</strong> ${data.assignedTo}
+        </td></tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#FFFBEB;border-radius:8px;border:1px solid #FDE68A;">
+        <tr><td style="padding:16px 20px;font-size:14px;color:#92400E;">
+          <strong>What happens next?</strong><br/>
+          <ol style="margin:8px 0 0 0;padding-left:20px;">
+            <li style="margin-bottom:4px;">Your adjuster will review the submitted documentation</li>
+            <li style="margin-bottom:4px;">You may be contacted for additional information</li>
+            <li style="margin-bottom:4px;">You will receive a status update within 5 business days</li>
+          </ol>
+        </td></tr>
+      </table>
+      <p>If you have any questions, please don't hesitate to contact your adjuster or visit your portal.</p>
+    `)}
+    ${button('View Claim in Portal', data.portalUrl)}
+    ${footer()}`,
+    `Claim ${data.claimNumber} acknowledged by ${data.companyName}`
+  );
+}
+
+// ─── 16. Insurance Claim Status Update ────────────────────
+
+export function insuranceClaimStatusUpdate(data: {
+  insuredName: string;
+  claimNumber: string;
+  newStatus: string;
+  statusDescription: string;
+  nextSteps: string;
+  companyName: string;
+  portalUrl: string;
+}): string {
+  const statusColor = ['approved', 'settled', 'complete'].some(s => data.newStatus.toLowerCase().includes(s)) ? '#16A34A'
+    : ['denied', 'rejected', 'closed'].some(s => data.newStatus.toLowerCase().includes(s)) ? '#DC2626'
+    : '#B45309';
+  const statusBg = statusColor === '#16A34A' ? '#F0FDF4' : statusColor === '#DC2626' ? '#FEF2F2' : '#FFFBEB';
+  const statusBorder = statusColor === '#16A34A' ? '#BBF7D0' : statusColor === '#DC2626' ? '#FECACA' : '#FDE68A';
+  const statusTextColor = statusColor === '#16A34A' ? '#166534' : statusColor === '#DC2626' ? '#991B1B' : '#92400E';
+
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#0F1A2E;">Claim Status Update</h1>
+      <p>Dear ${data.insuredName},</p>
+      <p>Your claim <strong>${data.claimNumber}</strong> has been updated.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:${statusBg};border-radius:8px;border:1px solid ${statusBorder};">
+        <tr><td style="padding:16px 20px;font-size:14px;color:${statusTextColor};">
+          <strong style="font-size:16px;">New Status: ${data.newStatus}</strong><br/><br/>
+          ${data.statusDescription}
+        </td></tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#F8FAFC;border-radius:8px;border:1px solid #E2E8F0;">
+        <tr><td style="padding:16px 20px;font-size:14px;">
+          <strong style="color:#0F1A2E;">Next Steps</strong><br/><br/>
+          ${data.nextSteps.replace(/\n/g, '<br/>')}
+        </td></tr>
+      </table>
+      <p>You can monitor the progress of your claim at any time through your online portal.</p>
+    `)}
+    ${button('View Claim in Portal', data.portalUrl)}
+    ${footer()}`,
+    `Claim ${data.claimNumber} updated: ${data.newStatus}`
+  );
+}
+
+// ─── 17. Insurance Claim Settlement ───────────────────────
+
+export function insuranceClaimSettlement(data: {
+  insuredName: string;
+  claimNumber: string;
+  settlementAmount: string;
+  currency: string;
+  paymentMethod: string;
+  paymentDate: string;
+  companyName: string;
+}): string {
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#16A34A;">Claim Settled ✅</h1>
+      <p>Dear ${data.insuredName},</p>
+      <p>We are pleased to inform you that your claim <strong>${data.claimNumber}</strong> has been settled. Payment has been processed and will be disbursed as detailed below.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;border-radius:8px;overflow:hidden;border:1px solid #E2E8F0;">
+        <tr style="background:#F0FDF4;border-bottom:2px solid #16A34A;">
+          <td style="padding:16px 20px;font-size:14px;color:#166534;">
+            <strong>✅ Settlement Approved</strong><br/>
+            <span style="font-size:12px;">Claim #${data.claimNumber}</span>
+          </td>
+          <td style="padding:16px 20px;font-size:20px;font-weight:800;color:#166534;text-align:right;">${data.currency}${data.settlementAmount}</td>
+        </tr>
+        <tr>
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Claim Number</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#0F1A2E;text-align:right;">${data.claimNumber}</td>
+        </tr>
+        <tr style="background:#F8FAFC;border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Payment Method</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#0F1A2E;text-align:right;">${data.paymentMethod}</td>
+        </tr>
+        <tr style="border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Expected Payment Date</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#16A34A;text-align:right;">${data.paymentDate}</td>
+        </tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#F0FDF4;border-radius:8px;border:1px solid #BBF7D0;">
+        <tr><td style="padding:16px 20px;font-size:14px;color:#166534;">
+          <strong>Please note:</strong> Payment processing times may vary depending on your financial institution. If you do not receive your settlement within 10 business days of the expected date, please contact our claims department.
+        </td></tr>
+      </table>
+      <p>Thank you for your patience throughout this process. We appreciate your trust in ${data.companyName}.</p>
+    `)}
+    ${footer()}`,
+    `Claim ${data.claimNumber} settled — ${data.currency}${data.settlementAmount}`
+  );
+}
+
+// ─── 18. Insurance Policy Renewal ─────────────────────────
+
+export function insurancePolicyRenewal(data: {
+  insuredName: string;
+  policyNumber: string;
+  policyType: string;
+  currentExpiry: string;
+  renewalPremium: string;
+  currency: string;
+  coverage: string;
+  companyName: string;
+  portalUrl: string;
+}): string {
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#B45309;">Policy Renewal Reminder ⏰</h1>
+      <p>Dear ${data.insuredName},</p>
+      <p>Your <strong>${data.policyType}</strong> policy is approaching its expiry date. To ensure uninterrupted coverage, please review your renewal details below and take action before <strong style="color:#DC2626;">${data.currentExpiry}</strong>.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;border-radius:8px;overflow:hidden;border:1px solid #E2E8F0;">
+        <tr style="background:#0F1A2E;">
+          <td style="padding:14px 20px;font-size:13px;font-weight:600;color:#D4A843;">Policy Number</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:700;color:#FFFFFF;text-align:right;">${data.policyNumber}</td>
+        </tr>
+        <tr style="border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Policy Type</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#0F1A2E;text-align:right;">${data.policyType}</td>
+        </tr>
+        <tr style="background:#F8FAFC;border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Current Expiry</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#DC2626;text-align:right;">${data.currentExpiry}</td>
+        </tr>
+        <tr style="border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Renewal Premium</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:700;color:#1D4ED8;text-align:right;">${data.currency}${data.renewalPremium}</td>
+        </tr>
+        <tr style="background:#F8FAFC;border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Coverage</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#0F1A2E;text-align:right;">${data.coverage}</td>
+        </tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#FFFBEB;border-radius:8px;border:1px solid #FDE68A;">
+        <tr><td style="padding:16px 20px;font-size:14px;color:#92400E;">
+          <strong>Important:</strong> If your policy lapses, you may experience a gap in coverage. Any claims arising during a lapse period will not be covered. Renew early to avoid disruption.
+        </td></tr>
+      </table>
+      <p>Log in to your portal to review your renewal offer, update your details, or make your renewal payment.</p>
+    `)}
+    ${button('Renew Policy', data.portalUrl, '#B45309')}
+    ${footer()}`,
+    `Policy ${data.policyNumber} expires on ${data.currentExpiry} — Renew now`
+  );
+}
+
+// ─── 19. Insurance Quote Sent ─────────────────────────────
+
+export function insuranceQuoteSent(data: {
+  insuredName: string;
+  quoteNumber: string;
+  productName: string;
+  quotedPremium: string;
+  currency: string;
+  quotedCoverage: string;
+  validUntil: string;
+  companyName: string;
+}): string {
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#0F1A2E;">Your Insurance Quote 📄</h1>
+      <p>Dear ${data.insuredName},</p>
+      <p>Thank you for your interest in ${data.companyName}. We have prepared your personalised quote for <strong>${data.productName}</strong> coverage.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;border-radius:8px;overflow:hidden;border:1px solid #E2E8F0;">
+        <tr style="background:#0F1A2E;">
+          <td style="padding:14px 20px;font-size:13px;font-weight:600;color:#D4A843;">Quote Number</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:700;color:#FFFFFF;text-align:right;">${data.quoteNumber}</td>
+        </tr>
+        <tr style="border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Product</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#0F1A2E;text-align:right;">${data.productName}</td>
+        </tr>
+        <tr style="background:#F8FAFC;border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Quoted Coverage</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#1D4ED8;text-align:right;">${data.quotedCoverage}</td>
+        </tr>
+        <tr style="border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Annual Premium</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#0F1A2E;text-align:right;">${data.currency}${data.quotedPremium}</td>
+        </tr>
+        <tr style="background:#F8FAFC;border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Valid Until</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#B45309;text-align:right;">${data.validUntil}</td>
+        </tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#F0FDF4;border-radius:8px;border:1px solid #BBF7D0;">
+        <tr><td style="padding:16px 20px;font-size:14px;color:#166534;">
+          <strong>What's included?</strong><br/>
+          This quote includes standard coverages and benefits for the selected product. Optional add-ons and endorsements are available upon request — speak with your advisor to customise your plan.
+        </td></tr>
+      </table>
+      <p>This quote is valid until <strong style="color:#B45309;">${data.validUntil}</strong>. Premiums may change after this date based on updated risk assessment.</p>
+    `)}
+    ${footer()}`,
+    `Quote ${data.quoteNumber} for ${data.productName} — ${data.currency}${data.quotedPremium}`
+  );
+}
+
+// ─── 20. Insurance Portal Welcome ─────────────────────────
+
+export function insurancePortalWelcome(data: {
+  insuredName: string;
+  portalUrl: string;
+  companyName: string;
+}): string {
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#0F1A2E;">Welcome to Your Insurance Portal 🛡️</h1>
+      <p>Dear ${data.insuredName},</p>
+      <p>${data.companyName} has set up your personalised insurance portal. This secure online platform gives you 24/7 access to manage your policies, track claims, and stay on top of important deadlines.</p>
+      <p>Here is what you can do from your portal:</p>
+      <ul style="padding-left:20px;margin:16px 0;">
+        <li style="margin-bottom:8px;"><strong>View Policies</strong> — See all active policies, coverage details, and renewal dates.</li>
+        <li style="margin-bottom:8px;"><strong>Track Claims</strong> — Monitor the progress of your claims in real time.</li>
+        <li style="margin-bottom:8px;"><strong>Make Payments</strong> — Pay premiums securely online.</li>
+        <li style="margin-bottom:8px;"><strong>Download Documents</strong> — Access certificates, policy documents, and receipts.</li>
+        <li style="margin-bottom:8px;"><strong>Update Information</strong> — Keep your contact and coverage details current.</li>
+      </ul>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:#F0FDF4;border-radius:8px;border:1px solid #BBF7D0;">
+        <tr><td style="padding:16px 20px;font-size:14px;color:#166534;">
+          <strong>🔒 Secure Access:</strong> This portal link is unique to you. Do not share it with others. If you did not request this access, please contact us immediately.
+        </td></tr>
+      </table>
+    `)}
+    ${button('Access Your Portal', data.portalUrl)}
+    ${footer()}`,
+    `Access your ${data.companyName} insurance portal`
+  );
+}
+
+// ─── 21. Insurance Premium Due ────────────────────────────
+
+export function insurancePremiumDue(data: {
+  insuredName: string;
+  policyNumber: string;
+  amount: string;
+  currency: string;
+  dueDate: string;
+  companyName: string;
+  portalUrl: string;
+}): string {
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#B45309;">Premium Payment Reminder 💳</h1>
+      <p>Dear ${data.insuredName},</p>
+      <p>This is a reminder that your insurance premium is coming due. Timely payment ensures your coverage remains active and uninterrupted.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;border-radius:8px;overflow:hidden;border:1px solid #E2E8F0;">
+        <tr style="background:#0F1A2E;">
+          <td style="padding:14px 20px;font-size:13px;font-weight:600;color:#D4A843;">Policy Number</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:700;color:#FFFFFF;text-align:right;">${data.policyNumber}</td>
+        </tr>
+        <tr style="border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Premium Due</td>
+          <td style="padding:14px 20px;font-size:16px;font-weight:700;color:#0F1A2E;text-align:right;">${data.currency}${data.amount}</td>
+        </tr>
+        <tr style="background:#F8FAFC;border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Due Date</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#DC2626;text-align:right;">${data.dueDate}</td>
+        </tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#FEF2F2;border-radius:8px;border:1px solid #FECACA;">
+        <tr><td style="padding:16px 20px;font-size:14px;color:#991B1B;">
+          <strong>⚠️ Please pay on or before the due date.</strong> Late payments may result in a lapse of coverage. If your policy lapses, any claims during the lapse period will not be covered, and reinstatement may require additional documentation or underwriting review.
+        </td></tr>
+      </table>
+      <p>Log in to your portal to make a secure payment, set up auto-pay, or view your billing history.</p>
+    `)}
+    ${button('Pay Now', data.portalUrl, '#B45309')}
+    ${footer()}`,
+    `Premium of ${data.currency}${data.amount} due on ${data.dueDate}`
+  );
+}
+
+// ─── 22. Insurance New Policy ─────────────────────────────
+
+export function insuranceNewPolicy(data: {
+  insuredName: string;
+  policyNumber: string;
+  policyType: string;
+  premium: string;
+  currency: string;
+  coverage: string;
+  startDate: string;
+  endDate: string;
+  companyName: string;
+  portalUrl: string;
+}): string {
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#16A34A;">Your Policy Is Active! 🎉</h1>
+      <p>Dear ${data.insuredName},</p>
+      <p>Congratulations! Your <strong>${data.policyType}</strong> policy has been issued by ${data.companyName}. Your coverage is now active. Please review your policy details below and keep this email for your records.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;border-radius:8px;overflow:hidden;border:1px solid #E2E8F0;">
+        <tr style="background:#0F1A2E;">
+          <td style="padding:14px 20px;font-size:13px;font-weight:600;color:#D4A843;">Policy Number</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:700;color:#FFFFFF;text-align:right;">${data.policyNumber}</td>
+        </tr>
+        <tr style="border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Policy Type</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#0F1A2E;text-align:right;">${data.policyType}</td>
+        </tr>
+        <tr style="background:#F8FAFC;border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Coverage</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#1D4ED8;text-align:right;">${data.coverage}</td>
+        </tr>
+        <tr style="border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Annual Premium</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#0F1A2E;text-align:right;">${data.currency}${data.premium}</td>
+        </tr>
+        <tr style="background:#F8FAFC;border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Effective Date</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#16A34A;text-align:right;">${data.startDate}</td>
+        </tr>
+        <tr style="border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Expiry Date</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#0F1A2E;text-align:right;">${data.endDate}</td>
+        </tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#F0FDF4;border-radius:8px;border:1px solid #BBF7D0;">
+        <tr><td style="padding:16px 20px;font-size:14px;color:#166534;">
+          <strong>Welcome aboard!</strong> Log in to your portal to download your policy documents, set up auto-pay, and explore additional coverage options.
+        </td></tr>
+      </table>
+      <p>Thank you for choosing ${data.companyName}. We are committed to protecting what matters most to you.</p>
+    `)}
+    ${button('View Your Policy', data.portalUrl)}
+    ${footer()}`,
+    `Your ${data.policyType} policy ${data.policyNumber} is now active`
+  );
+}
+
+// ─── 23. Insurance Document Request ───────────────────────
+
+export function insuranceDocumentRequest(data: {
+  insuredName: string;
+  claimNumber: string;
+  documentTypes: string;
+  companyName: string;
+  portalUrl: string;
+}): string {
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#0F1A2E;">Documents Required 📎</h1>
+      <p>Dear ${data.insuredName},</p>
+      <p>As part of the assessment for your claim <strong>${data.claimNumber}</strong>, our underwriting team requires additional documentation to proceed with the evaluation.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:#FFFBEB;border-radius:8px;border:1px solid #FDE68A;">
+        <tr><td style="padding:16px 20px;font-size:14px;color:#92400E;">
+          <strong style="color:#0F1A2E;font-size:15px;">Requested Documents</strong><br/><br/>
+          ${data.documentTypes.replace(/\n/g, '<br/>')}
+        </td></tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#F8FAFC;border-radius:8px;border:1px solid #E2E8F0;">
+        <tr><td style="padding:16px 20px;font-size:14px;">
+          <strong style="color:#0F1A2E;">Upload Instructions</strong><br/><br/>
+          <ol style="margin:8px 0 0 0;padding-left:20px;">
+            <li style="margin-bottom:4px;">Log in to your insurance portal</li>
+            <li style="margin-bottom:4px;">Navigate to the Documents section for claim ${data.claimNumber}</li>
+            <li style="margin-bottom:4px;">Upload clear, legible copies of each requested document</li>
+            <li style="margin-bottom:4px;">Accepted formats: PDF, JPG, PNG (max 10MB each)</li>
+          </ol>
+        </td></tr>
+      </table>
+      <p><strong style="color:#B45309;">Please submit the requested documents within 10 business days</strong> to avoid delays in processing your claim. If you have any questions about the requirements, contact our underwriting team.</p>
+    `)}
+    ${button('Upload Documents', data.portalUrl, '#B45309')}
+    ${footer()}`,
+    `Action required: Documents needed for claim ${data.claimNumber}`
+  );
+}
+
+// ─── 24. Insurance Agent Commission ───────────────────────
+
+export function insuranceAgentCommission(data: {
+  agentName: string;
+  statementNumber: string;
+  periodStart: string;
+  periodEnd: string;
+  totalCommission: string;
+  currency: string;
+  policiesCount: number;
+  companyName: string;
+}): string {
+  return baseWrapper(
+    `${header()}
+    ${section(`
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#0F1A2E;">Commission Statement 💰</h1>
+      <p>Hi ${data.agentName},</p>
+      <p>Your commission statement for the period <strong>${data.periodStart}</strong> to <strong>${data.periodEnd}</strong> is now available. Please review the summary below.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;border-radius:8px;overflow:hidden;border:1px solid #E2E8F0;">
+        <tr style="background:#F0FDF4;border-bottom:2px solid #16A34A;">
+          <td style="padding:16px 20px;font-size:14px;color:#166534;">
+            <strong>Total Commission Earned</strong><br/>
+            <span style="font-size:12px;">Statement #${data.statementNumber}</span>
+          </td>
+          <td style="padding:16px 20px;font-size:20px;font-weight:800;color:#166534;text-align:right;">${data.currency}${data.totalCommission}</td>
+        </tr>
+        <tr>
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Statement Number</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#0F1A2E;text-align:right;">${data.statementNumber}</td>
+        </tr>
+        <tr style="background:#F8FAFC;border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Period</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#0F1A2E;text-align:right;">${data.periodStart} — ${data.periodEnd}</td>
+        </tr>
+        <tr style="border-top:1px solid #E2E8F0;">
+          <td style="padding:14px 20px;font-size:14px;color:#334155;">Policies Written</td>
+          <td style="padding:14px 20px;font-size:14px;font-weight:600;color:#1D4ED8;text-align:right;">${data.policiesCount}</td>
+        </tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#F8FAFC;border-radius:8px;border:1px solid #E2E8F0;">
+        <tr><td style="padding:16px 20px;font-size:14px;color:#334155;">
+          <strong style="color:#0F1A2E;">Disbursement Details</strong><br/><br/>
+          Commission payments are processed on the 15th of each month for the preceding period. Your payment will be deposited directly into your registered bank account. If you have changed your banking details, please update them in your agent portal before the next disbursement date.
+        </td></tr>
+      </table>
+      <p>For a detailed breakdown of your commissions by policy, please refer to the full statement in your agent portal. If you have any discrepancies, contact our finance team within 30 days.</p>
+    `)}
+    ${footer()}`,
+    `Commission statement ${data.statementNumber}: ${data.currency}${data.totalCommission} earned`
+  );
+}
