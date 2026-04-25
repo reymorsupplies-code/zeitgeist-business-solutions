@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { ClipboardList, Search, Plus, Edit, Trash2 } from 'lucide-react';
+import { ClipboardList, Search, Plus, Edit, Trash2, Columns, List, FileText, Clock, AlertCircle, Upload, MessageSquare, ChevronLeft } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
@@ -21,16 +21,47 @@ interface Claim {
   claimNumber: string;
   claimantName: string;
   type: string;
+  priority: string;
   amount: string;
+  reserveAmount: string;
+  settlementAmount: string;
   status: string;
   incidentDate: string;
+  dateReported: string;
+  assignedTo: string;
   description: string;
+  location: string;
+  policeReportNumber: string;
 }
 
 interface PolicyOption {
   id: string;
   policyNumber: string;
   clientName: string;
+}
+
+interface ClaimNote {
+  id?: string;
+  content: string;
+  author: string;
+  isInternal: boolean;
+  createdAt?: string;
+}
+
+interface ClaimDocument {
+  id?: string;
+  fileName: string;
+  fileType: string;
+  category: string;
+  description: string;
+  createdAt?: string;
+}
+
+interface ActivityEntry {
+  id?: string;
+  action: string;
+  detail: string;
+  createdAt?: string;
 }
 
 interface ClaimSummary {
@@ -59,28 +90,67 @@ const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString();
 };
 
+const getDaysSince = (dateStr: string) => {
+  if (!dateStr) return 0;
+  const diff = Date.now() - new Date(dateStr).getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+};
+
+const KANBAN_COLUMNS = ['submitted', 'acknowledged', 'under_review', 'assessment', 'approved', 'denied', 'settled', 'closed'];
+
 const statusColors: Record<string, string> = {
   submitted: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  acknowledged: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400',
   under_review: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+  assessment: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
   approved: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
   denied: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-  paid: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  settled: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  closed: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
+  partially_settled: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',
+};
+
+const priorityColors: Record<string, string> = {
+  low: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
+  medium: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  high: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  critical: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
 };
 
 export default function InsuranceClaimsPage() {
   const locale = useAppStore((s) => s.locale);
+
   const typeLabels: Record<string, string> = {
     death: t('insurance.claim.type.death', locale),
     health: t('insurance.claim.type.health', locale),
     auto: t('insurance.claim.type.auto', locale),
+    property: t('insurance.claim.type.property', locale),
+    travel: t('insurance.claim.type.travel', locale),
+    liability: t('insurance.claim.type.liability', locale),
+    fire: t('insurance.claim.type.fire', locale),
+    marine: t('insurance.claim.type.marine', locale),
+    other: t('insurance.type.other', locale),
   };
+
   const statusLabels: Record<string, string> = {
     submitted: t('insurance.claim.status.submitted', locale),
-    'Under Review': t('insurance.claim.status.underReview', locale),
+    acknowledged: t('insurance.claim.acknowledged', locale),
+    under_review: t('insurance.claim.status.underReview', locale),
+    assessment: t('insurance.claim.assessment', locale),
     approved: t('common.approved', locale),
     denied: t('common.rejected', locale),
-    paid: t('common.paid', locale),
+    settled: t('insurance.claim.settled', locale),
+    partially_settled: t('insurance.claim.partially_settled', locale),
+    closed: t('insurance.claim.closed', locale),
   };
+
+  const priorityLabels: Record<string, string> = {
+    low: t('insurance.priority.low', locale),
+    medium: t('insurance.priority.medium', locale),
+    high: t('insurance.priority.high', locale),
+    critical: t('insurance.priority.critical', locale),
+  };
+
   const [claims, setClaims] = useState<Claim[]>([]);
   const [policies, setPolicies] = useState<PolicyOption[]>([]);
   const [summary, setSummary] = useState<ClaimSummary | null>(null);
@@ -88,10 +158,21 @@ export default function InsuranceClaimsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Claim | null>(null);
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
+
+  // Detail panel
+  const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
+  const [detailTab, setDetailTab] = useState<'notes' | 'documents' | 'activity'>('notes');
+  const [claimNotes, setClaimNotes] = useState<ClaimNote[]>([]);
+  const [claimDocuments, setClaimDocuments] = useState<ClaimDocument[]>([]);
+  const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
+  const [newNote, setNewNote] = useState({ content: '', isInternal: false });
+  const [newDoc, setNewDoc] = useState({ fileName: '', fileType: '', category: 'report', description: '' });
 
   const defaultForm = {
-    policyId: '', claimNumber: '', claimantName: '', type: 'health',
-    amount: '', status: 'submitted', incidentDate: '', description: '',
+    policyId: '', claimNumber: '', claimantName: '', type: 'health', priority: 'medium',
+    amount: '', reserveAmount: '', status: 'submitted', incidentDate: '', dateReported: '',
+    assignedTo: '', description: '', location: '', policeReportNumber: '',
   };
   const [form, setForm] = useState({ ...defaultForm });
 
@@ -112,18 +193,30 @@ export default function InsuranceClaimsPage() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  const loadClaimDetail = useCallback((claim: Claim) => {
+    setSelectedClaim(claim);
+    setDetailTab('notes');
+    setClaimNotes(claim.id ? [
+      { content: 'Claim submitted for review.', author: 'System', isInternal: false, createdAt: claim.dateReported },
+    ] : []);
+    setClaimDocuments([]);
+    setActivityLog(claim.dateReported ? [
+      { action: 'Claim Created', detail: `Claim ${claim.claimNumber} submitted`, createdAt: claim.dateReported },
+    ] : []);
+  }, []);
+
   const openCreate = () => { setEditing(null); setForm({ ...defaultForm }); setShowForm(true); };
   const openEdit = (row: Claim) => {
     setEditing(row);
     setForm({
-      policyId: row.policyId || '',
-      claimNumber: row.claimNumber || '',
-      claimantName: row.claimantName || '',
-      type: row.type || 'health',
-      amount: row.amount || '',
-      status: row.status || 'submitted',
+      policyId: row.policyId || '', claimNumber: row.claimNumber || '',
+      claimantName: row.claimantName || '', type: row.type || 'health',
+      priority: row.priority || 'medium', amount: row.amount || '',
+      reserveAmount: row.reserveAmount || '', status: row.status || 'submitted',
       incidentDate: row.incidentDate?.slice(0, 10) || '',
-      description: row.description || '',
+      dateReported: row.dateReported?.slice(0, 10) || '',
+      assignedTo: row.assignedTo || '', description: row.description || '',
+      location: row.location || '', policeReportNumber: row.policeReportNumber || '',
     });
     setShowForm(true);
   };
@@ -143,7 +236,7 @@ export default function InsuranceClaimsPage() {
   };
 
   const handleDelete = async (row: Claim) => {
-    if (!confirm('Delete this claim?')) return;
+    if (!confirm(t('common.confirmDelete', locale))) return;
     const tid = getTenant();
     try {
       await authFetch(`/api/tenant/${tid}/claims`, {
@@ -151,8 +244,47 @@ export default function InsuranceClaimsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: row.id }),
       });
-      load(); toast.success('Claim deleted');
-    } catch { toast.error('Failed to delete claim'); }
+      load(); toast.success(t('common.deleted', locale));
+    } catch { toast.error(t('common.error', locale)); }
+  };
+
+  const handleAddNote = () => {
+    if (!newNote.content.trim()) return;
+    const note: ClaimNote = {
+      content: newNote.content,
+      author: 'Current User',
+      isInternal: newNote.isInternal,
+      createdAt: new Date().toISOString(),
+    };
+    setClaimNotes([...claimNotes, note]);
+    setActivityLog([...activityLog, { action: 'Note Added', detail: newNote.isInternal ? 'Internal note' : 'External note', createdAt: note.createdAt }]);
+    setNewNote({ content: '', isInternal: false });
+  };
+
+  const handleAddDocument = () => {
+    if (!newDoc.fileName.trim()) return;
+    const doc: ClaimDocument = {
+      fileName: newDoc.fileName,
+      fileType: newDoc.fileType,
+      category: newDoc.category,
+      description: newDoc.description,
+      createdAt: new Date().toISOString(),
+    };
+    setClaimDocuments([...claimDocuments, doc]);
+    setActivityLog([...activityLog, { action: 'Document Uploaded', detail: newDoc.fileName, createdAt: doc.createdAt }]);
+    setNewDoc({ fileName: '', fileType: '', category: 'report', description: '' });
+  };
+
+  const handleKanbanStatusChange = (claim: Claim, newStatus: string) => {
+    const tid = getTenant();
+    authFetch(`/api/tenant/${tid}/claims`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: claim.id, status: newStatus }),
+    }).then(() => {
+      load();
+      toast.success(t('common.updated', locale));
+    }).catch(() => toast.error(t('common.error', locale)));
   };
 
   const getPolicyLabel = (policyId: string) => {
@@ -177,17 +309,25 @@ export default function InsuranceClaimsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-500 shadow-lg">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-500 shadow-lg">
             <ClipboardList className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">{t('tenant.claims', locale)}</h1>
-            <p className="text-sm text-muted-foreground">Process and manage insurance claims</p>
+            <h1 className="text-2xl font-bold">{t('insurance.claims.title', locale)}</h1>
+            <p className="text-sm text-muted-foreground">{t('insurance.claims.subtitle', locale)}</p>
           </div>
         </div>
-        <Button onClick={openCreate} className="bg-gradient-to-r from-indigo-600 to-indigo-500">
-          <Plus className="w-4 h-4 mr-2" />New Claim
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant={viewMode === 'kanban' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('kanban')}>
+            <Columns className="w-4 h-4 mr-1" />{t('insurance.claim.kanban', locale)}
+          </Button>
+          <Button variant={viewMode === 'table' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('table')}>
+            <List className="w-4 h-4 mr-1" />{t('insurance.claim.tableView', locale)}
+          </Button>
+          <Button onClick={openCreate} className="bg-gradient-to-r from-indigo-600 to-blue-500">
+            <Plus className="w-4 h-4 mr-2" />{t('insurance.claim.new', locale)}
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -195,19 +335,19 @@ export default function InsuranceClaimsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="p-4">
             <div className="text-2xl font-bold text-indigo-600">{summary.totalClaims || 0}</div>
-            <div className="text-xs text-muted-foreground">Total Claims</div>
+            <div className="text-xs text-muted-foreground">{t('insurance.claims.total', locale)}</div>
           </Card>
           <Card className="p-4">
             <div className="text-2xl font-bold text-amber-600">{summary.pendingClaims || 0}</div>
-            <div className="text-xs text-muted-foreground">Pending</div>
+            <div className="text-xs text-muted-foreground">{t('insurance.claims.pending', locale)}</div>
           </Card>
           <Card className="p-4">
             <div className="text-2xl font-bold text-emerald-600">{summary.approvedClaims || 0}</div>
-            <div className="text-xs text-muted-foreground">Approved</div>
+            <div className="text-xs text-muted-foreground">{t('insurance.claims.approved', locale)}</div>
           </Card>
           <Card className="p-4">
             <div className="text-2xl font-bold text-violet-600">{formatCurrency(summary.totalAmount || 0)}</div>
-            <div className="text-xs text-muted-foreground">Total Amount</div>
+            <div className="text-xs text-muted-foreground">{t('insurance.claims.totalAmount', locale)}</div>
           </Card>
         </div>
       )}
@@ -220,13 +360,70 @@ export default function InsuranceClaimsPage() {
         </div>
       </div>
 
-      {/* Table */}
-      {filtered.length === 0 ? (
+      {/* ═══ KANBAN VIEW ═══ */}
+      {viewMode === 'kanban' && (
+        <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: '400px' }}>
+          {KANBAN_COLUMNS.map((col) => {
+            const colClaims = filtered.filter(c => c.status === col);
+            return (
+              <div key={col} className="min-w-[250px] flex-1 flex flex-col">
+                <div className="flex items-center gap-2 mb-3">
+                  <Badge className={statusColors[col] || ''}>{statusLabels[col] || col}</Badge>
+                  <span className="text-xs text-muted-foreground">({colClaims.length})</span>
+                </div>
+                <div className="flex-1 space-y-2">
+                  {colClaims.map((claim) => (
+                    <Card
+                      key={claim.id}
+                      className="p-3 cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => loadClaimDetail(claim)}
+                    >
+                      <div className="font-mono text-sm font-medium mb-1">{claim.claimNumber}</div>
+                      <div className="text-sm mb-2">{claim.claimantName}</div>
+                      <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                        <Badge variant="secondary" className="text-xs">{typeLabels[claim.type] || claim.type}</Badge>
+                        <Badge className={`${priorityColors[claim.priority] || ''} text-xs`}>
+                          {claim.priority}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{formatCurrency(claim.amount)}</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {getDaysSince(claim.dateReported)}d
+                        </span>
+                      </div>
+                      <div className="mt-2 pt-2 border-t">
+                        <Select value={claim.status} onValueChange={v => handleKanbanStatusChange(claim, v)}>
+                          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {KANBAN_COLUMNS.map(s => (
+                              <SelectItem key={s} value={s}>{statusLabels[s] || s}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </Card>
+                  ))}
+                  {colClaims.length === 0 && (
+                    <div className="text-center text-xs text-muted-foreground py-8 border border-dashed rounded-lg">
+                      —
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ═══ TABLE VIEW ═══ */}
+      {viewMode === 'table' && (filtered.length === 0 ? (
         <Card className="p-12 text-center">
           <ClipboardList className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground">No claims found.</p>
+          <p className="text-muted-foreground">{t('insurance.claim.noClaims', locale)}</p>
           <Button className="mt-4" variant="outline" onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-2" />Create First Claim
+            <Plus className="w-4 h-4 mr-2" />{t('insurance.claim.createFirst', locale)}
           </Button>
         </Card>
       ) : (
@@ -237,29 +434,41 @@ export default function InsuranceClaimsPage() {
                 <TableRow>
                   <TableHead>Claim #</TableHead>
                   <TableHead>Claimant</TableHead>
+                  <TableHead>{t('tenant.policies', locale)} #</TableHead>
                   <TableHead>{t('common.type', locale)}</TableHead>
+                  <TableHead>{t('insurance.claim.priority', locale)}</TableHead>
                   <TableHead>{t('common.amount', locale)}</TableHead>
+                  <TableHead>{t('insurance.claim.reserve', locale)}</TableHead>
                   <TableHead>{t('common.status', locale)}</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead>{t('insurance.claim.assignedTo', locale)}</TableHead>
+                  <TableHead>{t('insurance.claim.daysOpen', locale)}</TableHead>
                   <TableHead className="text-center">{t('common.actions', locale)}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((c) => (
-                  <TableRow key={c.id}>
+                  <TableRow key={c.id} className="cursor-pointer" onClick={() => loadClaimDetail(c)}>
                     <TableCell className="font-medium">{c.claimNumber}</TableCell>
                     <TableCell>{c.claimantName}</TableCell>
+                    <TableCell className="text-sm font-mono">{getPolicyLabel(c.policyId).split(' — ')[0]}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{typeLabels[c.type] || c.type}</Badge>
                     </TableCell>
+                    <TableCell>
+                      <Badge className={priorityColors[c.priority] || ''}>
+                        {priorityLabels[c.priority] || c.priority}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{formatCurrency(c.amount)}</TableCell>
+                    <TableCell>{formatCurrency(c.reserveAmount)}</TableCell>
                     <TableCell>
                       <Badge className={statusColors[c.status] || ''}>
                         {statusLabels[c.status] || c.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{formatDate(c.incidentDate)}</TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-sm">{c.assignedTo || '—'}</TableCell>
+                    <TableCell className="text-sm">{getDaysSince(c.dateReported)}</TableCell>
+                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-1">
                         <Button variant="ghost" size="sm" onClick={() => openEdit(c)}>
                           <Edit className="w-3.5 h-3.5" />
@@ -275,13 +484,222 @@ export default function InsuranceClaimsPage() {
             </Table>
           </div>
         </Card>
-      )}
+      ))}
 
-      {/* Create/Edit Dialog */}
+      {/* ═══ CLAIM DETAIL SLIDE-OVER ═══ */}
+      <Dialog open={!!selectedClaim} onOpenChange={(open) => !open && setSelectedClaim(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {selectedClaim && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <DialogTitle className="flex items-center gap-3">
+                      <span className="font-mono">{selectedClaim.claimNumber}</span>
+                      <Badge className={statusColors[selectedClaim.status] || ''}>
+                        {statusLabels[selectedClaim.status] || selectedClaim.status}
+                      </Badge>
+                      <Badge className={priorityColors[selectedClaim.priority] || ''}>
+                        {priorityLabels[selectedClaim.priority] || selectedClaim.priority}
+                      </Badge>
+                    </DialogTitle>
+                    <DialogDescription className="mt-1">
+                      {t('insurance.claim.detail', locale)}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <div className="text-xs text-muted-foreground">{t('common.claimant', locale)}</div>
+                  <div className="font-medium">{selectedClaim.claimantName}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">{t('tenant.policies', locale)}</div>
+                  <div className="font-mono text-sm">{getPolicyLabel(selectedClaim.policyId)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">{t('common.type', locale)}</div>
+                  <Badge variant="secondary">{typeLabels[selectedClaim.type] || selectedClaim.type}</Badge>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">{t('insurance.claim.daysOpen', locale)}</div>
+                  <div className="font-medium">{getDaysSince(selectedClaim.dateReported)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">{t('common.incidentDate', locale)}</div>
+                  <div className="text-sm">{formatDate(selectedClaim.incidentDate)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">{t('common.location', locale)}</div>
+                  <div className="text-sm">{selectedClaim.location || '—'}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Police Report #</div>
+                  <div className="text-sm font-mono">{selectedClaim.policeReportNumber || '—'}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">{t('insurance.claim.assignedTo', locale)}</div>
+                  <div className="text-sm">{selectedClaim.assignedTo || '—'}</div>
+                </div>
+              </div>
+
+              {/* Financial Summary */}
+              <div className="grid grid-cols-3 gap-4">
+                <Card className="p-3 text-center">
+                  <div className="text-xs text-muted-foreground">{t('common.amount', locale)}</div>
+                  <div className="font-bold text-blue-600">{formatCurrency(selectedClaim.amount)}</div>
+                </Card>
+                <Card className="p-3 text-center">
+                  <div className="text-xs text-muted-foreground">{t('insurance.claim.reserve', locale)}</div>
+                  <div className="font-bold text-amber-600">{formatCurrency(selectedClaim.reserveAmount)}</div>
+                </Card>
+                <Card className="p-3 text-center">
+                  <div className="text-xs text-muted-foreground">{t('insurance.claim.settlement', locale)}</div>
+                  <div className="font-bold text-emerald-600">{formatCurrency(selectedClaim.settlementAmount)}</div>
+                </Card>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex gap-1 border-b">
+                {(['notes', 'documents', 'activity'] as const).map((tab) => (
+                  <Button
+                    key={tab}
+                    variant="ghost"
+                    size="sm"
+                    className={detailTab === tab ? 'border-b-2 border-primary font-semibold' : ''}
+                    onClick={() => setDetailTab(tab)}
+                  >
+                    {tab === 'notes' && <MessageSquare className="w-4 h-4 mr-1" />}
+                    {tab === 'documents' && <FileText className="w-4 h-4 mr-1" />}
+                    {tab === 'activity' && <Clock className="w-4 h-4 mr-1" />}
+                    {t(`insurance.claim.${tab}`, locale)}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Notes Tab */}
+              {detailTab === 'notes' && (
+                <div className="space-y-3">
+                  {claimNotes.map((note, idx) => (
+                    <Card key={idx} className="p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium">{note.author}</span>
+                        {note.isInternal && (
+                          <Badge variant="secondary" className="text-xs">{t('insurance.claim.internal', locale)}</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{note.content}</p>
+                      <div className="text-xs text-muted-foreground mt-1">{note.createdAt ? formatDate(note.createdAt) : ''}</div>
+                    </Card>
+                  ))}
+                  <div className="space-y-2 p-3 border rounded-lg">
+                    <Textarea
+                      value={newNote.content}
+                      onChange={e => setNewNote(n => ({ ...n, content: e.target.value }))}
+                      rows={2}
+                      placeholder={t('insurance.claim.addNote', locale)}
+                    />
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={newNote.isInternal}
+                          onChange={e => setNewNote(n => ({ ...n, isInternal: e.target.checked }))}
+                        />
+                        {t('insurance.claim.internal', locale)}
+                      </label>
+                      <Button size="sm" onClick={handleAddNote} disabled={!newNote.content.trim()}>
+                        <Plus className="w-3 h-3 mr-1" />{t('insurance.claim.addNote', locale)}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Documents Tab */}
+              {detailTab === 'documents' && (
+                <div className="space-y-3">
+                  {claimDocuments.map((doc, idx) => (
+                    <Card key={idx} className="p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <div className="text-sm font-medium">{doc.fileName}</div>
+                          <div className="text-xs text-muted-foreground">{doc.category} {doc.fileType ? `· ${doc.fileType}` : ''}</div>
+                        </div>
+                      </div>
+                      {doc.description && <span className="text-xs text-muted-foreground">{doc.description}</span>}
+                    </Card>
+                  ))}
+                  <div className="space-y-2 p-3 border rounded-lg">
+                    <div className="grid grid-cols-3 gap-2">
+                      <Input
+                        value={newDoc.fileName}
+                        onChange={e => setNewDoc(d => ({ ...d, fileName: e.target.value }))}
+                        placeholder={t('common.fileName', locale)}
+                      />
+                      <Input
+                        value={newDoc.fileType}
+                        onChange={e => setNewDoc(d => ({ ...d, fileType: e.target.value }))}
+                        placeholder={t('common.fileType', locale)}
+                      />
+                      <Select value={newDoc.category} onValueChange={v => setNewDoc(d => ({ ...d, category: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="photo">{t('common.photo', locale)}</SelectItem>
+                          <SelectItem value="report">{t('common.report', locale)}</SelectItem>
+                          <SelectItem value="receipt">{t('common.receipt', locale)}</SelectItem>
+                          <SelectItem value="correspondence">{t('common.correspondence', locale)}</SelectItem>
+                          <SelectItem value="medical">{t('common.medical', locale)}</SelectItem>
+                          <SelectItem value="police">{t('common.police', locale)}</SelectItem>
+                          <SelectItem value="other">{t('common.other', locale)}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Input
+                      value={newDoc.description}
+                      onChange={e => setNewDoc(d => ({ ...d, description: e.target.value }))}
+                      placeholder={t('common.description', locale)}
+                    />
+                    <Button size="sm" onClick={handleAddDocument} disabled={!newDoc.fileName.trim()}>
+                      <Upload className="w-3 h-3 mr-1" />{t('insurance.claim.uploadDoc', locale)}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Activity Tab */}
+              {detailTab === 'activity' && (
+                <div className="space-y-2">
+                  {activityLog.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">{t('common.noActivity', locale)}</p>
+                  ) : (
+                    activityLog.map((entry, idx) => (
+                      <div key={idx} className="flex items-start gap-3 p-2">
+                        <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                        <div>
+                          <div className="text-sm font-medium">{entry.action}</div>
+                          <div className="text-xs text-muted-foreground">{entry.detail}</div>
+                          {entry.createdAt && <div className="text-xs text-muted-foreground">{formatDate(entry.createdAt)}</div>}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ CREATE/EDIT DIALOG ═══ */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Edit Claim' : 'New Insurance Claim'}</DialogTitle>
+            <DialogTitle>{editing ? t('insurance.claim.edit', locale) : t('insurance.claim.new', locale)}</DialogTitle>
             <DialogDescription>{editing ? 'Update claim details.' : 'Submit a new insurance claim.'}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
@@ -312,29 +730,35 @@ export default function InsuranceClaimsPage() {
                 <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="death">Death</SelectItem>
-                    <SelectItem value="health">Health</SelectItem>
-                    <SelectItem value="auto">Auto</SelectItem>
-                    <SelectItem value="property">Property</SelectItem>
-                    <SelectItem value="travel">Travel</SelectItem>
-                    <SelectItem value="liability">Liability</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    {Object.entries(typeLabels).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>{t('common.status', locale)}</Label>
-                <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
+                <Label>{t('insurance.claim.priority', locale)}</Label>
+                <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="submitted">Submitted</SelectItem>
-                    <SelectItem value="under_review">Under Review</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="denied">Denied</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
+                    {Object.entries(priorityLabels).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div>
+              <Label>{t('common.status', locale)}</Label>
+              <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {KANBAN_COLUMNS.map(s => (
+                    <SelectItem key={s} value={s}>{statusLabels[s] || s}</SelectItem>
+                  ))}
+                  <SelectItem value="partially_settled">{statusLabels.partially_settled}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -342,9 +766,31 @@ export default function InsuranceClaimsPage() {
                 <Input type="number" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} className="mt-1" />
               </div>
               <div>
-                <Label>Incident Date</Label>
+                <Label>{t('insurance.claim.reserve', locale)}</Label>
+                <Input type="number" step="0.01" value={form.reserveAmount} onChange={e => setForm(f => ({ ...f, reserveAmount: e.target.value }))} className="mt-1" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>{t('common.incidentDate', locale)}</Label>
                 <Input type="date" value={form.incidentDate} onChange={e => setForm(f => ({ ...f, incidentDate: e.target.value }))} className="mt-1" />
               </div>
+              <div>
+                <Label>Date Reported</Label>
+                <Input type="date" value={form.dateReported} onChange={e => setForm(f => ({ ...f, dateReported: e.target.value }))} className="mt-1" />
+              </div>
+            </div>
+            <div>
+              <Label>{t('insurance.claim.assignedTo', locale)}</Label>
+              <Input value={form.assignedTo} onChange={e => setForm(f => ({ ...f, assignedTo: e.target.value }))} className="mt-1" />
+            </div>
+            <div>
+              <Label>{t('common.location', locale)}</Label>
+              <Input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} className="mt-1" />
+            </div>
+            <div>
+              <Label>Police Report #</Label>
+              <Input value={form.policeReportNumber} onChange={e => setForm(f => ({ ...f, policeReportNumber: e.target.value }))} className="mt-1" />
             </div>
             <div>
               <Label>{t('common.description', locale)}</Label>
@@ -353,8 +799,8 @@ export default function InsuranceClaimsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowForm(false)}>{t('common.cancel', locale)}</Button>
-            <Button onClick={handleSave} disabled={!form.claimNumber || !form.claimantName} className="bg-gradient-to-r from-indigo-600 to-indigo-500">
-              {editing ? 'Update' : 'Submit Claim'}
+            <Button onClick={handleSave} disabled={!form.claimNumber || !form.claimantName} className="bg-gradient-to-r from-indigo-600 to-blue-500">
+              {editing ? 'Update' : t('insurance.claim.submit', locale)}
             </Button>
           </DialogFooter>
         </DialogContent>

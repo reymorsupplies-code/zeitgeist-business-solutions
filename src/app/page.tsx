@@ -20,7 +20,7 @@ import {
   Users as UsersIcon, ArrowLeft, ExternalLink, QrCode, Globe2,
   MessageSquare, ClipboardList, Wallet, Calculator, ChefHat,
   Layers, Palette, Database, ArrowUpRight, Minus, Copy,
-  RefreshCw, CheckCircle, XCircle, AlertCircle, Loader2, MapPin,
+  RefreshCw, CheckCircle, XCircle, AlertCircle, Loader2, MapPin, UserCog,
   Wrench, Landmark, Banknote, CircleDollarSign, TrendingDown, PiggyBank,
   Building, Target, Trophy, BarChart2, FileSpreadsheet, Handshake, UserCheck, UserX, FileSearch, File as FileIcon,
   RotateCcw, ArrowRightLeft, BadgeDollarSign, Percent, EyeOff, CalendarDays,
@@ -54,6 +54,11 @@ import { toast } from 'sonner';
 import BarcodeScanner from '@/components/barcode-scanner';
 import InsurancePoliciesPage from '@/components/pages/InsurancePoliciesPage';
 import InsuranceClaimsPage from '@/components/pages/InsuranceClaimsPage';
+import InsuranceInsuredPage from '@/components/pages/InsuranceInsuredPage';
+import InsuranceAgentsPage from '@/components/pages/InsuranceAgentsPage';
+import InsuranceProductsPage from '@/components/pages/InsuranceProductsPage';
+import InsuranceQuotesPage from '@/components/pages/InsuranceQuotesPage';
+import InsuranceRenewalsPage from '@/components/pages/InsuranceRenewalsPage';
 import ClinicPatientsPage from '@/components/pages/ClinicPatientsPage';
 import ClinicAppointmentsPage from '@/components/pages/ClinicAppointmentsPage';
 import LegalCasesPage from '@/components/pages/LegalCasesPage';
@@ -418,8 +423,14 @@ function getInsuranceNav(locale: string) {(s => s.locale);
   { section: t('tenant.section.operations', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
     { label: t('tenant.policies', locale), icon: Shield, page: 'insurance-policies' as const, available: true },
-    { label: t('tenant.claims', locale), icon: ClipboardList, page: 'insurance-claims' as const, available: true },
+    { label: t('insurance.insured', locale), icon: Users, page: 'insurance-insured' as const, available: true },
+    { label: t('insurance.products', locale), icon: Package, page: 'insurance-products' as const, available: true },
+    { label: t('insurance.quotes', locale), icon: FileText, page: 'insurance-quotes' as const, available: true },
     { label: t('tenant.clients', locale), icon: Users, page: 'clients' as const, available: true },
+  ]},
+  { section: t('insurance.section.claims', locale), items: [
+    { label: t('tenant.claims', locale), icon: ClipboardList, page: 'insurance-claims' as const, available: true },
+    { label: t('insurance.renewals', locale), icon: RefreshCw, page: 'insurance-renewals' as const, available: true },
   ]},
   { section: t('tenant.section.finance', locale), items: [
     { label: t('tenant.premiums', locale), icon: Receipt, page: 'invoices' as const, available: true },
@@ -429,6 +440,9 @@ function getInsuranceNav(locale: string) {(s => s.locale);
   { section: t('tenant.section.compliance', locale), items: [
     { label: t('tenant.documents', locale), icon: FileText, page: 'documents' as const, available: true },
     { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
+  ]},
+  { section: t('insurance.section.agents', locale), items: [
+    { label: t('insurance.agents', locale), icon: UserCog, page: 'insurance-agents' as const, available: true },
   ]},
   { section: t('tenant.section.tools', locale), items: [
     { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
@@ -22474,6 +22488,11 @@ function TenantAppView() {
       // Insurance pages
       case 'insurance-policies': return <InsurancePoliciesPage />;
       case 'insurance-claims': return <InsuranceClaimsPage />;
+      case 'insurance-insured': return <InsuranceInsuredPage />;
+      case 'insurance-agents': return <InsuranceAgentsPage />;
+      case 'insurance-products': return <InsuranceProductsPage />;
+      case 'insurance-quotes': return <InsuranceQuotesPage />;
+      case 'insurance-renewals': return <InsuranceRenewalsPage />;
       // Clinics pages
       case 'clinic-patients': return <ClinicPatientsPage />;
       case 'clinic-appointments': return <ClinicAppointmentsPage />;

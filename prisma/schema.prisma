@@ -133,6 +133,17 @@ model Tenant {
   timeEntries              TimeEntry[]
   policies                 Policy[]
   claims                   Claim[]
+  insureds                 Insured[]
+  insuranceAgents          InsuranceAgent[]
+  insuranceProducts        InsuranceProduct[]
+  quotes                   Quote[]
+  quoteLines               QuoteLine[]
+  claimDocuments           ClaimDocument[]
+  claimNotes               ClaimNote[]
+  claimActivities          ClaimActivity[]
+  endorsements             Endorsement[]
+  premiumSchedules         PremiumSchedule[]
+  renewalTasks             RenewalTask[]
   retailProducts           RetailProduct[]
   purchaseOrders           PurchaseOrder[]
   posSales                 POSSale[]
@@ -618,44 +629,332 @@ model TimeEntry {
 // ============ INSURANCE MODELS ============
 
 model Policy {
-  id            String    @id @default(cuid())
+  id              String    @id @default(cuid())
+  tenantId        String
+  policyNumber    String?
+  clientName      String?
+  insuredId       String?   // FK to Insured
+  productId       String?   // FK to InsuranceProduct
+  agentId         String?   // FK to InsuranceAgent
+  type            String    @default("property") // life, health, auto, property, travel, liability, fire, marine, other
+  subType         String?   // comprehensive, third_party, etc.
+  premium         Decimal   @default(0) @db.Decimal(14, 2)
+  coverage        Decimal   @default(0) @db.Decimal(14, 2)
+  excessAmount    Decimal   @default(0) @db.Decimal(14, 2)
+  deductibleAmount Decimal  @default(0) @db.Decimal(14, 2)
+  paymentFrequency String   @default("annual") // monthly, quarterly, semi_annual, annual
+  startDate       DateTime?
+  endDate         DateTime?
+  nextPremiumDue  DateTime?
+  status          String    @default("active") // active, expired, cancelled, pending, suspended, lapsed
+  beneficiaries   String    @default("[]")
+  notes           String?
+  sumInsured      Decimal   @default(0) @db.Decimal(14, 2)
+  renewalCount    Int       @default(0)
+  parentPolicyId  String?
+  coInsurance     Float     @default(0)
+  isDeleted       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  claims            Claim[]
+  endorsements      Endorsement[]
+  premiumSchedules  PremiumSchedule[]
+  renewalTasks      RenewalTask[]
+  insured           Insured?           @relation(fields: [insuredId], references: [id], onDelete: SetNull)
+  product           InsuranceProduct?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  agent             InsuranceAgent?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tenantId, policyNumber])
+  @@index([tenantId, status])
+}
+
+model Claim {
+  id               String    @id @default(cuid())
+  tenantId         String
+  policyId         String?
+  claimNumber      String?
+  claimantName     String?
+  type             String    @default("property") // death, health, auto, property, travel, liability, fire, marine, other
+  priority         String    @default("medium") // low, medium, high, critical
+  amount           Decimal   @default(0) @db.Decimal(14, 2)
+  reserveAmount    Decimal   @default(0) @db.Decimal(14, 2)
+  settlementAmount Decimal   @default(0) @db.Decimal(14, 2)
+  status           String    @default("submitted") // submitted, acknowledged, under_review, assessment, approved, denied, partially_settled, settled, closed
+  decision         String?   // approved, denied, partial
+  denialReason     String?
+  incidentDate     DateTime?
+  dateReported     DateTime  @default(now())
+  dateAcknowledged DateTime?
+  dateAssessed     DateTime?
+  dateSettled      DateTime?
+  assignedTo       String?   // adjuster name
+  description      String?
+  location         String?
+  policeReportNumber String?
+  isDeleted        Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  policy          Policy?           @relation(fields: [policyId], references: [id], onDelete: SetNull)
+  documents       ClaimDocument[]
+  notes           ClaimNote[]
+  activities      ClaimActivity[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, claimNumber])
+}
+
+model Insured {
+  id           String   @id @default(cuid())
+  tenantId     String
+  firstName    String?
+  lastName     String?
+  email        String?
+  phone        String?
+  dateOfBirth  String?  // Encrypted in app layer
+  gender       String?
+  nationalId   String?  // Encrypted in app layer
+  address      String?
+  city         String?
+  occupation   String?
+  employer     String?
+  idType       String?  // national_id, passport, drivers_license
+  idExpiry     String?
+  notes        String?
+  isActive     Boolean  @default(true)
+  isDeleted    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  policies Policy[]
+
+  @@index([tenantId])
+  @@index([tenantId, nationalId])
+}
+
+model InsuranceAgent {
+  id            String   @id @default(cuid())
   tenantId      String
-  policyNumber  String?
-  clientName    String?
-  type          String?
-  premium       Decimal   @default(0) @db.Decimal(14, 2)
-  coverage      Decimal   @default(0) @db.Decimal(14, 2)
-  startDate     DateTime?
-  endDate       DateTime?
-  status        String    @default("active")
-  beneficiaries String    @default("[]")
-  isDeleted     Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  tenant        Tenant    @relation(fields: [tenantId], references: [id])
-  claims        Claim[]
+  agentCode     String?
+  firstName     String?
+  lastName      String?
+  email         String?
+  phone         String?
+  commissionRate Decimal @default(0) @db.Decimal(5, 2) // percentage
+  status        String   @default("active") // active, inactive, suspended
+  joinDate      DateTime?
+  address       String?
+  notes         String?
+  isDeleted     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  policies Policy[]
+
+  @@index([tenantId])
+  @@index([tenantId, agentCode])
+}
+
+model InsuranceProduct {
+  id           String   @id @default(cuid())
+  tenantId     String
+  code         String?
+  name         String
+  category     String   @default("property") // life, health, auto, property, travel, liability, fire, marine
+  description  String?
+  basePremium  Decimal  @default(0) @db.Decimal(14, 2)
+  minCoverage  Decimal  @default(0) @db.Decimal(14, 2)
+  maxCoverage  Decimal  @default(0) @db.Decimal(14, 2)
+  excessPercent Decimal @default(0) @db.Decimal(5, 2)
+  deductible   Decimal  @default(0) @db.Decimal(14, 2)
+  termsMonths  Int      @default(12)
+  isActive     Boolean  @default(true)
+  settings     String   @default("{}") // JSON for custom rules
+  isDeleted    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  policies Policy[]
+  quotes   Quote[]
 
   @@index([tenantId])
 }
 
-model Claim {
+model Quote {
+  id                String    @id @default(cuid())
+  tenantId          String
+  quoteNumber       String?
+  insuredName       String?
+  insuredEmail      String?
+  insuredPhone      String?
+  productId         String?
+  status            String    @default("draft") // draft, sent, accepted, declined, expired, converted
+  quotedPremium     Decimal   @default(0) @db.Decimal(14, 2)
+  quotedCoverage    Decimal   @default(0) @db.Decimal(14, 2)
+  excessAmount      Decimal   @default(0) @db.Decimal(14, 2)
+  deductibleAmount  Decimal   @default(0) @db.Decimal(14, 2)
+  validUntil        DateTime?
+  convertedToPolicyId String?
+  notes             String?
+  isDeleted         Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  product           InsuranceProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  quoteLines        QuoteLine[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model QuoteLine {
+  id            String   @id @default(cuid())
+  tenantId      String
+  quoteId       String
+  description   String?
+  coverageType  String?
+  premium       Decimal  @default(0) @db.Decimal(14, 2)
+  coverage      Decimal  @default(0) @db.Decimal(14, 2)
+  excess        Decimal  @default(0) @db.Decimal(14, 2)
+  deductible    Decimal  @default(0) @db.Decimal(14, 2)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id])
+  quote  Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, quoteId])
+}
+
+model ClaimDocument {
+  id          String   @id @default(cuid())
+  tenantId    String
+  claimId     String
+  fileName    String
+  fileType    String?  // pdf, jpg, png, doc, etc.
+  fileSize    Int      @default(0)
+  fileUrl     String?
+  category    String   @default("other") // photo, report, receipt, correspondence, medical, police, other
+  description String?
+  uploadedBy  String?
+  isDeleted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  claim  Claim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, claimId])
+}
+
+model ClaimNote {
+  id          String   @id @default(cuid())
+  tenantId    String
+  claimId     String
+  author      String?
+  content     String
+  isInternal  Boolean  @default(true) // true = only staff sees; false = visible to insured
+  isDeleted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  claim  Claim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, claimId])
+}
+
+model ClaimActivity {
+  id           String   @id @default(cuid())
+  tenantId     String
+  claimId      String
+  action       String   // status_changed, document_uploaded, note_added, assigned, assessed, settled, etc.
+  performedBy  String?
+  description  String?
+  metadata     String   @default("{}") // JSON with old/new values
+  createdAt    DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  claim  Claim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, claimId])
+}
+
+model Endorsement {
+  id              String    @id @default(cuid())
+  tenantId        String
+  policyId        String
+  endorsementNumber String?
+  type            String?   // addition, deletion, amendment, extension, suspension
+  description     String?
+  premiumImpact   Decimal   @default(0) @db.Decimal(14, 2)
+  effectiveDate   DateTime?
+  status          String    @default("active") // active, expired, cancelled
+  isDeleted       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  policy Policy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, policyId])
+}
+
+model PremiumSchedule {
   id           String    @id @default(cuid())
   tenantId     String
-  policyId     String?
-  claimNumber  String?
-  claimantName String?
-  type         String?
+  policyId     String
+  dueDate      DateTime?
   amount       Decimal   @default(0) @db.Decimal(14, 2)
-  status       String    @default("submitted")
-  incidentDate DateTime?
-  description  String?
+  status       String    @default("pending") // pending, paid, overdue, waived
+  paidDate     DateTime?
+  paidAmount   Decimal   @default(0) @db.Decimal(14, 2)
+  reference    String?
+  notes        String?
   isDeleted    Boolean   @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  tenant       Tenant    @relation(fields: [tenantId], references: [id])
-  policy       Policy?   @relation(fields: [policyId], references: [id], onDelete: SetNull)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  policy Policy @relation(fields: [policyId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+  @@index([tenantId, policyId])
+}
+
+model RenewalTask {
+  id           String    @id @default(cuid())
+  tenantId     String
+  policyId     String
+  dueDate      DateTime?
+  status       String    @default("pending") // pending, contacted, quoted, accepted, renewed, lapsed, cancelled
+  assignedTo   String?
+  notes        String?
+  completedDate DateTime?
+  isDeleted    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  policy Policy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, status])
 }
 
 // ============ RETAIL MODELS ============

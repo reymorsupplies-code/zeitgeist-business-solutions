@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateRequest, verifyTenantAccess, whitelistFields } from '@/lib/auth';
+import { authenticateRequest, verifyTenantAccess } from '@/lib/auth';
 import { db } from '@/lib/db';
 
 export async function GET(req: NextRequest, {params }: { params: Promise<{ tenantId: string }> }) {
@@ -18,50 +18,23 @@ export async function GET(req: NextRequest, {params }: { params: Promise<{ tenan
     const action = searchParams.get('action');
 
     if (action === 'summary') {
-      const all = await db.policy.findMany({ where: { tenantId, isDeleted: false } });
-      const active = all.filter((p: any) => p.status === 'active');
-      const totalCoverage = active.reduce((sum: number, p: any) => sum + (parseFloat(p.coverageAmount || p.coverage || '0')), 0);
-      const monthlyPremiums = active.reduce((sum: number, p: any) => sum + (parseFloat(p.premium || '0')), 0);
-      const expiringSoon = active.filter((p: any) => {
-        const end = new Date(p.expiryDate || p.endDate || '2099-12-31');
-        const diff = (end.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-        return diff > 0 && diff <= 30;
-      }).length;
-      const byType: Record<string, number> = {};
-      all.forEach((p: any) => {
-        const t = p.type || 'other';
-        byType[t] = (byType[t] || 0) + 1;
+      const all = await db.quote.findMany({ where: { tenantId, isDeleted: false } });
+      const byStatus: Record<string, number> = {};
+      all.forEach((q: any) => {
+        const s = q.status || 'draft';
+        byStatus[s] = (byStatus[s] || 0) + 1;
       });
-      const totalPremium = all.reduce((sum: number, p: any) => sum + (parseFloat(p.premium || '0')), 0);
-      const totalCov = all.reduce((sum: number, p: any) => sum + (parseFloat(p.coverageAmount || p.coverage || '0')), 0);
       return NextResponse.json({
-        totalPolicies: all.length,
-        activePolicies: active.length,
-        expiringSoon,
-        byType,
-        totalPremium,
-        totalCoverage: totalCov,
+        totalQuotes: all.length,
+        byStatus,
       });
     }
 
-    if (action === 'renewals') {
-      const sixtyDays = 60 * 24 * 60 * 60 * 1000;
-      const items = await db.policy.findMany({
-        where: {
-          tenantId,
-          isDeleted: false,
-          status: 'active',
-          endDate: {
-            gt: new Date(),
-            lte: new Date(Date.now() + sixtyDays),
-          },
-        },
-        orderBy: { endDate: 'asc' },
-      });
-      return NextResponse.json(items);
-    }
-
-    const items = await db.policy.findMany({ where: { tenantId, isDeleted: false }, orderBy: { createdAt: 'desc' } });
+    const items = await db.quote.findMany({
+      where: { tenantId, isDeleted: false },
+      orderBy: { createdAt: 'desc' },
+      include: { quoteLines: true, product: { select: { id: true, name: true, category: true } } },
+    });
     return NextResponse.json(items);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }
 }
@@ -79,7 +52,7 @@ export async function POST(req: NextRequest, {params }: { params: Promise<{ tena
 
   try {
     const data = await req.json();
-    const item = await db.policy.create({ data: { ...data, tenantId } });
+    const item = await db.quote.create({ data: { ...data, tenantId } });
     return NextResponse.json(item);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }
 }
@@ -95,33 +68,35 @@ export async function PATCH(req: NextRequest, {params}: { params: Promise<{ tena
     const data = await req.json();
     const { id, tenantId: _, action, ...updateData } = data;
 
-    if (action === 'create-renewal' && id) {
-      const existing = await db.policy.findUnique({ where: { id, tenantId } });
-      if (!existing) return NextResponse.json({ error: 'Policy not found' }, { status: 404 });
+    if (action === 'convert' && id) {
+      // Convert quote to policy
+      const quote = await db.quote.findUnique({ where: { id, tenantId }, include: { quoteLines: true } });
+      if (!quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
+      if (quote.status === 'converted') return NextResponse.json({ error: 'Quote already converted' }, { status: 400 });
 
-      // Create RenewalTask for this policy
-      const renewalTask = await db.renewalTask.create({
+      const policy = await db.policy.create({
         data: {
           tenantId,
-          policyId: id,
-          status: 'pending',
-          dueDate: existing.endDate ? new Date(new Date(existing.endDate).getTime() - 30 * 24 * 60 * 60 * 1000) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          assignedTo: (data as any).assignedTo || null,
-          notes: `Renewal task for policy ${existing.policyNumber || id}`,
+          clientName: quote.insuredName || '',
+          premium: quote.quotedPremium,
+          coverage: quote.quotedCoverage,
+          excessAmount: quote.excessAmount,
+          deductibleAmount: quote.deductibleAmount,
+          status: 'active',
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+          productId: quote.productId,
+          notes: `Converted from quote ${quote.quoteNumber || id}`,
         },
       });
 
-      // Mark policy as flagged for renewal
-      const updated = await db.policy.update({
-        where: { id, tenantId },
-        data: { ...updateData },
-      });
+      await db.quote.update({ where: { id }, data: { status: 'converted', convertedToPolicyId: policy.id } });
 
-      return NextResponse.json({ policy: updated, renewalTask });
+      return NextResponse.json({ policy, quote: { id: quote.id, status: 'converted', convertedToPolicyId: policy.id } });
     }
 
     if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
-    const item = await db.policy.update({ where: { id, tenantId }, data: updateData });
+    const item = await db.quote.update({ where: { id, tenantId }, data: updateData });
     return NextResponse.json(item);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }
 }
@@ -136,7 +111,7 @@ export async function DELETE(req: NextRequest, {params}: { params: Promise<{ ten
   try {
     const data = await req.json();
     if (!data.id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
-    await db.policy.update({ where: { id: data.id, tenantId }, data: { isDeleted: true } });
+    await db.quote.update({ where: { id: data.id, tenantId }, data: { isDeleted: true } });
     return NextResponse.json({ success: true });
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }
 }

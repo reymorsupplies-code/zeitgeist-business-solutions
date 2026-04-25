@@ -231,6 +231,52 @@ const COLUMN_WHITELISTS: Record<string, Set<string>> = {
   RegisterShift: new Set([
     'closingCash', 'notes', 'status',
   ]),
+  Insured: new Set([
+    'firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'gender',
+    'nationalId', 'address', 'city', 'occupation', 'employer', 'idType',
+    'idExpiry', 'notes', 'isActive', 'isDeleted', 'updatedAt',
+  ]),
+  InsuranceAgent: new Set([
+    'agentCode', 'firstName', 'lastName', 'email', 'phone',
+    'commissionRate', 'status', 'joinDate', 'address', 'notes',
+    'isDeleted', 'updatedAt',
+  ]),
+  InsuranceProduct: new Set([
+    'code', 'name', 'category', 'description', 'basePremium',
+    'minCoverage', 'maxCoverage', 'excessPercent', 'deductible',
+    'termsMonths', 'isActive', 'settings', 'isDeleted', 'updatedAt',
+  ]),
+  Quote: new Set([
+    'quoteNumber', 'insuredName', 'insuredEmail', 'insuredPhone',
+    'productId', 'status', 'quotedPremium', 'quotedCoverage',
+    'excessAmount', 'deductibleAmount', 'validUntil',
+    'convertedToPolicyId', 'notes', 'isDeleted', 'updatedAt',
+  ]),
+  QuoteLine: new Set([
+    'quoteId', 'description', 'coverageType', 'premium', 'coverage',
+    'excess', 'deductible', 'sortOrder',
+  ]),
+  ClaimDocument: new Set([
+    'claimId', 'fileName', 'fileType', 'fileSize', 'fileUrl',
+    'category', 'description', 'uploadedBy', 'isDeleted', 'updatedAt',
+  ]),
+  ClaimNote: new Set([
+    'claimId', 'author', 'content', 'isInternal',
+    'isDeleted', 'updatedAt',
+  ]),
+  Endorsement: new Set([
+    'policyId', 'endorsementNumber', 'type', 'description',
+    'premiumImpact', 'effectiveDate', 'status',
+    'isDeleted', 'updatedAt',
+  ]),
+  PremiumSchedule: new Set([
+    'policyId', 'dueDate', 'amount', 'status', 'paidDate',
+    'paidAmount', 'reference', 'notes', 'isDeleted', 'updatedAt',
+  ]),
+  RenewalTask: new Set([
+    'policyId', 'dueDate', 'status', 'assignedTo', 'notes',
+    'completedDate', 'isDeleted', 'updatedAt',
+  ]),
 };
 
 /**
@@ -337,6 +383,10 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   baker: ['dashboard', 'orders', 'recipes', 'ingredients', 'production', 'inventory', 'kds'],
   cashier: ['pos', 'orders', 'clients', 'dashboard'],
   viewer: ['dashboard', 'reports'],
+  // Insurance-specific roles
+  underwriter: ['dashboard', 'policies', 'claims', 'insured', 'insurance-products', 'insurance-quotes', 'insurance-renewals', 'reports'],
+  adjuster: ['dashboard', 'claims', 'insured', 'policies', 'reports'],
+  agent_role: ['dashboard', 'policies', 'claims', 'insured', 'insurance-quotes', 'insurance-renewals'],
 };
 
 /**
