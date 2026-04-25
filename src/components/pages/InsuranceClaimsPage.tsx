@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { ClipboardList, Search, Plus, Edit, Trash2 } from 'lucide-react';
+import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -57,8 +59,6 @@ const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString();
 };
 
-const typeLabels: Record<string, string> = { death: 'Death', health: 'Health', auto: 'Auto', property: 'Property', travel: 'Travel', liability: 'Liability', other: 'Other' };
-const statusLabels: Record<string, string> = { submitted: 'Submitted', under_review: 'Under Review', approved: 'Approved', denied: 'Denied', paid: 'Paid' };
 const statusColors: Record<string, string> = {
   submitted: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
   under_review: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
@@ -68,6 +68,19 @@ const statusColors: Record<string, string> = {
 };
 
 export default function InsuranceClaimsPage() {
+  const locale = useAppStore((s) => s.locale);
+  const typeLabels: Record<string, string> = {
+    death: t('insurance.claim.type.death', locale),
+    health: t('insurance.claim.type.health', locale),
+    auto: t('insurance.claim.type.auto', locale),
+  };
+  const statusLabels: Record<string, string> = {
+    submitted: t('insurance.claim.status.submitted', locale),
+    'Under Review': t('insurance.claim.status.underReview', locale),
+    approved: t('common.approved', locale),
+    denied: t('common.rejected', locale),
+    paid: t('common.paid', locale),
+  };
   const [claims, setClaims] = useState<Claim[]>([]);
   const [policies, setPolicies] = useState<PolicyOption[]>([]);
   const [summary, setSummary] = useState<ClaimSummary | null>(null);
@@ -126,7 +139,7 @@ export default function InsuranceClaimsPage() {
       });
       setShowForm(false); setEditing(null); load();
       toast.success(editing?.id ? 'Claim updated' : 'Claim created');
-    } catch { toast.error('Failed to save claim'); }
+    } catch { toast.error(t('common.error', locale)); }
   };
 
   const handleDelete = async (row: Claim) => {
@@ -168,7 +181,7 @@ export default function InsuranceClaimsPage() {
             <ClipboardList className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Insurance Claims</h1>
+            <h1 className="text-2xl font-bold">{t('tenant.claims', locale)}</h1>
             <p className="text-sm text-muted-foreground">Process and manage insurance claims</p>
           </div>
         </div>
@@ -203,7 +216,7 @@ export default function InsuranceClaimsPage() {
       <div className="flex items-center gap-3">
         <div className="relative max-w-xs flex-1">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search claims..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+          <Input placeholder={t('insurance.claim.search', locale)} value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
       </div>
 
@@ -224,11 +237,11 @@ export default function InsuranceClaimsPage() {
                 <TableRow>
                   <TableHead>Claim #</TableHead>
                   <TableHead>Claimant</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t('common.type', locale)}</TableHead>
+                  <TableHead>{t('common.amount', locale)}</TableHead>
+                  <TableHead>{t('common.status', locale)}</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
+                  <TableHead className="text-center">{t('common.actions', locale)}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -273,7 +286,7 @@ export default function InsuranceClaimsPage() {
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <Label>Policy</Label>
+              <Label>{t('tenant.policies', locale)}</Label>
               <Select value={form.policyId} onValueChange={v => setForm(f => ({ ...f, policyId: v }))}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Select policy" /></SelectTrigger>
                 <SelectContent>
@@ -295,7 +308,7 @@ export default function InsuranceClaimsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Type</Label>
+                <Label>{t('common.type', locale)}</Label>
                 <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -310,7 +323,7 @@ export default function InsuranceClaimsPage() {
                 </Select>
               </div>
               <div>
-                <Label>Status</Label>
+                <Label>{t('common.status', locale)}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -325,7 +338,7 @@ export default function InsuranceClaimsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Claim Amount</Label>
+                <Label>{t('common.amount', locale)}</Label>
                 <Input type="number" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} className="mt-1" />
               </div>
               <div>
@@ -334,12 +347,12 @@ export default function InsuranceClaimsPage() {
               </div>
             </div>
             <div>
-              <Label>Description</Label>
+              <Label>{t('common.description', locale)}</Label>
               <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} className="mt-1" placeholder="Describe the incident..." />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>{t('common.cancel', locale)}</Button>
             <Button onClick={handleSave} disabled={!form.claimNumber || !form.claimantName} className="bg-gradient-to-r from-indigo-600 to-indigo-500">
               {editing ? 'Update' : 'Submit Claim'}
             </Button>

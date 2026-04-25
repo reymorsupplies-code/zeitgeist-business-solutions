@@ -61,6 +61,10 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              (function() {
+                var loc = localStorage.getItem('zbs-locale') || 'en';
+                document.documentElement.lang = loc;
+              })();
               if('serviceWorker' in navigator && !location.hostname.includes('localhost')) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js').catch(function(){});

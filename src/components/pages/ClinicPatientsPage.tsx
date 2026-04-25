@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Users, Search, Plus, Edit, Trash2 } from 'lucide-react';
+import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -52,10 +54,11 @@ const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString();
 };
 
-const genderLabels: Record<string, string> = { male: 'Male', female: 'Female', other: 'Other' };
+// genderLabels moved inside component for locale access
 const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export default function ClinicPatientsPage() {
+  const locale = useAppStore((s) => s.locale);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [summary, setSummary] = useState<PatientSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,12 +121,12 @@ export default function ClinicPatientsPage() {
         body: JSON.stringify(editing?.id ? { id: editing.id, ...form } : form),
       });
       setShowForm(false); setEditing(null); load();
-      toast.success(editing?.id ? 'Patient updated' : 'Patient registered');
-    } catch { toast.error('Failed to save patient'); }
+      toast.success(editing?.id ? t('clinic.patient.updated', locale) : t('clinic.patient.register', locale));
+    } catch { toast.error(t('common.error', locale)); }
   };
 
   const handleDelete = async (row: Patient) => {
-    if (!confirm('Delete this patient record?')) return;
+    if (!confirm(t('common.confirmDelete', locale))) return;
     const tid = getTenant();
     try {
       await authFetch(`/api/tenant/${tid}/patients`, {
@@ -131,8 +134,8 @@ export default function ClinicPatientsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: row.id }),
       });
-      load(); toast.success('Patient deleted');
-    } catch { toast.error('Failed to delete patient'); }
+      load(); toast.success(t('common.noData', locale));
+    } catch { toast.error(t('common.error', locale)); }
   };
 
   const hasAllergies = (allergies: string) => {
@@ -167,12 +170,12 @@ export default function ClinicPatientsPage() {
             <Users className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Patients</h1>
-            <p className="text-sm text-muted-foreground">Manage patient records and information</p>
+            <h1 className="text-2xl font-bold">{t('tenant.patientRecords', locale)}</h1>
+            <p className="text-sm text-muted-foreground">{t('tenant.dashboard.quickActions', locale)}</p>
           </div>
         </div>
         <Button onClick={openCreate} className="bg-gradient-to-r from-emerald-600 to-teal-500">
-          <Plus className="w-4 h-4 mr-2" />New Patient
+          <Plus className="w-4 h-4 mr-2" />{t('clinic.patient.new', locale)}
         </Button>
       </div>
 
@@ -181,19 +184,19 @@ export default function ClinicPatientsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="p-4">
             <div className="text-2xl font-bold text-emerald-600">{summary.totalPatients || 0}</div>
-            <div className="text-xs text-muted-foreground">Total Patients</div>
+            <div className="text-xs text-muted-foreground">{t('tenant.stats.activePatients', locale)}</div>
           </Card>
           <Card className="p-4">
             <div className="text-2xl font-bold text-teal-600">{summary.thisMonth || 0}</div>
-            <div className="text-xs text-muted-foreground">This Month</div>
+            <div className="text-xs text-muted-foreground">{t('common.thisMonth', locale)}</div>
           </Card>
           <Card className="p-4">
             <div className="text-2xl font-bold text-blue-600">{summary.withInsurance || 0}</div>
-            <div className="text-xs text-muted-foreground">With Insurance</div>
+            <div className="text-xs text-muted-foreground">{t('insurance.type.health', locale)}</div>
           </Card>
           <Card className="p-4">
             <div className="text-2xl font-bold text-amber-600">{summary.withAllergies || 0}</div>
-            <div className="text-xs text-muted-foreground">With Allergies</div>
+            <div className="text-xs text-muted-foreground">{t('tenant.haccp', locale)}</div>
           </Card>
         </div>
       )}
@@ -202,7 +205,7 @@ export default function ClinicPatientsPage() {
       <div className="flex items-center gap-3">
         <div className="relative max-w-xs flex-1">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search patients..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+          <Input placeholder={t('clinic.patient.search', locale)} value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
       </div>
 
@@ -210,9 +213,9 @@ export default function ClinicPatientsPage() {
       {filtered.length === 0 ? (
         <Card className="p-12 text-center">
           <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground">No patients found.</p>
+          <p className="text-muted-foreground">{t('common.noData', locale)}</p>
           <Button className="mt-4" variant="outline" onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-2" />Register First Patient
+            <Plus className="w-4 h-4 mr-2" />{t('clinic.patient.register', locale)}
           </Button>
         </Card>
       ) : (
@@ -221,13 +224,13 @@ export default function ClinicPatientsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>DOB</TableHead>
-                  <TableHead>Gender</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Blood Type</TableHead>
-                  <TableHead>Insurance</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
+                  <TableHead>{t('common.name', locale)}</TableHead>
+                  <TableHead>{t('common.dob', locale)}</TableHead>
+                  <TableHead>{t('common.gender', locale)}</TableHead>
+                  <TableHead>{t('common.phone', locale)}</TableHead>
+                  <TableHead>{t('common.bloodType', locale)}</TableHead>
+                  <TableHead>{t('insurance.type.health', locale)}</TableHead>
+                  <TableHead className="text-center">{t('common.actions', locale)}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -236,7 +239,7 @@ export default function ClinicPatientsPage() {
                     <TableCell className="font-medium">{p.firstName} {p.lastName}</TableCell>
                     <TableCell className="text-sm">{formatDate(p.dateOfBirth)}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{genderLabels[p.gender] || p.gender}</Badge>
+                      <Badge variant="secondary">{{male: t('clinic.gender.male', locale), female: t('clinic.gender.female', locale), other: t('clinic.gender.other', locale)}[p.gender] || p.gender}</Badge>
                     </TableCell>
                     <TableCell className="text-sm">{p.phone || '—'}</TableCell>
                     <TableCell>
@@ -267,38 +270,38 @@ export default function ClinicPatientsPage() {
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Edit Patient' : 'New Patient'}</DialogTitle>
-            <DialogDescription>{editing ? 'Update patient information.' : 'Register a new patient.'}</DialogDescription>
+            <DialogTitle>{editing ? t('clinic.patient.edit', locale) : t('clinic.patient.new', locale)}</DialogTitle>
+            <DialogDescription>{editing ? t('clinic.patient.updated', locale) : t('clinic.patient.register', locale)}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>First Name *</Label>
+                <Label>{t('common.name', locale)} *</Label>
                 <Input value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} className="mt-1" />
               </div>
               <div>
-                <Label>Last Name *</Label>
+                <Label>{t('clinic.patient.fullName', locale)} *</Label>
                 <Input value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} className="mt-1" />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <Label>Date of Birth</Label>
+                <Label>{t('common.dob', locale)}</Label>
                 <Input type="date" value={form.dateOfBirth} onChange={e => setForm(f => ({ ...f, dateOfBirth: e.target.value }))} className="mt-1" />
               </div>
               <div>
-                <Label>Gender</Label>
+                <Label>{t('common.gender', locale)}</Label>
                 <Select value={form.gender} onValueChange={v => setForm(f => ({ ...f, gender: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="male">{t('clinic.gender.male', locale)}</SelectItem>
+                    <SelectItem value="female">{t('clinic.gender.female', locale)}</SelectItem>
+                    <SelectItem value="other">{t('clinic.gender.other', locale)}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Blood Type</Label>
+                <Label>{t('common.bloodType', locale)}</Label>
                 <Select value={form.bloodType} onValueChange={v => setForm(f => ({ ...f, bloodType: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -309,51 +312,51 @@ export default function ClinicPatientsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Email</Label>
+                <Label>{t('common.email', locale)}</Label>
                 <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="mt-1" />
               </div>
               <div>
-                <Label>Phone</Label>
+                <Label>{t('common.phone', locale)}</Label>
                 <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="mt-1" />
               </div>
             </div>
             <div>
-              <Label>Address</Label>
+              <Label>{t('common.address', locale)}</Label>
               <Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} className="mt-1" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Insurance Provider</Label>
+                <Label>{t('common.insuranceProvider', locale)}</Label>
                 <Input value={form.insuranceProvider} onChange={e => setForm(f => ({ ...f, insuranceProvider: e.target.value }))} className="mt-1" />
               </div>
               <div>
-                <Label>Insurance Number</Label>
+                <Label>{t('common.policyNumber', locale)}</Label>
                 <Input value={form.insuranceNumber} onChange={e => setForm(f => ({ ...f, insuranceNumber: e.target.value }))} className="mt-1" />
               </div>
             </div>
             <div>
-              <Label>Allergies (JSON)</Label>
+              <Label>{t('tenant.allergens', locale)}</Label>
               <Textarea value={form.allergies} onChange={e => setForm(f => ({ ...f, allergies: e.target.value }))} rows={2} className="mt-1" placeholder='["Penicillin", "Latex"]' />
             </div>
             <div>
-              <Label>Medical Notes</Label>
+              <Label>{t('common.notes', locale)}</Label>
               <Textarea value={form.medicalNotes} onChange={e => setForm(f => ({ ...f, medicalNotes: e.target.value }))} rows={3} className="mt-1" placeholder="Additional medical information..." />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Emergency Contact</Label>
+                <Label>{t('common.phone', locale)}</Label>
                 <Input value={form.emergencyContact} onChange={e => setForm(f => ({ ...f, emergencyContact: e.target.value }))} className="mt-1" />
               </div>
               <div>
-                <Label>Emergency Phone</Label>
+                <Label>{t('common.phone', locale)}</Label>
                 <Input value={form.emergencyPhone} onChange={e => setForm(f => ({ ...f, emergencyPhone: e.target.value }))} className="mt-1" />
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>{t('common.cancel', locale)}</Button>
             <Button onClick={handleSave} disabled={!form.firstName || !form.lastName} className="bg-gradient-to-r from-emerald-600 to-teal-500">
-              {editing ? 'Update' : 'Register Patient'}
+              {editing ? t('common.save', locale) : t('clinic.patient.register', locale)}
             </Button>
           </DialogFooter>
         </DialogContent>

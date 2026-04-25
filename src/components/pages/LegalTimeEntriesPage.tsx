@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Clock, Search, Plus, Edit, Trash2 } from 'lucide-react';
+import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -56,6 +58,7 @@ const formatDate = (dateStr: string) => {
 };
 
 export default function LegalTimeEntriesPage() {
+  const locale = useAppStore((s) => s.locale);
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [cases, setCases] = useState<CaseOption[]>([]);
   const [summary, setSummary] = useState<TimeEntrySummary | null>(null);
@@ -189,7 +192,7 @@ export default function LegalTimeEntriesPage() {
       <div className="flex items-center gap-3">
         <div className="relative max-w-xs flex-1">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search time entries..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+          <Input placeholder={t('legal.timeEntry.search', locale)} value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
       </div>
 
@@ -208,13 +211,13 @@ export default function LegalTimeEntriesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Case</TableHead>
-                  <TableHead>Description</TableHead>
+                  <TableHead>{t('tenant.cases', locale)}</TableHead>
+                  <TableHead>{t('common.description', locale)}</TableHead>
                   <TableHead>Duration (hrs)</TableHead>
                   <TableHead>Rate</TableHead>
                   <TableHead>Billable</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
+                  <TableHead>{t('common.date', locale)}</TableHead>
+                  <TableHead className="text-center">{t('common.actions', locale)}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -257,7 +260,7 @@ export default function LegalTimeEntriesPage() {
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <Label>Case</Label>
+              <Label>{t('tenant.cases', locale)}</Label>
               <Select value={form.caseId} onValueChange={v => setForm(f => ({ ...f, caseId: v }))}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Select case" /></SelectTrigger>
                 <SelectContent>
@@ -281,7 +284,7 @@ export default function LegalTimeEntriesPage() {
                 <Input type="number" step="0.01" value={form.billingRate} onChange={e => setForm(f => ({ ...f, billingRate: e.target.value }))} className="mt-1" />
               </div>
               <div>
-                <Label>Date</Label>
+                <Label>{t('common.date', locale)}</Label>
                 <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="mt-1" />
               </div>
             </div>
@@ -299,7 +302,7 @@ export default function LegalTimeEntriesPage() {
 
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>{t('common.cancel', locale)}</Button>
             <Button onClick={handleSave} disabled={!form.description} className="bg-gradient-to-r from-violet-600 to-purple-500">
               {editing ? 'Update' : 'Log Time'}
             </Button>

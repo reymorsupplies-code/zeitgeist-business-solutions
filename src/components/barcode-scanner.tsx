@@ -100,7 +100,7 @@ export default function BarcodeScanner({ onAddToOrder }: BarcodeScannerProps) {
           setShowResult(true);
         }
       } catch {
-        setError('Error looking up product');
+        setError(t('common.error', locale));
       } finally {
         setLoading(false);
       }
@@ -319,7 +319,7 @@ export default function BarcodeScanner({ onAddToOrder }: BarcodeScannerProps) {
       {lastBarcode && (
         <div className="text-center">
           <p className="text-xs text-muted-foreground">
-            Last: <span className="font-mono font-medium text-foreground">{lastBarcode}</span>
+            {t("barcode.last", locale)}: <span className="font-mono font-medium text-foreground">{lastBarcode}</span>
           </p>
         </div>
       )}
@@ -355,19 +355,19 @@ export default function BarcodeScanner({ onAddToOrder }: BarcodeScannerProps) {
 
                   <div className="grid grid-cols-3 gap-3">
                     <div className="rounded-lg bg-muted/50 p-3 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Price</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("barcode.price", locale)}</p>
                       <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
                         ${Number(product.price).toFixed(2)}
                       </p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-3 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Cost</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("barcode.cost", locale)}</p>
                       <p className="text-lg font-bold">
                         ${Number(product.cost).toFixed(2)}
                       </p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-3 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Stock</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("barcode.stock", locale)}</p>
                       <p className={`text-lg font-bold ${product.stock > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
                         {product.stock}
                       </p>
@@ -376,7 +376,7 @@ export default function BarcodeScanner({ onAddToOrder }: BarcodeScannerProps) {
 
                   {product.unit && (
                     <p className="text-xs text-muted-foreground text-center">
-                      Unit: {product.unit}
+                      {t("barcode.unit", locale)}: {product.unit}
                     </p>
                   )}
                 </CardContent>

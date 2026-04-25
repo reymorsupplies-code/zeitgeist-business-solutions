@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Briefcase, Search, Plus, Edit, Trash2 } from 'lucide-react';
+import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -60,7 +62,6 @@ const caseTypeLabels: Record<string, string> = {
   immigration: 'Immigration', real_estate: 'Real Estate', labor: 'Labor',
   personal_injury: 'Personal Injury', other: 'Other',
 };
-const statusLabels: Record<string, string> = { open: 'Open', in_progress: 'In Progress', closed: 'Closed', settled: 'Settled', archived: 'Archived' };
 const statusColors: Record<string, string> = {
   open: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
   in_progress: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
@@ -70,6 +71,18 @@ const statusColors: Record<string, string> = {
 };
 
 export default function LegalCasesPage() {
+  const locale = useAppStore((s) => s.locale);
+  const typeLabels: Record<string, string> = {
+    civil: t('legal.type.civil', locale),
+    criminal: t('legal.type.criminal', locale),
+    family: t('legal.type.family', locale),
+  };
+  const statusLabels: Record<string, string> = {
+    open: t('legal.status.open', locale),
+    'In Progress': t('legal.status.inProgress', locale),
+    settled: t('common.completed', locale),
+    archived: t('common.archived', locale),
+  };
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [summary, setSummary] = useState<CaseSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,8 +142,8 @@ export default function LegalCasesPage() {
         body: JSON.stringify(editing?.id ? { id: editing.id, ...form } : form),
       });
       setShowForm(false); setEditing(null); load();
-      toast.success(editing?.id ? 'Case updated' : 'Case created');
-    } catch { toast.error('Failed to save case'); }
+      toast.success(editing?.id ? 'Case updated' : t('legal.case.updated', locale));
+    } catch { toast.error(t('common.error', locale)); }
   };
 
   const handleDelete = async (row: LegalCase) => {
@@ -203,7 +216,7 @@ export default function LegalCasesPage() {
       <div className="flex items-center gap-3">
         <div className="relative max-w-xs flex-1">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search cases..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+          <Input placeholder={t('legal.case.search', locale)} value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
       </div>
 
@@ -224,11 +237,11 @@ export default function LegalCasesPage() {
                 <TableRow>
                   <TableHead>Case #</TableHead>
                   <TableHead>Title</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t('common.name', locale)}</TableHead>
+                  <TableHead>{t('common.type', locale)}</TableHead>
+                  <TableHead>{t('common.status', locale)}</TableHead>
                   <TableHead>Billed</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
+                  <TableHead className="text-center">{t('common.actions', locale)}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -277,7 +290,7 @@ export default function LegalCasesPage() {
           <div className="space-y-4 mt-2">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Case Number</Label>
+                <Label>{t('common.reference', locale)}</Label>
                 <Input value={form.caseNumber} onChange={e => setForm(f => ({ ...f, caseNumber: e.target.value }))} className="mt-1" />
               </div>
               <div>
@@ -287,11 +300,11 @@ export default function LegalCasesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Client Name</Label>
+                <Label>{t('common.name', locale)}</Label>
                 <Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} className="mt-1" />
               </div>
               <div>
-                <Label>Case Type</Label>
+                <Label>{t('common.type', locale)}</Label>
                 <Select value={form.caseType} onValueChange={v => setForm(f => ({ ...f, caseType: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -310,7 +323,7 @@ export default function LegalCasesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Status</Label>
+                <Label>{t('common.status', locale)}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -352,14 +365,14 @@ export default function LegalCasesPage() {
               </div>
             </div>
             <div>
-              <Label>Description</Label>
+              <Label>{t('common.description', locale)}</Label>
               <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} className="mt-1" placeholder="Case description..." />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>{t('common.cancel', locale)}</Button>
             <Button onClick={handleSave} disabled={!form.title} className="bg-gradient-to-r from-purple-600 to-violet-500">
-              {editing ? 'Update' : 'Create Case'}
+              {editing ? t('common.save', locale) : t('legal.case.create', locale)}
             </Button>
           </DialogFooter>
         </DialogContent>

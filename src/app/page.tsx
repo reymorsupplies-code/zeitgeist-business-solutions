@@ -167,7 +167,7 @@ function getPriceRange(tier: 'starter' | 'growth' | 'premium') {
   return { min: Math.min(...prices), max: Math.max(...prices) };
 }
 
-function getCTNav(locale: string) {
+function getCTNav(locale: string) {(s => s.locale);
   return [
   { section: t('ct.section.commandCenter', locale), items: [
     { name: t('ct.overview', locale), icon: LayoutDashboard, page: 'overview' as const },
@@ -200,7 +200,7 @@ function getCTNav(locale: string) {
 ];
 }
 
-function getBakeryNav(locale: string) {
+function getBakeryNav(locale: string) {(s => s.locale);
   return [
   { section: t('tenant.section.operations', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
@@ -261,7 +261,7 @@ function getBakeryNav(locale: string) {
 ];
 }
 
-function getSalonNav(locale: string) {
+function getSalonNav(locale: string) {(s => s.locale);
   return [
   { section: t('tenant.section.salon', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
@@ -289,7 +289,7 @@ function getSalonNav(locale: string) {
 ];
 }
 
-function getRetailNav(locale: string) {
+function getRetailNav(locale: string) {(s => s.locale);
   return [
   { section: t('tenant.section.operations', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
@@ -326,7 +326,7 @@ function getRetailNav(locale: string) {
 ];
 }
 
-function getEventsNav(locale: string) {
+function getEventsNav(locale: string) {(s => s.locale);
   return [
   { section: t('tenant.section.events', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
@@ -356,7 +356,7 @@ function getEventsNav(locale: string) {
 ];
 }
 
-function getProfessionalNav(locale: string) {
+function getProfessionalNav(locale: string) {(s => s.locale);
   return [
   { section: t('tenant.section.workspace', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
@@ -383,7 +383,7 @@ function getProfessionalNav(locale: string) {
 ];
 }
 
-function getLegalNav(locale: string) {
+function getLegalNav(locale: string) {(s => s.locale);
   return [
   { section: t('tenant.section.practice', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
@@ -413,7 +413,7 @@ function getLegalNav(locale: string) {
 ];
 }
 
-function getInsuranceNav(locale: string) {
+function getInsuranceNav(locale: string) {(s => s.locale);
   return [
   { section: t('tenant.section.operations', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
@@ -439,7 +439,7 @@ function getInsuranceNav(locale: string) {
 ];
 }
 
-function getClinicsNav(locale: string) {
+function getClinicsNav(locale: string) {(s => s.locale);
   return [
   { section: t('tenant.section.clinic', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
@@ -469,7 +469,7 @@ function getClinicsNav(locale: string) {
 ];
 }
 
-function getPropertyMgmtNav(locale: string) {
+function getPropertyMgmtNav(locale: string) {(s => s.locale);
   return [
   { section: t('tenant.section.portfolio', locale), items: [
     { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
@@ -585,9 +585,9 @@ function DataGrid({ data, columns, onEdit, onDelete }: any) {
 // ============ PORTAL COMPONENTS ============
 
 function PortalNavbar() {
+  const locale = useAppStore(s => s.locale);
   const { setView, portalPage, setPortalPage, mobileMenuOpen, setMobileMenuOpen } = useAppStore();
   const [scrolled, setScrolled] = useState(false);
-  const locale = useAppStore(s => s.locale);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
@@ -663,8 +663,8 @@ function PortalNavbar() {
 }
 
 function PortalHero() {
-  const { setPortalPage, setView } = useAppStore();
   const locale = useAppStore(s => s.locale);
+  const { setPortalPage, setView } = useAppStore();
   
   return (
     <section className="relative min-h-screen flex items-center justify-center portal-gradient-bg overflow-hidden">
@@ -717,6 +717,7 @@ function PortalHero() {
 }
 
 function PortalAbout() {
+  const locale = useAppStore(s => s.locale);
   return (
     <section className="py-20 bg-background" id="about">
       <div className="max-w-6xl mx-auto px-4">
@@ -764,6 +765,7 @@ function PortalAbout() {
 }
 
 function PortalIndustries() {
+  const locale = useAppStore(s => s.locale);
   const { setSelectedIndustrySlug, setPortalPage, setView } = useAppStore();
   const activeIndustries = INDUSTRIES_DATA.filter(i => i.status === 'active');
   const comingSoonIndustries = INDUSTRIES_DATA.filter(i => i.status === 'coming_soon');
@@ -1021,6 +1023,7 @@ function PortalPricing() {
 }
 
 function PortalContact() {
+  const locale = useAppStore(s => s.locale);
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', industry: '', message: '' });
@@ -1244,6 +1247,7 @@ const INDUSTRY_DETAIL_DATA: Record<string, {
 // ============ INDUSTRY DETAIL PAGE ============
 
 function IndustryDetailPage() {
+  const locale = useAppStore(s => s.locale);
   const { selectedIndustrySlug, setView, setPortalPage } = useAppStore();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [plans, setPlans] = useState<any[]>([]);
@@ -1753,6 +1757,7 @@ function PortalFooter() {
 }
 
 function PortalView() {
+  const locale = useAppStore(s => s.locale);
   const { portalPage } = useAppStore();
   return (
     <div className="min-h-screen">
@@ -1784,6 +1789,7 @@ function PortalView() {
 // ============ LOGIN VIEW ============
 
 function LoginView() {
+  const locale = useAppStore(s => s.locale);
   const { setView, setUser, setCurrentTenant, setIsAuthenticated } = useAppStore() as any;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -1793,7 +1799,6 @@ function LoginView() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotSending, setForgotSending] = useState(false);
-  const locale = useAppStore(s => s.locale);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1953,6 +1958,7 @@ function LoginView() {
 // ============ PENDING APPROVAL VIEW ============
 
 function PendingApprovalView() {
+  const locale = useAppStore(s => s.locale);
   const { user, setView, setUser, setCurrentTenant, logout } = useAppStore();
   const [status, setStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [checking, setChecking] = useState(false);
@@ -2060,11 +2066,11 @@ function PendingApprovalView() {
 // ============ ONBOARDING WIZARD ============
 
 function OnboardingView() {
+  const locale = useAppStore(s => s.locale);
   const { setView, setUser, setCurrentTenant } = useAppStore() as any;
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({ companyName: '', industryId: '', fullName: '', email: '', password: '', confirmPassword: '', plan: 'growth', paymentMethod: 'wipay' });
   const [loading, setLoading] = useState(false);
-  const locale = useAppStore(s => s.locale);
 
   // Password strength calculation
   const getPasswordStrength = (pw: string) => {
@@ -2315,6 +2321,7 @@ function ThreatGaugeSVG({ score, size = 120 }: { score: number; size?: number })
 const COUNTRY_FLAGS: Record<string, string> = { TT: '🇹🇹', JM: '🇯🇲', BB: '🇧🇧', GY: '🇬🇾', SR: '🇸🇷', GD: '🇬🇩', LC: '🇱🇨', VC: '🇻🇨', AG: '🇦🇬', DM: '🇩🇲', KN: '🇰🇳', BS: '🇧🇸', US: '🇺🇸', GB: '🇬🇧', CA: '🇨🇦', Unknown: '🌍' };
 
 function CTRealTimeClock() {
+  const locale = useAppStore(s => s.locale);
   const [now, setNow] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
   return <span className="font-mono text-xs text-muted-foreground tabular-nums">{now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>;
@@ -2340,8 +2347,8 @@ function CTSystemStatusBanner({ stats }: { stats: any }) {
 }
 
 function CTSidebar() {
-  const { ctPage, setCtPage, sidebarCollapsed, toggleSidebar, theme, setTheme, logout, user } = useAppStore();
   const locale = useAppStore(s => s.locale);
+  const { ctPage, setCtPage, sidebarCollapsed, toggleSidebar, theme, setTheme, logout, user } = useAppStore();
   const [pendingCount, setPendingCount] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -2443,8 +2450,8 @@ function CTSidebar() {
 }
 
 function CTOverview() {
-  const { setCtPage } = useAppStore();
   const locale = useAppStore(s => s.locale);
+  const { setCtPage } = useAppStore();
   const [stats, setStats] = useState<any>(null);
   const [taxData, setTaxData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -2488,9 +2495,9 @@ function CTOverview() {
   const funnelTotal = tenants.total || 1;
   const funnelSteps = [
     { label: 'Registrados', count: tenants.total, pct: 100, color: 'from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/30' },
-    { label: 'En Prueba', count: tenants.trial, pct: ((tenants.trial / funnelTotal) * 100), color: 'from-amber-100 to-amber-200 dark:from-amber-900/40 dark:to-amber-800/30' },
-    { label: 'Activos', count: tenants.active, pct: ((tenants.active / funnelTotal) * 100), color: 'from-green-100 to-green-200 dark:from-green-900/40 dark:to-green-800/30' },
-    { label: 'Pagando', count: stats?.paymentStatus?.verified || 0, pct: (((stats?.paymentStatus?.verified || 0) / funnelTotal) * 100), color: 'from-emerald-100 to-emerald-200 dark:from-emerald-900/40 dark:to-emerald-800/30' },
+    { label: t('ct.funnel.trial', locale), count: tenants.trial, pct: ((tenants.trial / funnelTotal) * 100), color: 'from-amber-100 to-amber-200 dark:from-amber-900/40 dark:to-amber-800/30' },
+    { label: t('ct.funnel.active', locale), count: tenants.active, pct: ((tenants.active / funnelTotal) * 100), color: 'from-green-100 to-green-200 dark:from-green-900/40 dark:to-green-800/30' },
+    { label: t('ct.funnel.paying', locale), count: stats?.paymentStatus?.verified || 0, pct: (((stats?.paymentStatus?.verified || 0) / funnelTotal) * 100), color: 'from-emerald-100 to-emerald-200 dark:from-emerald-900/40 dark:to-emerald-800/30' },
   ];
 
   // Industry donut
@@ -2747,6 +2754,7 @@ function CTOverview() {
 }
 
 function CTTenants() {
+  const locale = useAppStore(s => s.locale);
   const [tenants, setTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -2764,7 +2772,6 @@ function CTTenants() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<any>(null);
 
   const { setViewAsTenant, clearViewAsTenant } = useAppStore();
-  const locale = useAppStore(s => s.locale);
 
   const load = useCallback(() => {
     setLoading(true); setError(null);
@@ -2929,7 +2936,7 @@ function CTTenants() {
         </Select>
       </motion.div>
 
-      {filtered.length === 0 ? <EmptyState icon={Building2} title="No tenants found" description="Try adjusting your filters or create a new tenant" action="Create Tenant" onAction={() => setShowCreate(true)} /> : (
+      {filtered.length === 0 ? <EmptyState icon={Building2} title={t("common.noData", locale)} description={t("common.noData", locale)} action={t("ct.tenants.create", locale)} onAction={() => setShowCreate(true)} /> : (
         <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-xl border border-border overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -3213,9 +3220,9 @@ function CTApprovals() {
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="grid grid-cols-3 gap-4">
-        <StatCard title="Pending" value={tenants.length} subtitle="Awaiting review" icon={Clock} gradient="from-amber-500 to-orange-500" />
-        <StatCard title="Verified" value={paymentStats.verified || 0} subtitle="Total approved" icon={CheckCircle} gradient="from-green-500 to-emerald-600" />
-        <StatCard title="Revenue Verified" value={`TT$${(stats?.subscriptions?.mrr || 0).toLocaleString()}`} subtitle="Monthly verified" icon={DollarSign} gradient="from-blue-700 to-blue-500" />
+        <StatCard title={t("common.pending", locale)} value={tenants.length} subtitle={t("ct.approvals.noPending", locale)} icon={Clock} gradient="from-amber-500 to-orange-500" />
+        <StatCard title={t("ct.security.verifiedPayments", locale)} value={paymentStats.verified || 0} subtitle={t("ct.security.monthlyVerified", locale)} icon={CheckCircle} gradient="from-green-500 to-emerald-600" />
+        <StatCard title={t("ct.security.revenueVerified", locale)} value={`TT$${(stats?.subscriptions?.mrr || 0).toLocaleString()}`} subtitle={t("ct.security.monthlyVerified", locale)} icon={DollarSign} gradient="from-blue-700 to-blue-500" />
       </motion.div>
 
       {tenants.length === 0 ? (
@@ -3443,10 +3450,10 @@ function CTSecurity() {
           <ThreatGaugeSVG score={threatScore} size={130} />
           <p className="text-xs text-muted-foreground mt-2">{threatScore <= 30 ? 'Low Risk' : threatScore <= 60 ? 'Moderate Risk' : 'High Risk'}</p>
         </Card>
-        <StatCard title="Active Users" value={activeUsers.length} subtitle={`${users.length} total`} icon={Users} gradient="from-blue-700 to-blue-500" />
-        <StatCard title="Login Events" value={loginAttempts.length} subtitle="Recent activity" icon={Lock} gradient="from-cyan-500 to-blue-600" />
-        <StatCard title="Suspicious" value={suspicious.length} subtitle="Duplicate accounts" icon={AlertTriangle} gradient="from-amber-500 to-orange-500" />
-        <StatCard title="Verified Payments" value={stats?.paymentStatus?.verified || 0} subtitle={`${stats?.paymentStatus?.pending || 0} pending`} icon={CheckCircle} gradient="from-green-500 to-emerald-600" />
+        <StatCard title={t("ct.monitoring.active", locale)} value={activeUsers.length} subtitle={`${users.length} total`} icon={Users} gradient="from-blue-700 to-blue-500" />
+        <StatCard title={t("ct.security.totalLogs", locale)} value={loginAttempts.length} subtitle={t("common.recentActivity", locale)} icon={Lock} gradient="from-cyan-500 to-blue-600" />
+        <StatCard title={t("ct.security.suspiciousAccounts", locale)} value={suspicious.length} subtitle={t("ct.security.bruteForce", locale)} icon={AlertTriangle} gradient="from-amber-500 to-orange-500" />
+        <StatCard title={t("ct.security.verifiedPayments", locale)} value={stats?.paymentStatus?.verified || 0} subtitle={`${stats?.paymentStatus?.pending || 0} pending`} icon={CheckCircle} gradient="from-green-500 to-emerald-600" />
       </motion.div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -3552,7 +3559,7 @@ function CTSecurity() {
                 </div>
               )}
               <div className="mt-3 p-2.5 rounded-lg bg-muted/30">
-                <p className="text-xs font-medium">Total Failed Logins</p>
+                <p className="text-xs font-medium">{t("ct.security.totalFailedLogins", locale)}</p>
                 <p className="text-lg font-bold text-red-600">{failedLogins.length}</p>
               </div>
             </CardContent>
@@ -3713,7 +3720,7 @@ function CTAudit() {
 
       {/* Quick Stats Row */}
       <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }} className="grid grid-cols-4 gap-3">
-        <Card><CardContent className="p-3 text-center"><p className="text-[10px] text-muted-foreground">Total Logs</p><p className="text-xl font-bold">{totalLogs}</p></CardContent></Card>
+        <Card><CardContent className="p-3 text-center"><p className="text-[10px] text-muted-foreground">{t("ct.security.totalLogs", locale)}</p><p className="text-xl font-bold">{totalLogs}</p></CardContent></Card>
         <Card><CardContent className="p-3 text-center"><p className="text-[10px] text-muted-foreground">Critical</p><p className="text-xl font-bold text-red-600">{criticalCount}</p></CardContent></Card>
         <Card><CardContent className="p-3 text-center"><p className="text-[10px] text-muted-foreground">Today</p><p className="text-xl font-bold text-blue-600">{todayLogs}</p></CardContent></Card>
         <Card><CardContent className="p-3 text-center"><p className="text-[10px] text-muted-foreground">Last 24h</p><p className="text-xl font-bold text-amber-600">{last24hLogs}</p></CardContent></Card>
@@ -3912,7 +3919,7 @@ function CTAnalytics() {
       {/* KPI Row with Sparklines */}
       <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <Card className="hover:shadow-lg transition-all group"><CardContent className="p-4">
-          <div className="flex items-center justify-between mb-1"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Total Tenants</p><div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center"><Building2 className="w-3.5 h-3.5 text-white" /></div></div>
+          <div className="flex items-center justify-between mb-1"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{t("ct.security.totalTenants", locale)}</p><div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center"><Building2 className="w-3.5 h-3.5 text-white" /></div></div>
           <p className="text-2xl font-bold">{totalTenants}</p>
           <div className="flex items-center justify-between mt-1"><p className="text-[10px] text-muted-foreground">{activeCount} active</p><SparklineSVG data={[totalTenants * 0.6, totalTenants * 0.7, totalTenants * 0.8, totalTenants * 0.85, totalTenants * 0.9, totalTenants * 0.95, totalTenants]} color="#1D4ED8" /></div>
         </CardContent></Card>
@@ -5353,7 +5360,7 @@ function CTVisitorAnalytics() {
       {/* Top Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { title: 'Total Visits', value: total.total_visits?.toLocaleString(), subtitle: `Since ${total.first_visit ? new Date(total.first_visit).toLocaleDateString() : 'N/A'}`, icon: Globe, gradient: 'from-blue-600 to-blue-400' },
+          { title: t('ct.visitorAnalytics.totalVisits', locale), value: total.total_visits?.toLocaleString(), subtitle: `Since ${total.first_visit ? new Date(total.first_visit).toLocaleDateString() : 'N/A'}`, icon: Globe, gradient: 'from-blue-600 to-blue-400' },
           { title: 'Unique Visitors', value: total.unique_visitors?.toLocaleString(), subtitle: 'Distinct IPs tracked', icon: Users, gradient: 'from-green-600 to-emerald-400' },
           { title: 'Top Country', value: topCountry ? `${getFlag(topCountry.country)} ${topCountry.country}` : '—', subtitle: topCountry ? `${topCountry.visits} visits` : 'No data', icon: MapPin, gradient: 'from-amber-500 to-orange-400' },
           { title: 'Pages / Views', value: `${byPage.length}`, subtitle: `${totalPageViews.toLocaleString()} total views`, icon: FileText, gradient: 'from-purple-600 to-violet-400' },
@@ -5753,6 +5760,7 @@ function CTCompetitiveIntel() {
 // ============ TAX COMPLIANCE T&T ============
 
 function CTTaxCompliance() {
+  const locale = useAppStore(s => s.locale);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -6108,7 +6116,7 @@ function CTTaxCompliance() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Inquilino</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("pm.table.tenant", locale)}</th>
                   <th className="px-3 py-2 text-left font-medium text-muted-foreground">Plan</th>
                   <th className="px-3 py-2 text-left font-medium text-muted-foreground">VAT</th>
                   <th className="px-3 py-2 text-right font-medium text-muted-foreground">Mensual</th>
@@ -6239,6 +6247,7 @@ function CTTaxCompliance() {
 
 // ============ PROPERTIES ============
 function CTProperties({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const locale = useAppStore(s => s.locale);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
@@ -6287,8 +6296,8 @@ function CTProperties({ apiBase = '/api/platform' }: { apiBase?: string } = {}) 
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Propiedades', value: items.length, icon: Building2, color: 'from-emerald-600 to-emerald-400' },
-          { label: 'Total Unidades', value: totalUnits, icon: Home, color: 'from-sky-600 to-sky-400' },
+          { label: t('pm.stats.totalProperties', locale), value: items.length, icon: Building2, color: 'from-emerald-600 to-emerald-400' },
+          { label: t('pm.stats.totalUnits', locale), value: totalUnits, icon: Home, color: 'from-sky-600 to-sky-400' },
           { label: 'Ocupadas', value: occupiedUnits, icon: CheckCircle, color: 'from-green-600 to-green-400' },
           { label: 'Vacantes', value: vacantUnits, icon: XCircle, color: 'from-amber-600 to-amber-400' },
         ].map(s => (
@@ -6325,10 +6334,10 @@ function CTProperties({ apiBase = '/api/platform' }: { apiBase?: string } = {}) 
               <div><Label>Tipo</Label><Select value={form.type} onValueChange={v => setForm({ ...form, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Commercial">Comercial</SelectItem><SelectItem value="Mixed Use">Uso Mixto</SelectItem><SelectItem value="Office">Oficina</SelectItem></SelectContent></Select></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Área Total (m²)</Label><Input type="number" value={form.totalArea} onChange={e => setForm({ ...form, totalArea: e.target.value })} /></div>
-              <div><Label>Estado</Label><Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Activo</SelectItem><SelectItem value="inactive">Inactivo</SelectItem></SelectContent></Select></div>
+              <div><Label>{t("pm.form.totalArea", locale)}</Label><Input type="number" value={form.totalArea} onChange={e => setForm({ ...form, totalArea: e.target.value })} /></div>
+              <div><Label>{t("pm.filter.status", locale)}</Label><Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">{t("pm.status.active", locale)}</SelectItem><SelectItem value="inactive">{t("pm.status.inactive", locale)}</SelectItem></SelectContent></Select></div>
             </div>
-            <div><Label>Descripción</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} /></div>
+            <div><Label>{t("common.description", locale)}</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} /></div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setShowDialog(false)}>Cancelar</Button><Button onClick={handleSave}>{editItem ? 'Actualizar' : 'Crear'}</Button></DialogFooter>
         </DialogContent>
@@ -6339,6 +6348,7 @@ function CTProperties({ apiBase = '/api/platform' }: { apiBase?: string } = {}) 
 
 // ============ PROPERTY UNITS ============
 function CTPropertyUnits({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const locale = useAppStore(s => s.locale);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [properties, setProperties] = useState<any[]>([]);
@@ -6382,24 +6392,24 @@ function CTPropertyUnits({ apiBase = '/api/platform' }: { apiBase?: string } = {
   const handleDelete = async (id: string) => { await authFetch(`${apiBase}/property-units`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); load(); toast.success('Unidad eliminada'); };
 
   const statusBadge: Record<string, string> = { Vacant: 'bg-gray-100 text-gray-700', Occupied: 'bg-green-100 text-green-700', Maintenance: 'bg-amber-100 text-amber-700', Reserved: 'bg-blue-100 text-blue-700' };
-  const statusLabel: Record<string, string> = { Vacant: 'Vacante', Occupied: 'Ocupada', Maintenance: 'Mantenimiento', Reserved: 'Reservada' };
+  const statusLabel: Record<string, string> = { Vacant: t('pm.status.vacant', locale), Occupied: t('pm.status.occupied', locale), Maintenance: t('pm.status.maintenance', locale), Reserved: t('pm.status.reserved', locale) };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-sky-700 to-sky-500 shadow-lg shadow-sky-500/20"><Home className="w-5 h-5 text-white" /></div>
-          <h1 className="text-2xl font-bold">Unidades</h1>
+          <h1 className="text-2xl font-bold">{t("pm.table.units", locale)}</h1>
         </div>
         <Button onClick={openCreate}><Plus className="w-4 h-4 mr-2" />Agregar Unidad</Button>
       </div>
       <div className="flex flex-wrap gap-3">
         <Select value={filterProp} onValueChange={setFilterProp}><SelectTrigger className="w-48"><SelectValue placeholder="Propiedad" /></SelectTrigger><SelectContent><SelectItem value="all">Todas las propiedades</SelectItem>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
-        <Select value={filterStatus} onValueChange={setFilterStatus}><SelectTrigger className="w-40"><SelectValue placeholder="Estado" /></SelectTrigger><SelectContent><SelectItem value="all">Todos</SelectItem><SelectItem value="Vacant">Vacante</SelectItem><SelectItem value="Occupied">Ocupada</SelectItem><SelectItem value="Maintenance">Mantenimiento</SelectItem><SelectItem value="Reserved">Reservada</SelectItem></SelectContent></Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}><SelectTrigger className="w-40"><SelectValue placeholder={t("pm.filter.status", locale)} /></SelectTrigger><SelectContent><SelectItem value="all">{t("pm.filter.all", locale)}</SelectItem><SelectItem value="Vacant">{t("pm.status.vacant", locale)}</SelectItem><SelectItem value="Occupied">{t("pm.status.occupied", locale)}</SelectItem><SelectItem value="Maintenance">{t("pm.status.maintenance", locale)}</SelectItem><SelectItem value="Reserved">{t("pm.status.reserved", locale)}</SelectItem></SelectContent></Select>
       </div>
       {loading ? <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div> : (
         <Card><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full text-sm">
-          <thead><tr className="border-b bg-muted/50"><th className="text-left p-3 font-medium">Unidad</th><th className="text-left p-3 font-medium">Propiedad</th><th className="text-left p-3 font-medium">Piso</th><th className="text-left p-3 font-medium">Área</th><th className="text-left p-3 font-medium">Renta TTD</th><th className="text-left p-3 font-medium">Inquilino</th><th className="text-left p-3 font-medium">Estado</th><th className="p-3"></th></tr></thead>
+          <thead><tr className="border-b bg-muted/50"><th className="text-left p-3 font-medium">{t("pm.table.unit", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.property", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.floor", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.area", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.rent", locale)} TTD</th><th className="text-left p-3 font-medium">{t("pm.table.tenant", locale)}</th><th className="text-left p-3 font-medium">{t("pm.filter.status", locale)}</th><th className="p-3"></th></tr></thead>
           <tbody>{filtered.map((u: any) => (
             <tr key={u.id} className="border-b hover:bg-muted/30 transition-colors">
               <td className="p-3 font-medium">{u.unitNumber}</td><td className="p-3">{u.property?.name || '-'}</td><td className="p-3">{u.floor || '-'}</td><td className="p-3">{u.area} m²</td>
@@ -6414,19 +6424,19 @@ function CTPropertyUnits({ apiBase = '/api/platform' }: { apiBase?: string } = {
         <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>{editItem ? 'Editar Unidad' : 'Nueva Unidad'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Propiedad</Label><Select value={form.propertyId} onValueChange={v => setForm({ ...form, propertyId: v })}><SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger><SelectContent>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label>{t("pm.table.property", locale)}</Label><Select value={form.propertyId} onValueChange={v => setForm({ ...form, propertyId: v })}><SelectTrigger><SelectValue placeholder={t("common.all", locale)} /></SelectTrigger><SelectContent>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
               <div><Label>N° Unidad</Label><Input value={form.unitNumber} onChange={e => setForm({ ...form, unitNumber: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <div><Label>Piso</Label><Input type="number" value={form.floor} onChange={e => setForm({ ...form, floor: e.target.value })} /></div>
+              <div><Label>{t("pm.table.floor", locale)}</Label><Input type="number" value={form.floor} onChange={e => setForm({ ...form, floor: e.target.value })} /></div>
               <div><Label>Área (m²)</Label><Input type="number" value={form.area} onChange={e => setForm({ ...form, area: e.target.value })} /></div>
-              <div><Label>Estado</Label><Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Vacant">Vacante</SelectItem><SelectItem value="Occupied">Ocupada</SelectItem><SelectItem value="Maintenance">Mantenimiento</SelectItem><SelectItem value="Reserved">Reservada</SelectItem></SelectContent></Select></div>
+              <div><Label>{t("pm.filter.status", locale)}</Label><Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Vacant">{t("pm.status.vacant", locale)}</SelectItem><SelectItem value="Occupied">{t("pm.status.occupied", locale)}</SelectItem><SelectItem value="Maintenance">{t("pm.status.maintenance", locale)}</SelectItem><SelectItem value="Reserved">{t("pm.status.reserved", locale)}</SelectItem></SelectContent></Select></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Renta Base TTD</Label><Input type="number" value={form.baseRentTTD} onChange={e => setForm({ ...form, baseRentTTD: e.target.value })} /></div>
               <div><Label>Renta Base USD</Label><Input type="number" value={form.baseRentUSD} onChange={e => setForm({ ...form, baseRentUSD: e.target.value })} /></div>
             </div>
-            <div><Label>Inquilino</Label><Select value={form.tenantId} onValueChange={v => setForm({ ...form, tenantId: v })}><SelectTrigger><SelectValue placeholder="Ninguno" /></SelectTrigger><SelectContent><SelectItem value="none">Ninguno</SelectItem>{tenants.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>{t("pm.table.tenant", locale)}</Label><Select value={form.tenantId} onValueChange={v => setForm({ ...form, tenantId: v })}><SelectTrigger><SelectValue placeholder="Ninguno" /></SelectTrigger><SelectContent><SelectItem value="none">Ninguno</SelectItem>{tenants.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Notas</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setShowDialog(false)}>Cancelar</Button><Button onClick={handleSave}>{editItem ? 'Actualizar' : 'Crear'}</Button></DialogFooter>
@@ -6438,6 +6448,7 @@ function CTPropertyUnits({ apiBase = '/api/platform' }: { apiBase?: string } = {
 
 // ============ LEASES ============
 function CTLeases({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const locale = useAppStore(s => s.locale);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [units, setUnits] = useState<any[]>([]);
@@ -6492,8 +6503,8 @@ function CTLeases({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
-          { label: 'Contratos Activos', value: activeLeases.length, icon: CheckCircle, color: 'from-green-600 to-green-400' },
-          { label: 'Renta Mensual Total', value: formatCurrency(totalRent, 'TTD'), icon: DollarSign, color: 'from-violet-600 to-violet-400' },
+          { label: t('pm.stats.activeLeases', locale), value: activeLeases.length, icon: CheckCircle, color: 'from-green-600 to-green-400' },
+          { label: t('pm.stats.monthlyRent', locale), value: formatCurrency(totalRent, 'TTD'), icon: DollarSign, color: 'from-violet-600 to-violet-400' },
           { label: 'Por Vencer', value: expiringSoon.length, icon: AlertTriangle, color: 'from-amber-600 to-amber-400' },
         ].map(s => (
           <Card key={s.label}><CardContent className="p-4"><div className="flex items-center gap-3"><div className={`p-2 rounded-lg bg-gradient-to-br ${s.color}`}><s.icon className="w-4 h-4 text-white" /></div><div><p className="text-xs text-muted-foreground">{s.label}</p><p className="text-lg font-bold">{s.value}</p></div></div></CardContent></Card>
@@ -6501,7 +6512,7 @@ function CTLeases({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
       </div>
       {loading ? <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div> : (
         <Card><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full text-sm">
-          <thead><tr className="border-b bg-muted/50"><th className="text-left p-3 font-medium">Inquilino</th><th className="text-left p-3 font-medium">Unidad</th><th className="text-left p-3 font-medium">Propiedad</th><th className="text-left p-3 font-medium">Renta</th><th className="text-left p-3 font-medium">Inicio</th><th className="text-left p-3 font-medium">Fin</th><th className="text-left p-3 font-medium">Estado</th><th className="p-3"></th></tr></thead>
+          <thead><tr className="border-b bg-muted/50"><th className="text-left p-3 font-medium">{t("pm.table.tenant", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.unit", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.property", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.rent", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.start", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.end", locale)}</th><th className="text-left p-3 font-medium">{t("pm.filter.status", locale)}</th><th className="p-3"></th></tr></thead>
           <tbody>{items.map((l: any) => (
             <tr key={l.id} className={`border-b hover:bg-muted/30 transition-colors ${isExpiring(l.endDate, l.status) ? 'bg-amber-50' : ''}`}>
               <td className="p-3 font-medium">{l.tenant?.name || '-'}</td><td className="p-3">{l.unit?.unitNumber || '-'}</td><td className="p-3">{l.unit?.property?.name || '-'}</td>
@@ -6516,15 +6527,15 @@ function CTLeases({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
         <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>{editItem ? 'Editar Contrato' : 'Nuevo Contrato'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Unidad</Label><Select value={form.unitId} onValueChange={v => setForm({ ...form, unitId: v })}><SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger><SelectContent>{units.map(u => <SelectItem key={u.id} value={u.id}>{u.unitNumber} — {u.property?.name || ''}</SelectItem>)}</SelectContent></Select></div>
-              <div><Label>Inquilino</Label><Select value={form.tenantId} onValueChange={v => setForm({ ...form, tenantId: v })}><SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger><SelectContent>{tenants.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label>{t("pm.table.unit", locale)}</Label><Select value={form.unitId} onValueChange={v => setForm({ ...form, unitId: v })}><SelectTrigger><SelectValue placeholder={t("common.all", locale)} /></SelectTrigger><SelectContent>{units.map(u => <SelectItem key={u.id} value={u.id}>{u.unitNumber} — {u.property?.name || ''}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label>{t("pm.table.tenant", locale)}</Label><Select value={form.tenantId} onValueChange={v => setForm({ ...form, tenantId: v })}><SelectTrigger><SelectValue placeholder={t("common.all", locale)} /></SelectTrigger><SelectContent>{tenants.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Fecha Inicio</Label><Input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} /></div>
-              <div><Label>Fecha Fin</Label><Input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} /></div>
+              <div><Label>{t("pm.form.startDate", locale)}</Label><Input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} /></div>
+              <div><Label>{t("pm.form.endDate", locale)}</Label><Input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <div><Label>Monto Renta</Label><Input type="number" value={form.rentAmount} onChange={e => setForm({ ...form, rentAmount: e.target.value })} /></div>
+              <div><Label>{t("pm.form.rentAmount", locale)}</Label><Input type="number" value={form.rentAmount} onChange={e => setForm({ ...form, rentAmount: e.target.value })} /></div>
               <div><Label>Moneda</Label><Select value={form.rentCurrency} onValueChange={v => setForm({ ...form, rentCurrency: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="TTD">TTD</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select></div>
               <div><Label>Depósito</Label><Input type="number" value={form.depositAmount} onChange={e => setForm({ ...form, depositAmount: e.target.value })} /></div>
             </div>
@@ -6535,7 +6546,7 @@ function CTLeases({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
                 <div><Label className="text-xs">Incremento %</Label><Input type="number" value={form.rentIncreasePercent} onChange={e => setForm({ ...form, rentIncreasePercent: e.target.value })} /></div>
               </div>
             </div>
-            <div><Label>Estado</Label><Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Activo</SelectItem><SelectItem value="draft">Borrador</SelectItem><SelectItem value="expired">Expirado</SelectItem><SelectItem value="terminated">Terminado</SelectItem></SelectContent></Select></div>
+            <div><Label>{t("pm.filter.status", locale)}</Label><Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">{t("pm.status.active", locale)}</SelectItem><SelectItem value="draft">{t("pm.status.draft", locale)}</SelectItem><SelectItem value="expired">{t("pm.status.expired", locale)}</SelectItem><SelectItem value="terminated">{t("pm.status.terminated", locale)}</SelectItem></SelectContent></Select></div>
             <div><Label>Términos</Label><Textarea value={form.terms} onChange={e => setForm({ ...form, terms: e.target.value })} rows={2} /></div>
             <div><Label>Notas</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
           </div>
@@ -6548,6 +6559,7 @@ function CTLeases({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
 
 // ============ MAINTENANCE ============
 function CTMaintenance({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const locale = useAppStore(s => s.locale);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [properties, setProperties] = useState<any[]>([]);
@@ -6609,7 +6621,7 @@ function CTMaintenance({ apiBase = '/api/platform' }: { apiBase?: string } = {})
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-orange-700 to-orange-500 shadow-lg shadow-orange-500/20"><Wrench className="w-5 h-5 text-white" /></div>
-          <h1 className="text-2xl font-bold">Solicitudes de Mantenimiento</h1>
+          <h1 className="text-2xl font-bold">{t("pm.maintenance.title", locale)}</h1>
         </div>
         <Button onClick={openCreate}><Plus className="w-4 h-4 mr-2" />Nueva Solicitud</Button>
       </div>
@@ -6617,19 +6629,19 @@ function CTMaintenance({ apiBase = '/api/platform' }: { apiBase?: string } = {})
         {[
           { label: 'Abiertas', value: openCount, icon: AlertTriangle, color: 'from-red-600 to-red-400' },
           { label: 'En Progreso', value: inProgress, icon: Clock, color: 'from-amber-600 to-amber-400' },
-          { label: 'Resueltas Este Mes', value: thisMonth.length, icon: CheckCircle, color: 'from-green-600 to-green-400' },
-          { label: 'Resolución Promedio', value: `${avgDays} días`, icon: TrendingUp, color: 'from-sky-600 to-sky-400' },
+          { label: t('pm.stats.resolvedThisMonth', locale), value: thisMonth.length, icon: CheckCircle, color: 'from-green-600 to-green-400' },
+          { label: t('pm.stats.avgResolution', locale), value: `${avgDays} días`, icon: TrendingUp, color: 'from-sky-600 to-sky-400' },
         ].map(s => (
           <Card key={s.label}><CardContent className="p-4"><div className="flex items-center gap-3"><div className={`p-2 rounded-lg bg-gradient-to-br ${s.color}`}><s.icon className="w-4 h-4 text-white" /></div><div><p className="text-xs text-muted-foreground">{s.label}</p><p className="text-lg font-bold">{s.value}</p></div></div></CardContent></Card>
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <Tabs value={statusTab} onValueChange={setStatusTab}><TabsList><TabsTrigger value="all">Todos</TabsTrigger><TabsTrigger value="open">Abiertas</TabsTrigger><TabsTrigger value="in_progress">En Progreso</TabsTrigger><TabsTrigger value="resolved">Resueltas</TabsTrigger><TabsTrigger value="closed">Cerradas</TabsTrigger></TabsList></Tabs>
+        <Tabs value={statusTab} onValueChange={setStatusTab}><TabsList><TabsTrigger value="all">{t("pm.filter.all", locale)}</TabsTrigger><TabsTrigger value="open">Abiertas</TabsTrigger><TabsTrigger value="in_progress">{t("pm.maintenance.inProgress", locale)}</TabsTrigger><TabsTrigger value="resolved">Resueltas</TabsTrigger><TabsTrigger value="closed">Cerradas</TabsTrigger></TabsList></Tabs>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}><SelectTrigger className="w-36"><SelectValue placeholder="Prioridad" /></SelectTrigger><SelectContent><SelectItem value="all">Todas</SelectItem><SelectItem value="urgent">Urgente</SelectItem><SelectItem value="high">Alta</SelectItem><SelectItem value="medium">Media</SelectItem><SelectItem value="low">Baja</SelectItem></SelectContent></Select>
       </div>
       {loading ? <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div> : (
         <Card><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full text-sm">
-          <thead><tr className="border-b bg-muted/50"><th className="text-left p-3 font-medium">Título</th><th className="text-left p-3 font-medium">Propiedad</th><th className="text-left p-3 font-medium">Unidad</th><th className="text-left p-3 font-medium">Categoría</th><th className="text-left p-3 font-medium">Prioridad</th><th className="text-left p-3 font-medium">Estado</th><th className="text-left p-3 font-medium">Fecha</th><th className="p-3"></th></tr></thead>
+          <thead><tr className="border-b bg-muted/50"><th className="text-left p-3 font-medium">{t("pm.table.title", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.property", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.unit", locale)}</th><th className="text-left p-3 font-medium">{t("common.category", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.priority", locale)}</th><th className="text-left p-3 font-medium">{t("pm.filter.status", locale)}</th><th className="text-left p-3 font-medium">{t("common.date", locale)}</th><th className="p-3"></th></tr></thead>
           <tbody>{filtered.map((m: any) => (
             <tr key={m.id} className="border-b hover:bg-muted/30 transition-colors">
               <td className="p-3 font-medium">{m.title}</td><td className="p-3">{m.property?.name || '-'}</td><td className="p-3">{m.unit?.unitNumber || '-'}</td>
@@ -6646,20 +6658,20 @@ function CTMaintenance({ apiBase = '/api/platform' }: { apiBase?: string } = {})
         <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>{editItem ? 'Editar Solicitud' : 'Nueva Solicitud'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-3">
-              <div><Label>Propiedad</Label><Select value={form.propertyId} onValueChange={v => setForm({ ...form, propertyId: v, unitId: '' })}><SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger><SelectContent>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
-              <div><Label>Unidad</Label><Select value={form.unitId} onValueChange={v => setForm({ ...form, unitId: v })}><SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger><SelectContent>{filteredUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.unitNumber}</SelectItem>)}</SelectContent></Select></div>
-              <div><Label>Inquilino</Label><Select value={form.tenantId} onValueChange={v => setForm({ ...form, tenantId: v })}><SelectTrigger><SelectValue placeholder="Ninguno" /></SelectTrigger><SelectContent><SelectItem value="none">Ninguno</SelectItem>{tenants.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label>{t("pm.table.property", locale)}</Label><Select value={form.propertyId} onValueChange={v => setForm({ ...form, propertyId: v, unitId: '' })}><SelectTrigger><SelectValue placeholder={t("common.all", locale)} /></SelectTrigger><SelectContent>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label>{t("pm.table.unit", locale)}</Label><Select value={form.unitId} onValueChange={v => setForm({ ...form, unitId: v })}><SelectTrigger><SelectValue placeholder={t("common.all", locale)} /></SelectTrigger><SelectContent>{filteredUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.unitNumber}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label>{t("pm.table.tenant", locale)}</Label><Select value={form.tenantId} onValueChange={v => setForm({ ...form, tenantId: v })}><SelectTrigger><SelectValue placeholder="Ninguno" /></SelectTrigger><SelectContent><SelectItem value="none">Ninguno</SelectItem>{tenants.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select></div>
             </div>
-            <div><Label>Título</Label><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
-            <div><Label>Descripción</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} /></div>
+            <div><Label>{t("pm.table.title", locale)}</Label><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
+            <div><Label>{t("common.description", locale)}</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} /></div>
             <div className="grid grid-cols-3 gap-3">
-              <div><Label>Categoría</Label><Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Plumbing">Plomería</SelectItem><SelectItem value="Electrical">Eléctrico</SelectItem><SelectItem value="Structural">Estructural</SelectItem><SelectItem value="HVAC">HVAC</SelectItem><SelectItem value="General">General</SelectItem></SelectContent></Select></div>
-              <div><Label>Prioridad</Label><Select value={form.priority} onValueChange={v => setForm({ ...form, priority: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="urgent">Urgente</SelectItem><SelectItem value="high">Alta</SelectItem><SelectItem value="medium">Media</SelectItem><SelectItem value="low">Baja</SelectItem></SelectContent></Select></div>
-              <div><Label>Estado</Label><Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="open">Abierto</SelectItem><SelectItem value="in_progress">En Progreso</SelectItem><SelectItem value="resolved">Resuelto</SelectItem><SelectItem value="closed">Cerrado</SelectItem></SelectContent></Select></div>
+              <div><Label>{t("common.category", locale)}</Label><Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Plumbing">{t("pm.maintenance.plumbing", locale)}</SelectItem><SelectItem value="Electrical">{t("pm.maintenance.electrical", locale)}</SelectItem><SelectItem value="Structural">{t("pm.maintenance.structural", locale)}</SelectItem><SelectItem value="HVAC">HVAC</SelectItem><SelectItem value="General">{t("pm.maintenance.general", locale)}</SelectItem></SelectContent></Select></div>
+              <div><Label>{t("pm.table.priority", locale)}</Label><Select value={form.priority} onValueChange={v => setForm({ ...form, priority: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="urgent">Urgente</SelectItem><SelectItem value="high">Alta</SelectItem><SelectItem value="medium">Media</SelectItem><SelectItem value="low">Baja</SelectItem></SelectContent></Select></div>
+              <div><Label>{t("pm.filter.status", locale)}</Label><Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="open">{t("pm.maintenance.open", locale)}</SelectItem><SelectItem value="in_progress">{t("pm.maintenance.inProgress", locale)}</SelectItem><SelectItem value="resolved">{t("pm.maintenance.resolved", locale)}</SelectItem><SelectItem value="closed">{t("pm.maintenance.closed", locale)}</SelectItem></SelectContent></Select></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Costo</Label><Input type="number" value={form.cost} onChange={e => setForm({ ...form, cost: e.target.value })} /></div>
-              <div><Label>Proveedor</Label><Input value={form.vendor} onChange={e => setForm({ ...form, vendor: e.target.value })} /></div>
+              <div><Label>{t("pm.table.vendor", locale)}</Label><Input value={form.vendor} onChange={e => setForm({ ...form, vendor: e.target.value })} /></div>
             </div>
             <div><Label>Notas</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
           </div>
@@ -6672,6 +6684,7 @@ function CTMaintenance({ apiBase = '/api/platform' }: { apiBase?: string } = {})
 
 // ============ SECURITY DEPOSITS (T&T Compliance) ============
 function CTSecurityDeposits({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const locale = useAppStore(s => s.locale);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
@@ -6747,8 +6760,8 @@ function CTSecurityDeposits({ apiBase = '/api/platform' }: { apiBase?: string } 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total Held</p><p className="text-xl font-bold">${totalHeld.toLocaleString()}</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total Deposits</p><p className="text-xl font-bold">{items.length}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">{t("pm.deposits.totalHeld", locale)}</p><p className="text-xl font-bold">${totalHeld.toLocaleString()}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">{t("pm.deposits.totalDeposits", locale)}</p><p className="text-xl font-bold">{items.length}</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Overdue Returns</p><p className="text-xl font-bold text-red-600">{overdueCount}</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">T&T Max Rule</p><p className="text-sm font-semibold">1 month rent max</p></CardContent></Card>
       </div>
@@ -6812,7 +6825,7 @@ function CTSecurityDeposits({ apiBase = '/api/platform' }: { apiBase?: string } 
           <div className="grid gap-3 py-2">
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1"><Label>Returned Amount</Label><Input type="number" value={processForm.returnedAmount} onChange={e => setProcessForm({ ...processForm, returnedAmount: e.target.value })} /></div>
-              <div className="grid gap-1"><Label>Deduction Total</Label><Input type="number" value={processForm.deductionTotal} onChange={e => setProcessForm({ ...processForm, deductionTotal: e.target.value })} /></div>
+              <div className="grid gap-1"><Label>{t("pm.deposits.deductionTotal", locale)}</Label><Input type="number" value={processForm.deductionTotal} onChange={e => setProcessForm({ ...processForm, deductionTotal: e.target.value })} /></div>
             </div>
             <div className="grid gap-1"><Label>Deductions (JSON)</Label><Textarea value={processForm.deductions} onChange={e => setProcessForm({ ...processForm, deductions: e.target.value })} rows={2} placeholder='[{"item":"Paint repair","amount":500}]' /></div>
             <div className="grid grid-cols-2 gap-3">
@@ -6829,6 +6842,7 @@ function CTSecurityDeposits({ apiBase = '/api/platform' }: { apiBase?: string } 
 
 // ============ PROPERTY INSPECTIONS ============
 function CTInspections({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const locale = useAppStore(s => s.locale);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
@@ -6900,7 +6914,7 @@ function CTInspections({ apiBase = '/api/platform' }: { apiBase?: string } = {})
         <div className="rounded-lg border overflow-auto">
           <Table>
             <TableHeader><TableRow>
-              <TableHead>Type</TableHead><TableHead>Property / Unit</TableHead><TableHead>Inspector</TableHead><TableHead>Date</TableHead><TableHead>Score</TableHead><TableHead>Tenant Sign</TableHead><TableHead>Landlord Sign</TableHead><TableHead>Actions</TableHead>
+              <TableHead>Type</TableHead><TableHead>Property / Unit</TableHead><TableHead>Inspector</TableHead><TableHead>Date</TableHead><TableHead>{t("pm.inspection.score", locale)}</TableHead><TableHead>Tenant Sign</TableHead><TableHead>Landlord Sign</TableHead><TableHead>Actions</TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {items.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No inspections found</TableCell></TableRow> : items.map((d: any) => (
@@ -6975,6 +6989,7 @@ function CTInspections({ apiBase = '/api/platform' }: { apiBase?: string } = {})
 
 // ============ LEGAL NOTICES (T&T Compliance) ============
 function CTLegalNotices({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const locale = useAppStore(s => s.locale);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
@@ -7040,9 +7055,9 @@ function CTLegalNotices({ apiBase = '/api/platform' }: { apiBase?: string } = {}
 
       {autoGenResult && (
         <Card className="bg-blue-50 border-blue-200"><CardContent className="pt-4">
-          <p className="font-semibold text-blue-800">Auto-Generation Result</p>
-          <p className="text-sm text-blue-600">Generated: {autoGenResult.generated} | Skipped (existing): {autoGenResult.skipped} | Total checked: {autoGenResult.totalChecked}</p>
-          <Button size="sm" variant="ghost" className="mt-1" onClick={() => setAutoGenResult(null)}>Dismiss</Button>
+          <p className="font-semibold text-blue-800">{t("pm.inspection.autoGenResult", locale).split("|")[0]}</p>
+          <p className="text-sm text-blue-600">{t('pm.inspection.autoGenResult', locale).replace('{generated}', autoGenResult.generated).replace('{skipped}', autoGenResult.skipped).replace('{totalChecked}', autoGenResult.totalChecked)}</p>
+          <Button size="sm" variant="ghost" className="mt-1" onClick={() => setAutoGenResult(null)}>{t("common.close", locale)}</Button>
         </CardContent></Card>
       )}
 
@@ -7105,6 +7120,7 @@ function CTLegalNotices({ apiBase = '/api/platform' }: { apiBase?: string } = {}
 
 // ============ LEASE RENEWAL ============
 function CTLeaseRenewal({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const locale = useAppStore(s => s.locale);
   const [data, setData] = useState<any>({ renewalsNeeded: [], renewalLogs: [], stats: { totalActive: 0, renewing: 0, expiredThisMonth: 0 } });
   const [loading, setLoading] = useState(true);
   const [showRenewDialog, setShowRenewDialog] = useState(false);
@@ -7244,8 +7260,8 @@ function CTLeaseRenewal({ apiBase = '/api/platform' }: { apiBase?: string } = {}
 
 // ============ WORLD-CLASS SYSTEMS COMPARISON ============
 function CTWorldSystems() {
-  const { setViewAsTenant, setCtPage } = useAppStore();
   const locale = useAppStore(s => s.locale);
+  const { setViewAsTenant, setCtPage } = useAppStore();
   const [activeTab, setActiveTab] = useState('overview');
 
   const systems = [
@@ -7696,11 +7712,11 @@ function CTAccounting() {
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
-          { label: 'Total Assets', value: formatCurrency(totalAssets, 'TTD'), color: totalAssets >= 0 ? 'text-blue-600' : 'text-red-600' },
-          { label: 'Total Liabilities', value: formatCurrency(totalLiabilities, 'TTD'), color: 'text-red-600' },
-          { label: 'Total Equity', value: formatCurrency(totalEquity, 'TTD'), color: 'text-purple-600' },
-          { label: 'Net Revenue', value: formatCurrency(totalRevenue, 'TTD'), color: 'text-green-600' },
-          { label: 'Net Income', value: formatCurrency(netIncome, 'TTD'), color: netIncome >= 0 ? 'text-green-600' : 'text-red-600' },
+          { label: t('pm.accounting.totalAssets', locale), value: formatCurrency(totalAssets, 'TTD'), color: totalAssets >= 0 ? 'text-blue-600' : 'text-red-600' },
+          { label: t('pm.accounting.totalLiabilities', locale), value: formatCurrency(totalLiabilities, 'TTD'), color: 'text-red-600' },
+          { label: t('pm.accounting.totalEquity', locale), value: formatCurrency(totalEquity, 'TTD'), color: 'text-purple-600' },
+          { label: t('pm.accounting.netRevenue', locale), value: formatCurrency(totalRevenue, 'TTD'), color: 'text-green-600' },
+          { label: t('pm.accounting.netIncome', locale), value: formatCurrency(netIncome, 'TTD'), color: netIncome >= 0 ? 'text-green-600' : 'text-red-600' },
         ].map((s, i) => (
           <Card key={i}><CardContent className="p-3"><p className="text-[10px] text-muted-foreground uppercase font-medium">{s.label}</p><p className={`text-lg font-bold ${s.color}`}>{s.value}</p></CardContent></Card>
         ))}
@@ -7710,7 +7726,7 @@ function CTAccounting() {
         <TabsList>
           <TabsTrigger value="chart">Chart of Accounts</TabsTrigger>
           <TabsTrigger value="journal">Journal</TabsTrigger>
-          <TabsTrigger value="balance">Balance Sheet</TabsTrigger>
+          <TabsTrigger value="balance">{t("pm.accounting.balanceSheet", locale)}</TabsTrigger>
           <TabsTrigger value="income">Income Statement</TabsTrigger>
         </TabsList>
 
@@ -7746,7 +7762,7 @@ function CTAccounting() {
                     <tbody>{entry.lines.map((line: any, i: number) => (
                       <tr key={i} className="border-b border-dashed"><td className="p-1">{line.account?.name || 'Unknown'}</td><td className="p-1 text-right">{line.debit ? formatCurrency(line.debit, 'TTD') : ''}</td><td className="p-1 text-right">{line.credit ? formatCurrency(line.credit, 'TTD') : ''}</td></tr>
                     ))}
-                    <tr className="font-bold"><td className="p-1">Total</td><td className="p-1 text-right">{formatCurrency(entry.totalDebit, 'TTD')}</td><td className="p-1 text-right">{formatCurrency(entry.totalCredit, 'TTD')}</td></tr>
+                    <tr className="font-bold"><td className="p-1">{t("common.total", locale)}</td><td className="p-1 text-right">{formatCurrency(entry.totalDebit, 'TTD')}</td><td className="p-1 text-right">{formatCurrency(entry.totalCredit, 'TTD')}</td></tr>
                     </tbody>
                   </table>
                 </CardContent></Card>
@@ -7756,23 +7772,23 @@ function CTAccounting() {
         </TabsContent>
 
         <TabsContent value="balance" className="mt-4">
-          <Card><CardHeader><CardTitle className="text-lg">Balance Sheet</CardTitle><p className="text-xs text-muted-foreground">Assets = Liabilities + Equity + Net Income</p></CardHeader><CardContent>
+          <Card><CardHeader><CardTitle className="text-lg">{t("pm.accounting.balanceSheet", locale)}</CardTitle><p className="text-xs text-muted-foreground">{t("pm.accounting.balanceFormula", locale)}</p></CardHeader><CardContent>
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <h4 className="font-bold text-blue-700 mb-3 flex items-center gap-2"><CircleDollarSign className="w-4 h-4" />Assets</h4>
                 {accounts.filter(a => a.type === 'Asset').map(a => (<div key={a.id} className="flex justify-between text-sm py-1"><span className="text-muted-foreground">{a.name}</span><span className={a.balance !== 0 ? 'font-medium' : ''}>{formatCurrency(a.balance, 'TTD')}</span></div>))}
-                <Separator className="my-2" /><div className="flex justify-between font-bold text-sm"><span>Total Assets</span><span className="text-blue-700">{formatCurrency(totalAssets, 'TTD')}</span></div>
+                <Separator className="my-2" /><div className="flex justify-between font-bold text-sm"><span>{t("pm.accounting.totalAssets", locale)}</span><span className="text-blue-700">{formatCurrency(totalAssets, 'TTD')}</span></div>
               </div>
               <div>
                 <h4 className="font-bold text-red-700 mb-3 flex items-center gap-2"><TrendingDown className="w-4 h-4" />Liabilities</h4>
                 {accounts.filter(a => a.type === 'Liability').map(a => (<div key={a.id} className="flex justify-between text-sm py-1"><span className="text-muted-foreground">{a.name}</span><span className={a.balance !== 0 ? 'font-medium' : ''}>{formatCurrency(a.balance, 'TTD')}</span></div>))}
-                <Separator className="my-2" /><div className="flex justify-between font-bold text-sm"><span>Total Liabilities</span><span className="text-red-700">{formatCurrency(totalLiabilities, 'TTD')}</span></div>
+                <Separator className="my-2" /><div className="flex justify-between font-bold text-sm"><span>{t("pm.accounting.totalLiabilities", locale)}</span><span className="text-red-700">{formatCurrency(totalLiabilities, 'TTD')}</span></div>
               </div>
               <div>
                 <h4 className="font-bold text-purple-700 mb-3 flex items-center gap-2"><PiggyBank className="w-4 h-4" />Equity</h4>
                 {accounts.filter(a => a.type === 'Equity').map(a => (<div key={a.id} className="flex justify-between text-sm py-1"><span className="text-muted-foreground">{a.name}</span><span className={a.balance !== 0 ? 'font-medium' : ''}>{formatCurrency(a.balance, 'TTD')}</span></div>))}
-                <div className="flex justify-between text-sm py-1"><span className="text-muted-foreground">Net Income</span><span className={netIncome >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>{formatCurrency(netIncome, 'TTD')}</span></div>
-                <Separator className="my-2" /><div className="flex justify-between font-bold text-sm"><span>Total Equity</span><span className="text-purple-700">{formatCurrency(totalEquity + netIncome, 'TTD')}</span></div>
+                <div className="flex justify-between text-sm py-1"><span className="text-muted-foreground">{t("pm.accounting.netIncome", locale)}</span><span className={netIncome >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>{formatCurrency(netIncome, 'TTD')}</span></div>
+                <Separator className="my-2" /><div className="flex justify-between font-bold text-sm"><span>{t("pm.accounting.totalEquity", locale)}</span><span className="text-purple-700">{formatCurrency(totalEquity + netIncome, 'TTD')}</span></div>
               </div>
             </div>
             <Separator className="my-4" />
@@ -7795,8 +7811,8 @@ function CTAccounting() {
               </div>
             </div>
             <Separator className="my-4" />
-            <div className="flex justify-between font-bold text-xl"><span>Net Income</span><span className={netIncome >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(netIncome, 'TTD')}</span></div>
-            <p className="text-xs text-muted-foreground mt-2">Net Income = Total Revenue - Total Expenses</p>
+            <div className="flex justify-between font-bold text-xl"><span>{t("pm.accounting.netIncome", locale)}</span><span className={netIncome >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(netIncome, 'TTD')}</span></div>
+            <p className="text-xs text-muted-foreground mt-2">{t("pm.accounting.incomeFormula", locale)}</p>
           </CardContent></Card>
         </TabsContent>
       </Tabs>
@@ -7841,6 +7857,7 @@ function CTAccounting() {
 }
 
 function NewAccountForm({ onSave }: { onSave: (name: string, code: string, type: string) => void }) {
+  const locale = useAppStore(s => s.locale);
   const [form, setForm] = useState({ code: '', name: '', type: 'Asset' });
   return (
     <div className="space-y-3 mt-4">
@@ -7854,6 +7871,7 @@ function NewAccountForm({ onSave }: { onSave: (name: string, code: string, type:
 
 // ============ RENT COLLECTION ============
 function CTRentPayments({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const locale = useAppStore(s => s.locale);
   const [payments, setPayments] = useState<any[]>([]);
   const [leases, setLeases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -7949,7 +7967,7 @@ function CTRentPayments({ apiBase = '/api/platform' }: { apiBase?: string } = {}
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {[
-          { label: 'Total Due', value: formatCurrency(totalDue, 'TTD'), icon: DollarSign, color: 'from-blue-600 to-blue-400' },
+          { label: t('pm.collection.totalDue', locale), value: formatCurrency(totalDue, 'TTD'), icon: DollarSign, color: 'from-blue-600 to-blue-400' },
           { label: 'Collected', value: formatCurrency(totalPaid, 'TTD'), icon: CheckCircle, color: 'from-green-600 to-green-400' },
           { label: 'Outstanding', value: formatCurrency(totalOutstanding, 'TTD'), icon: AlertTriangle, color: 'from-red-600 to-red-400' },
           { label: 'Late Fees', value: formatCurrency(totalLateFees, 'TTD'), icon: Clock, color: 'from-orange-600 to-orange-400' },
@@ -8018,6 +8036,7 @@ function CTRentPayments({ apiBase = '/api/platform' }: { apiBase?: string } = {}
 
 // ============ VENDOR MANAGEMENT ============
 function CTVendors({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const locale = useAppStore(s => s.locale);
   const [items, setItems] = useState<any[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -8064,7 +8083,7 @@ function CTVendors({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Total Vendors', value: items.length, color: 'from-violet-600 to-violet-400' },
+          { label: t('pm.vendors.total', locale), value: items.length, color: 'from-violet-600 to-violet-400' },
           { label: 'Active', value: items.filter((v: any) => v.isActive).length, color: 'from-green-600 to-green-400' },
           { label: 'Categories', value: [...new Set(items.map((v: any) => v.category).filter(Boolean))].length, color: 'from-blue-600 to-blue-400' },
           { label: 'Avg Rating', value: items.length > 0 ? (items.reduce((s: number, v: any) => s + (Number(v.rating) || 0), 0) / items.length).toFixed(1) : '0.0', color: 'from-amber-600 to-amber-400' },
@@ -8131,6 +8150,7 @@ function CTVendors({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
 
 // ============ PROPERTY DOCUMENTS ============
 function CTPropertyDocuments({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const locale = useAppStore(s => s.locale);
   const [items, setItems] = useState<any[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -8183,7 +8203,7 @@ function CTPropertyDocuments({ apiBase = '/api/platform' }: { apiBase?: string }
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Total Documents', value: items.length, color: 'from-amber-600 to-amber-400' },
+          { label: t('pm.documents.total', locale), value: items.length, color: 'from-amber-600 to-amber-400' },
           { label: 'Lease Agreements', value: items.filter((d: any) => d.type === 'lease_agreement').length, color: 'from-blue-600 to-blue-400' },
           { label: 'Insurance', value: items.filter((d: any) => d.type === 'insurance').length, color: 'from-green-600 to-green-400' },
           { label: 'Expiring Soon', value: items.filter((d: any) => d.expiresAt && new Date(d.expiresAt) <= new Date(Date.now() + 30 * 86400000)).length, color: 'from-red-600 to-red-400' },
@@ -8243,6 +8263,7 @@ function CTPropertyDocuments({ apiBase = '/api/platform' }: { apiBase?: string }
 
 // ============ LEASE RENEWALS ============
 function CTLeaseRenewals() {
+  const locale = useAppStore(s => s.locale);
   const [data, setData] = useState<any>({ renewalsNeeded: [], renewalLogs: [], autoRenewals: [], stats: { totalActive: 0, renewing: 0, expiredThisMonth: 0 } });
   const [loading, setLoading] = useState(true);
   const [renewDialog, setRenewDialog] = useState(false);
@@ -8307,7 +8328,7 @@ function CTLeaseRenewals() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Contratos Activos', value: data.stats?.totalActive || 0, icon: FileText, color: 'from-green-600 to-green-400' },
+          { label: t('pm.stats.activeLeases', locale), value: data.stats?.totalActive || 0, icon: FileText, color: 'from-green-600 to-green-400' },
           { label: 'Por Renovar', value: data.stats?.renewing || 0, icon: AlertCircle, color: 'from-amber-600 to-amber-400' },
           { label: 'Auto-Renovables', value: data.renewalsNeeded?.filter((l: any) => l.autoRenew).length || 0, icon: RefreshCw, color: 'from-blue-600 to-blue-400' },
           { label: 'Expirados Este Mes', value: data.stats?.expiredThisMonth || 0, icon: XCircle, color: 'from-red-600 to-red-400' },
@@ -8330,9 +8351,9 @@ function CTLeaseRenewals() {
               ) : (
                 <div className="overflow-x-auto"><table className="w-full text-sm">
                   <thead><tr className="border-b bg-muted/50">
-                    <th className="text-left p-3 font-medium">Inquilino</th>
-                    <th className="text-left p-3 font-medium">Unidad</th>
-                    <th className="text-left p-3 font-medium">Propiedad</th>
+                    <th className="text-left p-3 font-medium">{t("pm.table.tenant", locale)}</th>
+                    <th className="text-left p-3 font-medium">{t("pm.table.unit", locale)}</th>
+                    <th className="text-left p-3 font-medium">{t("pm.table.property", locale)}</th>
                     <th className="text-left p-3 font-medium">Renta Actual</th>
                     <th className="text-left p-3 font-medium">Renta Propuesta</th>
                     <th className="text-left p-3 font-medium">Días Restantes</th>
@@ -8364,7 +8385,7 @@ function CTLeaseRenewals() {
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-lg">Historial de Renovaciones</CardTitle></CardHeader>
               <CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full text-sm">
-                <thead><tr className="border-b bg-muted/50"><th className="text-left p-3 font-medium">Fecha</th><th className="text-left p-3 font-medium">Contrato</th><th className="text-left p-3 font-medium">Fin Anterior</th><th className="text-left p-3 font-medium">Nuevo Fin</th><th className="text-left p-3 font-medium">Renta Anterior</th><th className="text-left p-3 font-medium">Nueva Renta</th><th className="text-left p-3 font-medium">Incremento</th></tr></thead>
+                <thead><tr className="border-b bg-muted/50"><th className="text-left p-3 font-medium">{t("common.date", locale)}</th><th className="text-left p-3 font-medium">{t("pm.documents.leases", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.end", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.end", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.rent", locale)}</th><th className="text-left p-3 font-medium">{t("pm.table.rent", locale)}</th><th className="text-left p-3 font-medium">{t("common.amount", locale)}</th></tr></thead>
                 <tbody>{data.renewalLogs.map((log: any) => (
                   <tr key={log.id} className="border-b hover:bg-muted/30">
                     <td className="p-3 text-muted-foreground">{log.createdAt?.slice(0, 10)}</td>
@@ -8412,6 +8433,7 @@ function CTLeaseRenewals() {
 
 // ============ OWNER / INVESTOR REPORTING ============
 function CTOwnerReporting({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
+  const locale = useAppStore(s => s.locale);
   const [data, setData] = useState<any>({ summary: {}, propertyPerformance: [], recentDisbursements: [], monthlyTrend: [] });
   const [loading, setLoading] = useState(true);
   const [disburseDialog, setDisburseDialog] = useState(false);
@@ -8471,9 +8493,9 @@ function CTOwnerReporting({ apiBase = '/api/platform' }: { apiBase?: string } = 
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Propiedades', value: s.totalProperties || 0, icon: Building, color: 'from-blue-600 to-blue-400' },
+          { label: t('pm.owner.properties', locale), value: s.totalProperties || 0, icon: Building, color: 'from-blue-600 to-blue-400' },
           { label: 'Tasa de Ocupación', value: `${s.occupancyRate || 0}%`, icon: TrendingUp, color: 'from-green-600 to-green-400' },
-          { label: 'Renta Mensual Total', value: formatCurrency(s.grossMonthlyRent || 0, 'TTD'), icon: DollarSign, color: 'from-violet-600 to-violet-400' },
+          { label: t('pm.stats.monthlyRent', locale), value: formatCurrency(s.grossMonthlyRent || 0, 'TTD'), icon: DollarSign, color: 'from-violet-600 to-violet-400' },
           { label: 'Cobrado Este Mes', value: formatCurrency(s.totalCollected || 0, 'TTD'), icon: PiggyBank, color: 'from-emerald-600 to-emerald-400' },
         ].map(stat => (
           <Card key={stat.label}><CardContent className="p-4"><div className="flex items-center gap-3"><div className={`p-2 rounded-lg bg-gradient-to-br ${stat.color}`}><stat.icon className="w-4 h-4 text-white" /></div><div><p className="text-xs text-muted-foreground">{stat.label}</p><p className="text-lg font-bold">{stat.value}</p></div></div></CardContent></Card>
@@ -8484,9 +8506,9 @@ function CTOwnerReporting({ apiBase = '/api/platform' }: { apiBase?: string } = 
       <Card>
         <CardContent className="p-5">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
-            <div><p className="text-xs text-muted-foreground mb-1">Unidades Totales</p><p className="text-xl font-bold">{s.totalUnits || 0}</p></div>
+            <div><p className="text-xs text-muted-foreground mb-1">{t("pm.landlord.totalUnits", locale)}</p><p className="text-xl font-bold">{s.totalUnits || 0}</p></div>
             <div><p className="text-xs text-muted-foreground mb-1">Ocupadas</p><p className="text-xl font-bold text-green-600">{s.occupiedUnits || 0}</p></div>
-            <div><p className="text-xs text-muted-foreground mb-1">Vacantes</p><p className="text-xl font-bold text-red-500">{(s.totalUnits || 0) - (s.occupiedUnits || 0)}</p></div>
+            <div><p className="text-xs text-muted-foreground mb-1">{t("pm.stats.vacant", locale)}</p><p className="text-xl font-bold text-red-500">{(s.totalUnits || 0) - (s.occupiedUnits || 0)}</p></div>
             <div><p className="text-xs text-muted-foreground mb-1">Pendiente Cobro</p><p className="text-xl font-bold text-amber-600">{formatCurrency(s.totalOutstanding || 0, 'TTD')}</p></div>
             <div><p className="text-xs text-muted-foreground mb-1">Total Desembolsado</p><p className="text-xl font-bold text-emerald-600">{formatCurrency(totalDisbursed, 'TTD')}</p></div>
           </div>
@@ -8504,8 +8526,8 @@ function CTOwnerReporting({ apiBase = '/api/platform' }: { apiBase?: string } = 
               ) : (
                 <div className="overflow-x-auto"><table className="w-full text-sm">
                   <thead><tr className="border-b bg-muted/50">
-                    <th className="text-left p-3 font-medium">Propiedad</th>
-                    <th className="text-center p-3 font-medium">Unidades</th>
+                    <th className="text-left p-3 font-medium">{t("pm.table.property", locale)}</th>
+                    <th className="text-center p-3 font-medium">{t("pm.table.units", locale)}</th>
                     <th className="text-center p-3 font-medium">Ocupación</th>
                     <th className="text-right p-3 font-medium">Renta Mensual</th>
                     <th className="text-right p-3 font-medium">Cobrado</th>
@@ -8547,14 +8569,14 @@ function CTOwnerReporting({ apiBase = '/api/platform' }: { apiBase?: string } = 
                     <th className="text-right p-3 font-medium">Gastos</th>
                     <th className="text-right p-3 font-medium">Ingreso Neto</th>
                     <th className="text-right p-3 font-medium">Desembolso</th>
-                    <th className="text-center p-3 font-medium">Estado</th>
+                    <th className="text-center p-3 font-medium">{t("pm.filter.status", locale)}</th>
                     <th className="p-3"></th>
                   </tr></thead>
                   <tbody>{(data.recentDisbursements || []).map((d: any) => {
                     const statusCfg: Record<string, { label: string; cls: string }> = {
-                      pending: { label: 'Pendiente', cls: 'bg-amber-100 text-amber-700' },
-                      approved: { label: 'Aprobado', cls: 'bg-blue-100 text-blue-700' },
-                      paid: { label: 'Pagado', cls: 'bg-green-100 text-green-700' },
+                      pending: { label: t('pm.renewal.pending', locale), cls: 'bg-amber-100 text-amber-700' },
+                      approved: { label: t('pm.renewal.approved', locale), cls: 'bg-blue-100 text-blue-700' },
+                      paid: { label: t('pm.renewal.paid', locale), cls: 'bg-green-100 text-green-700' },
                     };
                     const cfg = statusCfg[d.status] || statusCfg.pending;
                     return (
@@ -8611,6 +8633,7 @@ function CTOwnerReporting({ apiBase = '/api/platform' }: { apiBase?: string } = 
 
 // ============ NOTIFICATION BELL ============
 function CTNotificationBell({ apiBase, onNavigate }: { apiBase: string; onNavigate?: (page: string) => void }) {
+  const locale = useAppStore(s => s.locale);
   const { setTenantPage } = useAppStore() as any;
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -8726,6 +8749,7 @@ function CTNotificationBell({ apiBase, onNavigate }: { apiBase: string; onNaviga
 
 // ============ LANDLORD DASHBOARD (ENHANCED) ============
 function CTLandlordDashboard({ apiBase = '/api/platform' }: { apiBase?: string }) {
+  const locale = useAppStore(s => s.locale);
   const [properties, setProperties] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [leases, setLeases] = useState<any[]>([]);
@@ -8809,7 +8833,7 @@ function CTLandlordDashboard({ apiBase = '/api/platform' }: { apiBase?: string }
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {[
           { label: 'Properties', value: properties.length, icon: Building2, color: 'from-emerald-600 to-emerald-400' },
-          { label: 'Total Units', value: totalUnits, icon: Home, color: 'from-sky-600 to-sky-400' },
+          { label: t('pm.landlord.totalUnits', locale), value: totalUnits, icon: Home, color: 'from-sky-600 to-sky-400' },
           { label: 'Occupancy', value: `${occupancyRate}%`, icon: CheckCircle, color: 'from-green-600 to-green-400' },
           { label: 'Vacancy', value: `${vacancyRate}%`, icon: AlertTriangle, color: 'from-amber-600 to-amber-400' },
           { label: 'Monthly Rent', value: formatCurrency(monthlyRentCollected, 'TTD'), icon: DollarSign, color: 'from-violet-600 to-violet-400' },
@@ -8823,9 +8847,9 @@ function CTLandlordDashboard({ apiBase = '/api/platform' }: { apiBase?: string }
         <Card><CardHeader className="pb-3"><CardTitle className="text-base">Occupancy Breakdown</CardTitle></CardHeader><CardContent>
           <div className="space-y-3">
             {[
-              { label: 'Occupied', count: occupiedUnits, color: 'bg-green-500', pct: totalUnits > 0 ? (occupiedUnits / totalUnits * 100) : 0 },
-              { label: 'Vacant', count: vacantUnits, color: 'bg-amber-500', pct: totalUnits > 0 ? (vacantUnits / totalUnits * 100) : 0 },
-              { label: 'Maintenance', count: maintenanceUnits, color: 'bg-red-500', pct: totalUnits > 0 ? (maintenanceUnits / totalUnits * 100) : 0 },
+              { label: t('pm.landlord.occupied', locale), count: occupiedUnits, color: 'bg-green-500', pct: totalUnits > 0 ? (occupiedUnits / totalUnits * 100) : 0 },
+              { label: t('pm.landlord.vacant', locale), count: vacantUnits, color: 'bg-amber-500', pct: totalUnits > 0 ? (vacantUnits / totalUnits * 100) : 0 },
+              { label: t('pm.landlord.maintenance', locale), count: maintenanceUnits, color: 'bg-red-500', pct: totalUnits > 0 ? (maintenanceUnits / totalUnits * 100) : 0 },
             ].map((s, i) => (
               <div key={i}><div className="flex justify-between text-sm mb-1"><span>{s.label}</span><span className="font-medium">{s.count} units ({s.pct.toFixed(0)}%)</span></div><div className="h-2 bg-muted rounded-full overflow-hidden"><div className={`h-full rounded-full ${s.color} transition-all`} style={{ width: `${s.pct}%` }} /></div></div>
             ))}
@@ -8900,6 +8924,7 @@ function CTLandlordDashboard({ apiBase = '/api/platform' }: { apiBase?: string }
 
 // ============ RENTER MANAGEMENT (Landlord creates/manages renters) ============
 function CTRenterManagement({ apiBase }: { apiBase?: string }) {
+  const locale = useAppStore(s => s.locale);
   const [renters, setRenters] = useState<any[]>([]);
   const [leases, setLeases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -9008,8 +9033,8 @@ function CTRenterManagement({ apiBase }: { apiBase?: string }) {
       {/* ── Stats ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Total Inquilinos', value: renters.length, icon: Users, color: 'from-teal-600 to-teal-400' },
-          { label: 'Activos', value: renters.filter((r: any) => r.status === 'active').length, icon: UserCheck, color: 'from-green-600 to-green-400' },
+          { label: t('pm.renter.total', locale), value: renters.length, icon: Users, color: 'from-teal-600 to-teal-400' },
+          { label: t('pm.renter.active', locale), value: renters.filter((r: any) => r.status === 'active').length, icon: UserCheck, color: 'from-green-600 to-green-400' },
           { label: 'Con Contrato', value: renters.filter((r: any) => r.leaseId).length, icon: FileText, color: 'from-blue-600 to-blue-400' },
           { label: 'Sin Contrato', value: renters.filter((r: any) => !r.leaseId).length, icon: UserX, color: 'from-amber-600 to-amber-400' },
         ].map((s, i) => (
@@ -9024,7 +9049,7 @@ function CTRenterManagement({ apiBase }: { apiBase?: string }) {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead><tr className="border-b bg-muted/30"><th className="text-left p-3 font-medium">Inquilino</th><th className="text-left p-3 font-medium hidden md:table-cell">Propiedad/Unidad</th><th className="text-left p-3 font-medium hidden lg:table-cell">Contrato</th><th className="text-left p-3 font-medium">Estado</th><th className="text-left p-3 font-medium hidden sm:table-cell">Último Acceso</th><th className="text-right p-3 font-medium">Acciones</th></tr></thead>
+                <thead><tr className="border-b bg-muted/30"><th className="text-left p-3 font-medium">{t("pm.table.tenant", locale)}</th><th className="text-left p-3 font-medium hidden md:table-cell">{t("pm.table.property", locale)}/{t("pm.table.unit", locale)}</th><th className="text-left p-3 font-medium hidden lg:table-cell">Contrato</th><th className="text-left p-3 font-medium">{t("pm.filter.status", locale)}</th><th className="text-left p-3 font-medium hidden sm:table-cell">{t("common.lastLogin", locale)}</th><th className="text-right p-3 font-medium">{t("common.actions", locale)}</th></tr></thead>
                 <tbody>
                   {renters.map((r: any) => (
                     <tr key={r.id} className="border-b hover:bg-muted/30 transition-colors">
@@ -9062,6 +9087,7 @@ function CTRenterManagement({ apiBase }: { apiBase?: string }) {
 }
 
 function CTGenericPage({ title, description, icon: Icon }: { title: string; description: string; icon: any }) {
+  const locale = useAppStore(s => s.locale);
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -9075,6 +9101,7 @@ function CTGenericPage({ title, description, icon: Icon }: { title: string; desc
 
 // ============ CT USERS (Platform User Management) ============
 function CTUsersPage() {
+  const locale = useAppStore(s => s.locale);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
@@ -9091,7 +9118,7 @@ function CTUsersPage() {
         <div className="flex items-center gap-3"><div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 shadow-lg"><Users className="w-5 h-5 text-white" /></div><div><h1 className="text-2xl font-bold">Users</h1><p className="text-sm text-muted-foreground">{users.length} platform users</p></div></div>
         <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />Refresh</Button>
       </div>
-      {users.length === 0 ? <EmptyState icon={Users} title="No users found" description="Users will appear when they register" /> : (
+      {users.length === 0 ? <EmptyState icon={Users} title={t("common.noData", locale)} description={t("common.noData", locale)} /> : (
         <DataGrid data={users} columns={[
           { key: 'fullName', label: 'Name', render: (v: string) => <span className="font-medium">{v || 'N/A'}</span> },
           { key: 'email', label: 'Email' },
@@ -9106,6 +9133,7 @@ function CTUsersPage() {
 
 // ============ CT BILLING ============
 function CTBillingPage() {
+  const locale = useAppStore(s => s.locale);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
@@ -9129,7 +9157,7 @@ function CTBillingPage() {
           return <Card key={s}><CardContent className="p-3"><p className="text-xs text-muted-foreground capitalize">{s}</p><p className="text-xl font-bold">{count}</p></CardContent></Card>;
         })}
       </div>
-      {invoices.length === 0 ? <EmptyState icon={Receipt} title="No invoices yet" description="Platform invoices will appear here" /> : (
+      {invoices.length === 0 ? <EmptyState icon={Receipt} title={t("common.noData", locale)} description={t("common.noData", locale)} /> : (
         <DataGrid data={invoices} columns={[
           { key: 'invoiceNumber', label: 'Invoice', render: (v: string) => <span className="font-mono font-medium">{v}</span> },
           { key: 'amountUSD', label: 'Amount', render: (v: number) => <span className="font-bold">${(v || 0).toFixed(2)}</span> },
@@ -9144,6 +9172,7 @@ function CTBillingPage() {
 
 // ============ CT SYSTEM EVENTS ============
 function CTSystemEventsPage() {
+  const locale = useAppStore(s => s.locale);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
@@ -9160,7 +9189,7 @@ function CTSystemEventsPage() {
         <div className="flex items-center gap-3"><div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg"><Activity className="w-5 h-5 text-white" /></div><div><h1 className="text-2xl font-bold">System Events</h1><p className="text-sm text-muted-foreground">{events.length} events logged</p></div></div>
         <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />Refresh</Button>
       </div>
-      {events.length === 0 ? <EmptyState icon={Activity} title="No events recorded" description="System events will appear as they occur" /> : (
+      {events.length === 0 ? <EmptyState icon={Activity} title={t("common.noData", locale)} description={t("common.noData", locale)} /> : (
         <div className="space-y-2">
           {events.slice(0, 50).map((ev: any) => (
             <Card key={ev.id}><CardContent className="p-3 flex items-center gap-3">
@@ -9177,6 +9206,7 @@ function CTSystemEventsPage() {
 
 // ============ CT COMMUNICATIONS ============
 function CTCommsPage() {
+  const locale = useAppStore(s => s.locale);
   const [tenants, setTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -9225,6 +9255,7 @@ function CTCommsPage() {
 
 // ============ CT TEMPLATES ============
 function CTTemplatesPage() {
+  const locale = useAppStore(s => s.locale);
   const templates = [
     { name: 'Welcome Email', description: 'Sent when a new tenant registers', type: 'Email', icon: Mail, status: 'Active' },
     { name: 'Invoice Template', description: 'Monthly billing invoice layout', type: 'Document', icon: FileText, status: 'Active' },
@@ -9250,6 +9281,7 @@ function CTTemplatesPage() {
 
 // ============ CT DATA EXPORTS ============
 function CTExportsPage() {
+  const locale = useAppStore(s => s.locale);
   const [exporting, setExporting] = useState<string | null>(null);
   const exports = [
     { key: 'tenants', label: 'Tenant List', icon: Building2, description: 'All registered tenants with industry, plan, and status', endpoint: '/api/platform/tenants' },
@@ -9298,6 +9330,7 @@ function CTExportsPage() {
 
 // ============ CT MODULE REGISTRY ============
 function CTModuleRegistryPage() {
+  const locale = useAppStore(s => s.locale);
   const [industries, setIndustries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
@@ -9340,6 +9373,7 @@ function CTModuleRegistryPage() {
 }
 
 function ControlTowerView() {
+  const locale = useAppStore(s => s.locale);
   const { ctPage, sidebarCollapsed } = useAppStore();
 
   const renderPage = () => {
@@ -9556,6 +9590,7 @@ function CTSettingsPage() {
 // ============ SMART IMPORT ============
 
 function SmartImportPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant } = useAppStore();
   const tid = currentTenant?.id;
 
@@ -9996,6 +10031,7 @@ function getPasteleriaNav(locale: string) {
 // ─── Tenant Portal Management Page ───
 
 function CTPortalManagement({ tenantId, tenantSlug, tenantName }: { tenantId: string; tenantSlug: string; tenantName: string }) {
+  const locale = useAppStore(s => s.locale);
   const { token } = useAppStore();
   const [portalSettings, setPortalSettings] = useState<any>(null);
   const [renters, setRenters] = useState<any[]>([]);
@@ -10042,10 +10078,10 @@ function CTPortalManagement({ tenantId, tenantSlug, tenantName }: { tenantId: st
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Portal Status" value={portalSettings?.enabled ? 'Active' : 'Inactive'} subtitle={portalSettings?.enabled ? 'Renter portal is live' : 'Enable to activate'} gradient="from-blue-600 to-blue-400" icon={Globe} />
-        <StatCard title="Active Renters" value={String(activeRenters)} subtitle={`${totalRenters} total registered`} gradient="from-emerald-600 to-emerald-400" icon={Users} />
-        <StatCard title="Portal Link" value={tenantSlug || 'Default'} subtitle="Share with renters" gradient="from-violet-600 to-violet-400" icon={Link} />
-        <StatCard title="Online Payments" value="WiPay" subtitle="Payment gateway ready" gradient="from-amber-600 to-amber-400" icon={CreditCard} />
+        <StatCard title={t("common.status", locale)} value={portalSettings?.enabled ? t("common.active", locale) : t("common.inactive", locale)} subtitle={portalSettings?.enabled ? t('pm.nav.tenantPortal', locale) : t('common.activate', locale)} gradient="from-blue-600 to-blue-400" icon={Globe} />
+        <StatCard title={t("pm.renter.active", locale)} value={String(activeRenters)} subtitle={`${totalRenters} total registered`} gradient="from-emerald-600 to-emerald-400" icon={Users} />
+        <StatCard title="Portal Link" value={tenantSlug || 'Default'} subtitle={t("common.share", locale)} gradient="from-violet-600 to-violet-400" icon={Link} />
+        <StatCard title={t("common.paid", locale)} value="WiPay" subtitle={t("common.confirmed", locale)} gradient="from-amber-600 to-amber-400" icon={CreditCard} />
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -10117,7 +10153,7 @@ function CTPortalManagement({ tenantId, tenantSlug, tenantName }: { tenantId: st
             </CardHeader>
             <CardContent>
               {renters.length === 0 ? (
-                <EmptyState icon={Users} title="No renters registered yet" description="Add renters from the Renter Management page to get started." action="Add Renter" onAction={() => useAppStore.getState().setTenantPage('pm-renters')} />
+                <EmptyState icon={Users} title={t("common.noData", locale)} description={t("common.noData", locale)} action={t("common.add", locale)} onAction={() => useAppStore.getState().setTenantPage('pm-renters')} />
               ) : (
                 <div className="max-h-64 overflow-y-auto">
                   <Table>
@@ -10167,6 +10203,7 @@ function CTPortalManagement({ tenantId, tenantSlug, tenantName }: { tenantId: st
 // ─── Portal Customization Page ───
 
 function CTPortalCustomization({ tenantId }: { tenantId: string }) {
+  const locale = useAppStore(s => s.locale);
   const { token } = useAppStore();
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -10351,6 +10388,7 @@ function CTPortalCustomization({ tenantId }: { tenantId: string }) {
 // ─── WhatsApp Bot Configuration Page ───
 
 function CTWhatsAppBot({ tenantId }: { tenantId: string }) {
+  const locale = useAppStore(s => s.locale);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState({
@@ -10970,6 +11008,7 @@ function TenantSidebar() {
 }
 
 function TrialBanner() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant } = useAppStore();
   if (!currentTenant?.trialEndsAt || currentTenant.status !== 'trial') return null;
   const daysLeft = Math.max(0, Math.ceil((new Date(currentTenant.trialEndsAt).getTime() - Date.now()) / 86400000));
@@ -10981,6 +11020,7 @@ function TrialBanner() {
 }
 
 function TenantDashboardPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency, setTenantPage } = useAppStore() as any;
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -11471,6 +11511,7 @@ function TenantOrdersPage() {
 
 // ============ TENANT QUOTES PAGE ============
 function TenantQuotesPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [quotes, setQuotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -11528,25 +11569,25 @@ function TenantQuotesPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }}>
-          <StatCard title="Total Cotizaciones" value={quotes.length} subtitle={`${quotes.filter(q => q.status === 'aceptada').length} aceptadas`} icon={FileText} gradient="from-blue-700 to-blue-500" />
+          <StatCard title={t("bakery.stats.totalQuotes", locale)} value={quotes.length} subtitle={`${quotes.filter(q => q.status === 'aceptada').length} ${t("bakery.stats.accepted", locale)}`} icon={FileText} gradient="from-blue-700 to-blue-500" />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <StatCard title="Pendientes" value={quotes.filter(q => q.status === 'pendiente').length} subtitle="Esperando respuesta" icon={Clock} gradient="from-amber-500 to-amber-600" />
+          <StatCard title={t("bakery.stats.pending", locale)} value={quotes.filter(q => q.status === 'pendiente').length} subtitle={t("bakery.stats.pending", locale)} icon={Clock} gradient="from-amber-500 to-amber-600" />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <StatCard title="Aceptadas" value={quotes.filter(q => q.status === 'aceptada').length} subtitle={formatCurrency(totals.accepted, currency)} icon={CheckCircle} gradient="from-green-500 to-green-600" />
+          <StatCard title={t("bakery.stats.accepted", locale)} value={quotes.filter(q => q.status === 'aceptada').length} subtitle={formatCurrency(totals.accepted, currency)} icon={CheckCircle} gradient="from-green-500 to-green-600" />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <StatCard title="Valor Total" value={formatCurrency(totals.total, currency)} subtitle="Todas las cotizaciones" icon={DollarSign} gradient="from-purple-500 to-purple-600" />
+          <StatCard title={t("bakery.stats.totalValue", locale)} value={formatCurrency(totals.total, currency)} subtitle={t("bakery.stats.totalValue", locale)} icon={DollarSign} gradient="from-purple-500 to-purple-600" />
         </motion.div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Buscar por cliente o # cotización..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" /></div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder={t("pm.filter.status", locale)} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="all">{t("pm.filter.all", locale)}</SelectItem>
             <SelectItem value="pendiente">Pendiente</SelectItem>
             <SelectItem value="enviada">Enviada</SelectItem>
             <SelectItem value="aceptada">Aceptada</SelectItem>
@@ -11556,13 +11597,13 @@ function TenantQuotesPage() {
         </Select>
       </div>
 
-      {loading ? <PageSkeleton type="table" /> : filtered.length === 0 ? <EmptyState icon={FileText} title="Sin cotizaciones" description="Crea tu primera cotización" action="Nueva Cotización" onAction={() => setShowCreate(true)} /> : (
+      {loading ? <PageSkeleton type="table" /> : filtered.length === 0 ? <EmptyState icon={FileText} title={t("common.noData", locale)} description={t("common.noData", locale)} action={t("common.new", locale)} onAction={() => setShowCreate(true)} /> : (
         <DataGrid data={filtered} columns={[
           { key: 'quoteNumber', label: '# Cotización', render: (v: string) => <span className="font-medium">{v}</span> },
           { key: 'clientName', label: 'Cliente', render: (v: string) => <span className="font-medium">{v}</span> },
-          { key: 'total', label: 'Total', render: (v: number) => <span className="font-semibold">{formatCurrency(v, currency)}</span> },
-          { key: 'status', label: 'Estado', render: (v: string) => statusBadge(v) },
-          { key: 'date', label: 'Fecha', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
+          { key: 'total', label: t('bakery.table.total', locale), render: (v: number) => <span className="font-semibold">{formatCurrency(v, currency)}</span> },
+          { key: 'status', label: t('bakery.table.status', locale), render: (v: string) => statusBadge(v) },
+          { key: 'date', label: t('bakery.table.date', locale), render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
         ]} onEdit={(row: any) => toast.info(`Ver cotización: ${row.quoteNumber}`)} onDelete={(row: any) => { setQuotes(prev => prev.filter(q => q.id !== row.id)); toast.success('Cotización eliminada'); }} />
       )}
 
@@ -11584,7 +11625,7 @@ function TenantQuotesPage() {
                     <div className="col-span-5"><Input placeholder="Descripción" value={item.description} onChange={e => { const items = [...form.items]; items[idx] = { ...items[idx], description: e.target.value }; setForm(f => ({ ...f, items })); }} /></div>
                     <div className="col-span-2"><Label className="text-xs">Cant.</Label><Input type="number" value={item.qty} onChange={e => { const items = [...form.items]; items[idx] = { ...items[idx], qty: parseInt(e.target.value) || 0 }; setForm(f => ({ ...f, items })); }} /></div>
                     <div className="col-span-3"><Label className="text-xs">Precio Unit.</Label><Input type="number" value={item.unitPrice} onChange={e => { const items = [...form.items]; items[idx] = { ...items[idx], unitPrice: parseFloat(e.target.value) || 0 }; setForm(f => ({ ...f, items })); }} /></div>
-                    <div className="col-span-1"><Label className="text-xs">Total</Label><div className="p-2 text-sm font-medium">{formatCurrency(item.qty * item.unitPrice, currency)}</div></div>
+                    <div className="col-span-1"><Label className="text-xs">{t("common.total", locale)}</Label><div className="p-2 text-sm font-medium">{formatCurrency(item.qty * item.unitPrice, currency)}</div></div>
                     <div className="col-span-1"><Button variant="ghost" size="sm" className="text-destructive" onClick={() => { if (form.items.length > 1) setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) })); }}><Trash2 className="w-3.5 h-3.5" /></Button></div>
                   </div>
                 ))}
@@ -11615,6 +11656,7 @@ function TenantQuotesPage() {
 
 // ============ TENANT PAYMENTS PAGE ============
 function TenantPaymentsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -11668,24 +11710,24 @@ function TenantPaymentsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }}>
-          <StatCard title="Total Recibido (mes)" value={formatCurrency(thisMonthTotal, currency)} subtitle={`${thisMonthCount} pagos`} icon={DollarSign} gradient="from-green-500 to-green-600" />
+          <StatCard title={t("bakery.stats.receivedThisMonth", locale)} value={formatCurrency(thisMonthTotal, currency)} subtitle={`${thisMonthCount} pagos`} icon={DollarSign} gradient="from-green-500 to-green-600" />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <StatCard title="Pagos Hoy" value={todayPayments.length} subtitle={formatCurrency(todayPayments.reduce((s, p) => s + p.amount, 0), currency)} icon={Calendar} gradient="from-blue-500 to-blue-600" />
+          <StatCard title={t("bakery.stats.paymentsToday", locale)} value={todayPayments.length} subtitle={formatCurrency(todayPayments.reduce((s, p) => s + p.amount, 0), currency)} icon={Calendar} gradient="from-blue-500 to-blue-600" />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <StatCard title="Pendiente de Cobro" value={formatCurrency(pendingAmount, currency)} subtitle={`${payments.filter(p => p.status === 'pendiente').length} pagos`} icon={Clock} gradient="from-amber-500 to-amber-600" />
+          <StatCard title="Pendiente de Cobro" value={formatCurrency(pendingAmount, currency)} subtitle={`${payments.filter(p => p.status === 'pendiente').length} ${t("bakery.stats.monthlyPayments", locale)}`} icon={Clock} gradient="from-amber-500 to-amber-600" />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <StatCard title="Pagos del Mes" value={thisMonthCount} subtitle="Total transacciones" icon={TrendingUp} gradient="from-purple-500 to-purple-600" />
+          <StatCard title={t("bakery.stats.monthlyPayments", locale)} value={thisMonthCount} subtitle={t("bakery.stats.totalTransactions", locale)} icon={TrendingUp} gradient="from-purple-500 to-purple-600" />
         </motion.div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Buscar por cliente o factura..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" /></div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
-          <SelectContent><SelectItem value="all">Todos</SelectItem><SelectItem value="completado">Completado</SelectItem><SelectItem value="pendiente">Pendiente</SelectItem></SelectContent>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder={t("pm.filter.status", locale)} /></SelectTrigger>
+          <SelectContent><SelectItem value="all">{t("pm.filter.all", locale)}</SelectItem><SelectItem value="completado">Completado</SelectItem><SelectItem value="pendiente">Pendiente</SelectItem></SelectContent>
         </Select>
       </div>
 
@@ -11696,9 +11738,9 @@ function TenantPaymentsPage() {
           { key: 'clientName', label: 'Cliente', render: (v: string) => <span className="font-medium">{v}</span> },
           { key: 'amount', label: 'Monto', render: (v: number) => <span className="font-semibold text-green-600">{formatCurrency(v, currency)}</span> },
           { key: 'method', label: 'Método', render: (v: string) => methodIcon(v) },
-          { key: 'date', label: 'Fecha', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
+          { key: 'date', label: t('bakery.table.date', locale), render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
           { key: 'reference', label: 'Referencia' },
-          { key: 'status', label: 'Estado', render: (v: string) => <Badge variant={v === 'completado' ? 'default' : 'secondary'}>{v}</Badge> },
+          { key: 'status', label: t('bakery.table.status', locale), render: (v: string) => <Badge variant={v === 'completado' ? 'default' : 'secondary'}>{v}</Badge> },
         ]} onDelete={(row: any) => { setPayments(prev => prev.filter(p => p.id !== row.id)); toast.success('Pago eliminado'); }} />
       )}
 
@@ -11708,7 +11750,7 @@ function TenantPaymentsPage() {
           <div className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div><Label># Factura</Label><Input value={form.invoiceNumber} onChange={e => setForm(f => ({ ...f, invoiceNumber: e.target.value }))} placeholder="INV-XXX" /></div>
-              <div><Label>Cliente</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} placeholder="Nombre del cliente" /></div>
+              <div><Label>{t("bakery.table.client", locale)}</Label><Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} placeholder={t("bakery.table.client", locale)} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Monto ({currency}) *</Label><Input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: parseFloat(e.target.value) || 0 }))} /></div>
@@ -11721,7 +11763,7 @@ function TenantPaymentsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Referencia</Label><Input value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} /></div>
-              <div><Label>Fecha</Label><Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></div>
+              <div><Label>{t("common.date", locale)}</Label><Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></div>
             </div>
             <div><Label>Notas</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notas adicionales..." /></div>
             <Button onClick={handleCreate} disabled={!form.amount || form.amount <= 0} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">Registrar Pago</Button>
@@ -11734,8 +11776,9 @@ function TenantPaymentsPage() {
 
 // ============ TENANT EXPENSES PAGE ============
 function TenantExpensesPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
-  const categories = ['Ingredientes', 'Insumos', 'Servicios', 'Alquiler', 'Luz/Agua', 'Transporte', 'Salarios', 'Marketing', 'Equipos', 'Mantenimiento', 'Otros'];
+  const categories = [t('bakery.expenseCategories.ingredients', locale), t('bakery.expenseCategories.supplies', locale), t('bakery.expenseCategories.services', locale), t('bakery.expenseCategories.rent', locale), t('bakery.expenseCategories.utilities', locale), t('bakery.expenseCategories.transport', locale), t('bakery.expenseCategories.salaries', locale), t('bakery.expenseCategories.marketing', locale), t('bakery.expenseCategories.equipment', locale), t('bakery.expenseCategories.maintenance', locale), t('bakery.expenseCategories.other', locale)];
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const tenantId = currentTenant?.id;
@@ -11786,7 +11829,7 @@ function TenantExpensesPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }}>
-          <StatCard title="Total Gastos (mes)" value={formatCurrency(totalThisMonth, currency)} subtitle={`${expenses.length} registros`} icon={Receipt} gradient="from-red-500 to-red-600" />
+          <StatCard title={t("bakery.stats.totalExpenses", locale)} value={formatCurrency(totalThisMonth, currency)} subtitle={`${expenses.length} ${t("bakery.stats.records", locale)}`} icon={Receipt} gradient="from-red-500 to-red-600" />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <StatCard title="Categoría Principal" value={categoryBreakdown[0]?.category || '—'} subtitle={categoryBreakdown[0] ? formatCurrency(categoryBreakdown[0].total, currency) : ''} icon={BarChart2} gradient="from-amber-500 to-amber-600" />
@@ -11829,11 +11872,11 @@ function TenantExpensesPage() {
 
       {loading ? <PageSkeleton type="table" /> : filtered.length === 0 ? <EmptyState icon={Receipt} title="Sin gastos" description="Registra tu primer gasto" action="Nuevo Gasto" onAction={() => setShowCreate(true)} /> : (
         <DataGrid data={filtered} columns={[
-          { key: 'date', label: 'Fecha', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
-          { key: 'description', label: 'Descripción', render: (v: string) => <span className="font-medium">{v}</span> },
-          { key: 'category', label: 'Categoría', render: (v: string) => <Badge variant="outline" className={`${categoryColors[v]?.replace('bg-', 'bg-') || 'bg-gray-500'} bg-opacity-20`}><span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${categoryColors[v] || 'bg-gray-500'}`} />{v}</Badge> },
+          { key: 'date', label: t('bakery.table.date', locale), render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
+          { key: 'description', label: t('bakery.expense.description', locale), render: (v: string) => <span className="font-medium">{v}</span> },
+          { key: 'category', label: t('bakery.expense.category', locale), render: (v: string) => <Badge variant="outline" className={`${categoryColors[v]?.replace('bg-', 'bg-') || 'bg-gray-500'} bg-opacity-20`}><span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${categoryColors[v] || 'bg-gray-500'}`} />{v}</Badge> },
           { key: 'amount', label: 'Monto', render: (v: number) => <span className="font-semibold text-red-600">{formatCurrency(v, currency)}</span> },
-          { key: 'supplier', label: 'Proveedor' },
+          { key: 'supplier', label: t('bakery.expense.supplier', locale) },
           { key: 'method', label: 'Método', render: (v: string) => <Badge variant="secondary">{v}</Badge> },
           { key: 'hasReceipt', label: 'Recibo', render: (v: boolean) => v ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-400" /> },
         ]} onDelete={(row: any) => { setExpenses(prev => prev.filter(e => e.id !== row.id)); toast.success('Gasto eliminado'); }} />
@@ -11845,7 +11888,7 @@ function TenantExpensesPage() {
           <div className="space-y-4 mt-4">
             <div><Label>Descripción *</Label><Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Descripción del gasto" /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Categoría</Label>
+              <div><Label>{t("common.category", locale)}</Label>
                 <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
@@ -11854,7 +11897,7 @@ function TenantExpensesPage() {
               <div><Label>Monto ({currency}) *</Label><Input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: parseFloat(e.target.value) || 0 }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Fecha</Label><Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></div>
+              <div><Label>{t("common.date", locale)}</Label><Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></div>
               <div><Label>Método de Pago</Label>
                 <Select value={form.method} onValueChange={v => setForm(f => ({ ...f, method: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -11862,7 +11905,7 @@ function TenantExpensesPage() {
                 </Select>
               </div>
             </div>
-            <div><Label>Proveedor</Label><Input value={form.supplier} onChange={e => setForm(f => ({ ...f, supplier: e.target.value }))} placeholder="Nombre del proveedor" /></div>
+            <div><Label>{t("pm.table.vendor", locale)}</Label><Input value={form.supplier} onChange={e => setForm(f => ({ ...f, supplier: e.target.value }))} placeholder="Nombre del proveedor" /></div>
             <div className="flex items-center gap-2"><input type="checkbox" checked={form.hasReceipt} onChange={e => setForm(f => ({ ...f, hasReceipt: e.target.checked }))} className="rounded" /><Label>Tiene recibo</Label></div>
             <div><Label>Notas</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notas adicionales..." /></div>
             <Button onClick={handleCreate} disabled={!form.description || form.amount <= 0} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">Registrar Gasto</Button>
@@ -11875,6 +11918,7 @@ function TenantExpensesPage() {
 
 // ============ TENANT DOCUMENTS PAGE ============
 function TenantDocumentsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const docTypes = ['Factura', 'Contrato', 'Permiso', 'Licencia', 'Recibo', 'Cotización', 'Otro'];
   const [documents, setDocuments] = useState<any[]>([]);
@@ -11932,7 +11976,7 @@ function TenantDocumentsPage() {
         <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Buscar por nombre o tags..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" /></div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
-          <SelectContent><SelectItem value="all">Todos</SelectItem>{docTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+          <SelectContent><SelectItem value="all">{t("pm.filter.all", locale)}</SelectItem>{docTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
         </Select>
       </div>
 
@@ -11965,7 +12009,7 @@ function TenantDocumentsPage() {
                   <SelectContent>{docTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>Categoría</Label><Input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Ej: Legal, Financiero" /></div>
+              <div><Label>{t("common.category", locale)}</Label><Input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder={t("common.category", locale)} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Fecha de Emisión</Label><Input type="date" value={form.issueDate} onChange={e => setForm(f => ({ ...f, issueDate: e.target.value }))} /></div>
@@ -11986,7 +12030,7 @@ function TenantDocumentsPage() {
             <div className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div><p className="text-xs text-muted-foreground">Tipo</p><Badge variant="outline" className={typeColors[showView.type]}>{showView.type}</Badge></div>
-                <div><p className="text-xs text-muted-foreground">Categoría</p><p className="font-medium">{showView.category || '—'}</p></div>
+                <div><p className="text-xs text-muted-foreground">{t("common.category", locale)}</p><p className="font-medium">{showView.category || '—'}</p></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><p className="text-xs text-muted-foreground">Fecha de Emisión</p><p className="font-medium">{showView.issueDate ? new Date(showView.issueDate).toLocaleDateString() : '—'}</p></div>
@@ -12010,6 +12054,7 @@ function TenantDocumentsPage() {
 
 // ============ TENANT REPORTS PAGE ============
 function TenantReportsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [activeTab, setActiveTab] = useState('ventas');
   const tenantId = currentTenant?.id;
@@ -12134,9 +12179,9 @@ function TenantReportsPage() {
               <DataGrid data={recentOrders} columns={[
                 { key: 'id', label: 'Pedido', render: (v: string) => <span className="font-medium">{v}</span> },
                 { key: 'client', label: 'Cliente' },
-                { key: 'total', label: 'Total', render: (v: number) => formatCurrency(v, currency) },
-                { key: 'status', label: 'Estado', render: (v: string) => <Badge variant={v === 'completado' ? 'default' : v === 'en_progreso' ? 'secondary' : 'outline'}>{v === 'en_progreso' ? 'En Progreso' : v === 'completado' ? 'Completado' : 'Pendiente'}</Badge> },
-                { key: 'date', label: 'Fecha', render: (v: string) => new Date(v).toLocaleDateString() },
+                { key: 'total', label: t('bakery.table.total', locale), render: (v: number) => formatCurrency(v, currency) },
+                { key: 'status', label: t('bakery.table.status', locale), render: (v: string) => <Badge variant={v === 'completado' ? 'default' : v === 'en_progreso' ? 'secondary' : 'outline'}>{v === 'en_progreso' ? t('bakery.table.inProgress', locale) : v === 'completado' ? t('bakery.table.completed', locale) : t('bakery.table.pending', locale)}</Badge> },
+                { key: 'date', label: t('bakery.table.date', locale), render: (v: string) => new Date(v).toLocaleDateString() },
               ]} />
             </CardContent>
           </Card>
@@ -12144,7 +12189,7 @@ function TenantReportsPage() {
 
         <TabsContent value="productos" className="space-y-6 mt-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}><StatCard title="Total Productos" value="48" subtitle="En catálogo" icon={Package} gradient="from-blue-500 to-blue-600" /></motion.div>
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}><StatCard title={t("bakery.stats.totalProducts", locale)} value="48" subtitle={t("bakery.stats.inCatalog", locale)} icon={Package} gradient="from-blue-500 to-blue-600" /></motion.div>
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}><StatCard title="Bajo Stock" value={lowStock.length} subtitle="Requieren reorden" icon={AlertTriangle} gradient="from-amber-500 to-amber-600" /></motion.div>
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}><StatCard title="Sin Movimiento" value="6" subtitle="Últimos 30 días" icon={Clock} gradient="from-gray-400 to-gray-500" /></motion.div>
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}><StatCard title="Margen Promedio" value="52%" subtitle="Sobre costo" icon={Percent} gradient="from-green-500 to-green-600" /></motion.div>
@@ -12189,7 +12234,7 @@ function TenantReportsPage() {
 
         <TabsContent value="clientes" className="space-y-6 mt-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}><StatCard title="Total Clientes" value="127" subtitle="Activos" icon={Users} gradient="from-blue-500 to-blue-600" /></motion.div>
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}><StatCard title={t("bakery.stats.totalClients", locale)} value="127" subtitle={t("bakery.stats.active", locale)} icon={Users} gradient="from-blue-500 to-blue-600" /></motion.div>
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}><StatCard title="Nuevos (mes)" value="18" subtitle="+14% vs mes anterior" icon={UserCheck} gradient="from-green-500 to-green-600" /></motion.div>
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}><StatCard title="Recurrentes" value="63" subtitle="49% de clientes" icon={RefreshCw} gradient="from-purple-500 to-purple-600" /></motion.div>
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}><StatCard title="Ticket Promedio" value={formatCurrency(285, currency)} subtitle="Por pedido" icon={Receipt} gradient="from-amber-500 to-amber-600" /></motion.div>
@@ -12201,7 +12246,7 @@ function TenantReportsPage() {
               <DataGrid data={topClients} columns={[
                 { key: 'name', label: 'Cliente', render: (v: string) => <span className="font-medium">{v}</span> },
                 { key: 'orders', label: 'Pedidos', render: (v: number) => <Badge variant="secondary">{v}</Badge> },
-                { key: 'spent', label: 'Total Gastado', render: (v: number) => <span className="font-semibold text-green-600">{formatCurrency(v, currency)}</span> },
+                { key: 'spent', label: t('bakery.expense.totalSpent', locale), render: (v: number) => <span className="font-semibold text-green-600">{formatCurrency(v, currency)}</span> },
               ]} />
             </CardContent>
           </Card>
@@ -12270,6 +12315,7 @@ function TenantReportsPage() {
 
 // ============ TENANT PRICING ASSISTANT PAGE ============
 function TenantPricingAssistantPage() {
+  const locale = useAppStore(s => s.locale);
   const { currency } = useAppStore() as any;
   const [form, setForm] = useState({
     productName: 'Torta de Chocolate Premium',
@@ -12432,6 +12478,7 @@ function TenantPricingAssistantPage() {
 }
 
 function TenantGenericPage({ title, description, icon: Icon, tenantId }: { title: string; description: string; icon: any; tenantId?: string }) {
+  const locale = useAppStore(s => s.locale);
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -12447,6 +12494,7 @@ function TenantGenericPage({ title, description, icon: Icon, tenantId }: { title
 }
 
 function TenantClientsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -12500,6 +12548,7 @@ function TenantClientsPage() {
 }
 
 function TenantInvoicesPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -12532,11 +12581,11 @@ function TenantInvoicesPage() {
         <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-blue-700 to-blue-500"><Plus className="w-4 h-4 mr-2" />New Invoice</Button>
       </div>
       
-      {loading ? <PageSkeleton type="table" /> : invoices.length === 0 ? <EmptyState icon={Receipt} title="No invoices yet" description="Create your first invoice" action="New Invoice" onAction={() => setShowCreate(true)} /> : (
+      {loading ? <PageSkeleton type="table" /> : invoices.length === 0 ? <EmptyState icon={Receipt} title={t("common.noData", locale)} description="Create your first invoice" action="New Invoice" onAction={() => setShowCreate(true)} /> : (
         <DataGrid data={invoices} columns={[
           { key: 'invoiceNumber', label: 'Invoice #', render: (v: string) => <span className="font-medium">{v}</span> },
           { key: 'clientName', label: 'Client' },
-          { key: 'totalAmount', label: 'Total', render: (v: number) => formatCurrency(v, currency) },
+          { key: 'totalAmount', label: t('bakery.table.total', locale), render: (v: number) => formatCurrency(v, currency) },
           { key: 'status', label: 'Status', render: (v: string) => <Badge variant={v === 'paid' ? 'default' : v === 'overdue' ? 'destructive' : 'secondary'}>{v}</Badge> },
           { key: 'issueDate', label: 'Date', render: (v: string) => v ? new Date(v).toLocaleDateString() : '—' },
         ]} />
@@ -12560,6 +12609,7 @@ function TenantInvoicesPage() {
 }
 
 function TenantBookkeepingPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [data, setData] = useState<any>({ entries: [], summary: { totalCredits: 0, totalDebits: 0, netIncome: 0, categories: {} } });
   const [loading, setLoading] = useState(true);
@@ -12593,7 +12643,7 @@ function TenantBookkeepingPage() {
         <Card className="border-green-200 dark:border-green-900"><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">Credits (Income)</p><p className="text-2xl font-bold text-green-600">{formatCurrency(summary.totalCredits, currency)}</p></CardContent></Card>
         <Card className="border-red-200 dark:border-red-900"><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">Debits (Expenses)</p><p className="text-2xl font-bold text-red-600">{formatCurrency(summary.totalDebits, currency)}</p></CardContent></Card>
         <Card className={summary.netIncome >= 0 ? 'border-green-200 dark:border-green-900' : 'border-red-200 dark:border-red-900'}>
-          <CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">Net Income</p><p className={`text-2xl font-bold ${summary.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(summary.netIncome, currency)}</p></CardContent>
+          <CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">{t("pm.accounting.netIncome", locale)}</p><p className={`text-2xl font-bold ${summary.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(summary.netIncome, currency)}</p></CardContent>
         </Card>
       </div>
       
@@ -12787,6 +12837,7 @@ function TenantSettingsPage() {
 
 // --- Generic CRUD Helper ---
 function CrudPage({ title, description, icon: Icon, endpoint, columns, fields, defaultForm, successMsg }: any) {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -12851,6 +12902,7 @@ function CrudPage({ title, description, icon: Icon, endpoint, columns, fields, d
 
 // --- Retail Pages ---
 function TenantRetailProductsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currency } = useAppStore() as any;
   const cols = [
     { key: 'sku', label: 'SKU', render: (v: string) => <span className="font-mono text-xs">{v || '—'}</span> },
@@ -12882,6 +12934,7 @@ const INGREDIENT_CATEGORIES = ['Harinas', 'Azúcares', 'Grasas', 'Lácteos', 'Hu
 // ============ COST CALCULATOR TOOL ============
 
 function CostCalculatorTool({ currency }: { currency: string }) {
+  const locale = useAppStore(s => s.locale);
   const [calcIngredients, setCalcIngredients] = useState<any[]>([{ name: '', cost: 0, qty: 0 }]);
   const [servings, setServings] = useState(1);
   const [targetFoodCost, setTargetFoodCost] = useState(30);
@@ -12952,6 +13005,7 @@ function CostCalculatorTool({ currency }: { currency: string }) {
 }
 
 function TenantRecipeCostingPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const tid = currentTenant?.id;
   const [recipes, setRecipes] = useState<any[]>([]);
@@ -13111,7 +13165,7 @@ function TenantRecipeCostingPage() {
           return [
             { label: 'Food Cost Prom.', value: `${avgFoodCost.toFixed(1)}%`, icon: PieChart, color: avgFoodCost < 35 ? 'text-green-600' : avgFoodCost < 45 ? 'text-amber-600' : 'text-red-600' },
             { label: 'Margen Prom.', value: `${avgMargin.toFixed(1)}%`, icon: TrendingUp, color: avgMargin > 50 ? 'text-green-600' : avgMargin > 30 ? 'text-amber-600' : 'text-red-600' },
-            { label: 'Total Recetas', value: recipes.length, icon: BookOpen, color: 'text-blue-600' },
+            { label: t('recipe.stats.total', locale), value: recipes.length, icon: BookOpen, color: 'text-blue-600' },
             { label: 'Precios a Ajustar', value: needsAdjust, icon: AlertTriangle, color: needsAdjust > 0 ? 'text-red-600' : 'text-green-600' },
           ].map((s) => (
             <Card key={s.label}><CardContent className="p-4 flex items-center gap-3"><div className={`p-2 rounded-lg bg-muted/50 ${s.color}`}><s.icon className="w-5 h-5" /></div><div><p className="text-xs text-muted-foreground">{s.label}</p><p className="text-lg font-bold">{s.value}</p></div></CardContent></Card>
@@ -13219,7 +13273,7 @@ function TenantRecipeCostingPage() {
                   <th className="text-right p-3 font-medium">Precio Venta</th>
                   <th className="text-right p-3 font-medium">Food Cost %</th>
                   <th className="text-right p-3 font-medium">Margen %</th>
-                  <th className="text-center p-3 font-medium">Estado</th>
+                  <th className="text-center p-3 font-medium">{t("pm.filter.status", locale)}</th>
                 </tr>
               </thead>
               <tbody>
@@ -13271,13 +13325,13 @@ function TenantRecipeCostingPage() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="text-left p-3 font-medium">Nombre</th>
-                    <th className="text-left p-3 font-medium">Categoría</th>
-                    <th className="text-left p-3 font-medium">Unidad</th>
+                    <th className="text-left p-3 font-medium">{t("common.category", locale)}</th>
+                    <th className="text-left p-3 font-medium">{t("pm.table.unit", locale)}</th>
                     <th className="text-right p-3 font-medium">Costo/Unidad</th>
                     <th className="text-right p-3 font-medium">Stock</th>
                     <th className="text-right p-3 font-medium">Mín.</th>
-                    <th className="text-center p-3 font-medium">Estado</th>
-                    <th className="text-right p-3 font-medium">Acciones</th>
+                    <th className="text-center p-3 font-medium">{t("pm.filter.status", locale)}</th>
+                    <th className="text-right p-3 font-medium">{t("common.actions", locale)}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -13319,9 +13373,9 @@ function TenantRecipeCostingPage() {
           <div className="space-y-4 mt-4">
             <div className="grid sm:grid-cols-2 gap-4">
               <div><Label>Nombre *</Label><Input value={recipeForm.name} onChange={e => setRecipeForm(p => ({ ...p, name: e.target.value }))} placeholder="Ej: Pan de Mantequilla" /></div>
-              <div><Label>Categoría</Label><Select value={recipeForm.category} onValueChange={v => setRecipeForm(p => ({ ...p, category: v }))}><SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger><SelectContent>{RECIPE_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label>{t("common.category", locale)}</Label><Select value={recipeForm.category} onValueChange={v => setRecipeForm(p => ({ ...p, category: v }))}><SelectTrigger><SelectValue placeholder={t("common.all", locale)} /></SelectTrigger><SelectContent>{RECIPE_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
             </div>
-            <div><Label>Descripción</Label><Textarea value={recipeForm.description} onChange={e => setRecipeForm(p => ({ ...p, description: e.target.value }))} rows={2} placeholder="Descripción de la receta..." /></div>
+            <div><Label>{t("common.description", locale)}</Label><Textarea value={recipeForm.description} onChange={e => setRecipeForm(p => ({ ...p, description: e.target.value }))} rows={2} placeholder={t("common.description", locale)} /></div>
             <div className="grid grid-cols-3 gap-4">
               <div><Label>Porciones</Label><Input type="number" value={recipeForm.servings} onChange={e => setRecipeForm(p => ({ ...p, servings: parseInt(e.target.value) || 1 }))} /></div>
               <div><Label>Tiempo Prep (min)</Label><Input type="number" value={recipeForm.prepTime} onChange={e => setRecipeForm(p => ({ ...p, prepTime: parseInt(e.target.value) || 0 }))} /></div>
@@ -13398,16 +13452,16 @@ function TenantRecipeCostingPage() {
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div><Label>Nombre *</Label><Input value={ingForm.name} onChange={e => setIngForm(p => ({ ...p, name: e.target.value }))} placeholder="Ej: Harina de trigo" /></div>
-            <div><Label>Categoría</Label><Select value={ingForm.category} onValueChange={v => setIngForm(p => ({ ...p, category: v }))}><SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger><SelectContent>{INGREDIENT_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>{t("common.category", locale)}</Label><Select value={ingForm.category} onValueChange={v => setIngForm(p => ({ ...p, category: v }))}><SelectTrigger><SelectValue placeholder={t("common.all", locale)} /></SelectTrigger><SelectContent>{INGREDIENT_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Unidad</Label><Select value={ingForm.unit} onValueChange={v => setIngForm(p => ({ ...p, unit: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{INGREDIENT_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label>{t("pm.table.unit", locale)}</Label><Select value={ingForm.unit} onValueChange={v => setIngForm(p => ({ ...p, unit: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{INGREDIENT_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent></Select></div>
               <div><Label>Costo por Unidad</Label><Input type="number" step="0.01" value={ingForm.costPerUnit} onChange={e => setIngForm(p => ({ ...p, costPerUnit: parseFloat(e.target.value) || 0 }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Stock Actual</Label><Input type="number" value={ingForm.quantity} onChange={e => setIngForm(p => ({ ...p, quantity: parseFloat(e.target.value) || 0 }))} /></div>
               <div><Label>Stock Mínimo</Label><Input type="number" value={ingForm.minStock} onChange={e => setIngForm(p => ({ ...p, minStock: parseFloat(e.target.value) || 0 }))} /></div>
             </div>
-            <div><Label>Proveedor</Label><Input value={ingForm.supplier} onChange={e => setIngForm(p => ({ ...p, supplier: e.target.value }))} placeholder="Nombre del proveedor" /></div>
+            <div><Label>{t("pm.table.vendor", locale)}</Label><Input value={ingForm.supplier} onChange={e => setIngForm(p => ({ ...p, supplier: e.target.value }))} placeholder="Nombre del proveedor" /></div>
             <Button onClick={saveIng} disabled={savingIng || !ingForm.name} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">
               {savingIng && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}{editingIng ? 'Guardar Cambios' : 'Crear Ingrediente'}
             </Button>
@@ -14013,6 +14067,7 @@ function TenantSuppliersPage() {
 
 // --- Salon Pages ---
 function TenantAppointmentsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [items, setItems] = useState<any[]>([]);
   const [stylists, setStylists] = useState<any[]>([]);
@@ -14112,7 +14167,7 @@ function TenantAppointmentsPage() {
           ))}
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Estado" /></SelectTrigger>
+          <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder={t("pm.filter.status", locale)} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
             <SelectItem value="scheduled">Programada</SelectItem>
@@ -14213,7 +14268,7 @@ function TenantAppointmentsPage() {
               <div><Label>Fecha y Hora *</Label><Input type="datetime-local" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} /></div>
               <div><Label>Duración (min)</Label><Input type="number" value={form.duration} onChange={e => setForm(p => ({ ...p, duration: parseInt(e.target.value) || 60 }))} /></div>
             </div>
-            <div><Label>Estado</Label><Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
+            <div><Label>{t("pm.filter.status", locale)}</Label><Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="scheduled">Programada</SelectItem><SelectItem value="confirmed">Confirmada</SelectItem><SelectItem value="pending">Pendiente</SelectItem><SelectItem value="completed">Completada</SelectItem><SelectItem value="cancelled">Cancelada</SelectItem></SelectContent>
             </Select></div>
@@ -14227,6 +14282,7 @@ function TenantAppointmentsPage() {
 }
 
 function TenantStylistsPage() {
+  const locale = useAppStore(s => s.locale);
   const cols = [
     { key: 'name', label: 'Stylist', render: (v: string) => <span className="font-medium">{v}</span> },
     { key: 'specialty', label: 'Specialty', render: (v: string) => v ? <Badge variant="secondary">{v}</Badge> : '—' },
@@ -14244,6 +14300,7 @@ function TenantStylistsPage() {
 }
 
 function TenantSalonServicesPage() {
+  const locale = useAppStore(s => s.locale);
   const { currency } = useAppStore() as any;
   const cols = [
     { key: 'name', label: 'Service', render: (v: string) => <span className="font-medium">{v}</span> },
@@ -14263,6 +14320,7 @@ function TenantSalonServicesPage() {
 
 // --- Events Pages ---
 function TenantEventsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currency } = useAppStore() as any;
   const cols = [
     { key: 'name', label: 'Event', render: (v: string) => <span className="font-medium">{v}</span> },
@@ -14288,6 +14346,7 @@ function TenantEventsPage() {
 }
 
 function TenantVenuesPage() {
+  const locale = useAppStore(s => s.locale);
   const cols = [
     { key: 'name', label: 'Venue', render: (v: string) => <span className="font-medium">{v}</span> },
     { key: 'location', label: 'Location' },
@@ -14310,6 +14369,7 @@ function TenantVenuesPage() {
 }
 
 function TenantVendorsPage() {
+  const locale = useAppStore(s => s.locale);
   const cols = [
     { key: 'name', label: 'Vendor', render: (v: string) => <span className="font-medium">{v}</span> },
     { key: 'category', label: 'Category', render: (v: string) => v ? <Badge variant="secondary">{v}</Badge> : '—' },
@@ -14331,6 +14391,7 @@ function TenantVendorsPage() {
 
 // --- Professional Pages ---
 function TenantProjectsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14451,14 +14512,14 @@ function TenantProjectsPage() {
             <table className="w-full text-sm">
               <thead><tr className="bg-muted/50 border-b">
                 <th className="text-left p-3 font-medium">Proyecto</th>
-                <th className="text-left p-3 font-medium">Cliente</th>
-                <th className="text-left p-3 font-medium">Estado</th>
-                <th className="text-left p-3 font-medium">Inicio</th>
+                <th className="text-left p-3 font-medium">{t("bakery.table.client", locale)}</th>
+                <th className="text-left p-3 font-medium">{t("pm.filter.status", locale)}</th>
+                <th className="text-left p-3 font-medium">{t("pm.table.start", locale)}</th>
                 <th className="text-left p-3 font-medium">Fecha Límite</th>
                 <th className="text-right p-3 font-medium">Presupuesto</th>
                 <th className="text-right p-3 font-medium">Gastado</th>
                 <th className="text-center p-3 font-medium">Progreso</th>
-                <th className="text-right p-3 font-medium">Acciones</th>
+                <th className="text-right p-3 font-medium">{t("common.actions", locale)}</th>
               </tr></thead>
               <tbody>
                 {items.map((p: any) => (
@@ -14490,8 +14551,8 @@ function TenantProjectsPage() {
           <DialogHeader><DialogTitle>{editing ? 'Editar Proyecto' : 'Nuevo Proyecto'}</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-4">
             <div><Label>Nombre del Proyecto *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></div>
-            <div><Label>Cliente</Label><Input value={form.clientName} onChange={e => setForm(p => ({ ...p, clientName: e.target.value }))} /></div>
-            <div><Label>Estado</Label><Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
+            <div><Label>{t("bakery.table.client", locale)}</Label><Input value={form.clientName} onChange={e => setForm(p => ({ ...p, clientName: e.target.value }))} /></div>
+            <div><Label>{t("pm.filter.status", locale)}</Label><Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">En Progreso</SelectItem>
@@ -14512,7 +14573,7 @@ function TenantProjectsPage() {
               <Label>Progreso ({form.progress}%)</Label>
               <Input type="range" min={0} max={100} value={form.progress} onChange={e => setForm(p => ({ ...p, progress: parseInt(e.target.value) || 0 }))} className="mt-1" />
             </div>
-            <div><Label>Descripción</Label><Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
+            <div><Label>{t("common.description", locale)}</Label><Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
             <Button onClick={handleSave} disabled={!form.name} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">{editing ? 'Guardar Cambios' : 'Crear Proyecto'}</Button>
           </div>
         </DialogContent>
@@ -14522,6 +14583,7 @@ function TenantProjectsPage() {
 }
 
 function TenantTimeTrackingPage() {
+  const locale = useAppStore(s => s.locale);
   const { currency } = useAppStore() as any;
   const cols = [
     { key: 'description', label: 'Description', render: (v: string) => <span className="font-medium">{v}</span> },
@@ -14542,6 +14604,7 @@ function TenantTimeTrackingPage() {
 }
 
 function TenantContractsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currency } = useAppStore() as any;
   const cols = [
     { key: 'clientName', label: 'Client', render: (v: string) => <span className="font-medium">{v || '—'}</span> },
@@ -14737,6 +14800,7 @@ function TenantCatalogPage() {
 
 // ============ TENANT INGREDIENTS PAGE (REAL) ============
 function TenantIngredientsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14760,15 +14824,16 @@ function TenantIngredientsPage() {
       {lowStockItems.length > 0 && <Card className="p-4 border-amber-300 bg-amber-50 dark:bg-amber-900/20"><div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium"><AlertTriangle className="w-4 h-4" />Stock Bajo ({lowStockItems.length} items)</div><div className="flex gap-2 mt-2 flex-wrap">{lowStockItems.map((i: any) => <Badge key={i.id} variant="outline" className="bg-amber-100 border-amber-300">{i.name}: {i.quantity} {i.unit}</Badge>)}</div></Card>}
       <Input placeholder="Buscar ingrediente..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" />
       {loading ? <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div> : filtered.length === 0 ? <Card className="p-12 text-center"><Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">No hay ingredientes registrados.</p></Card> : (
-        <Card><Table><TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Categoria</TableHead><TableHead>Cantidad</TableHead><TableHead>Unidad</TableHead><TableHead>Costo Unit.</TableHead><TableHead>Min. Stock</TableHead><TableHead>Proveedor</TableHead></TableRow></TableHeader><TableBody>{filtered.map((i: any) => <TableRow key={i.id}><TableCell className="font-medium">{i.name}</TableCell><TableCell><Badge variant="outline">{i.category}</Badge></TableCell><TableCell>{i.minStock > 0 && i.quantity <= i.minStock ? <span className="text-red-600 font-semibold">{i.quantity || 0}</span> : <span>{i.quantity || 0}</span>}</TableCell><TableCell>{i.unit}</TableCell><TableCell>{currency || 'TTD'} {(i.costPerUnit || 0).toFixed(2)}</TableCell><TableCell>{i.minStock || '-'}</TableCell><TableCell className="text-sm text-muted-foreground">{i.supplier || '-'}</TableCell></TableRow>)}</TableBody></Table></Card>
+        <Card><Table><TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Categoria</TableHead><TableHead>Cantidad</TableHead><TableHead>{t("pm.table.unit", locale)}</TableHead><TableHead>Costo Unit.</TableHead><TableHead>Min. Stock</TableHead><TableHead>{t("pm.table.vendor", locale)}</TableHead></TableRow></TableHeader><TableBody>{filtered.map((i: any) => <TableRow key={i.id}><TableCell className="font-medium">{i.name}</TableCell><TableCell><Badge variant="outline">{i.category}</Badge></TableCell><TableCell>{i.minStock > 0 && i.quantity <= i.minStock ? <span className="text-red-600 font-semibold">{i.quantity || 0}</span> : <span>{i.quantity || 0}</span>}</TableCell><TableCell>{i.unit}</TableCell><TableCell>{currency || 'TTD'} {(i.costPerUnit || 0).toFixed(2)}</TableCell><TableCell>{i.minStock || '-'}</TableCell><TableCell className="text-sm text-muted-foreground">{i.supplier || '-'}</TableCell></TableRow>)}</TableBody></Table></Card>
       )}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Nuevo Ingrediente</DialogTitle></DialogHeader><div className="space-y-4 mt-2"><div><Label>Nombre *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></div><div className="grid grid-cols-2 gap-4"><div><Label>Categoria</Label><Input value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} /></div><div><Label>Unidad</Label><Input value={form.unit} onChange={e => setForm(p => ({ ...p, unit: e.target.value }))} /></div></div><div className="grid grid-cols-3 gap-4"><div><Label>Cantidad</Label><Input type="number" value={form.quantity || ''} onChange={e => setForm(p => ({ ...p, quantity: Number(e.target.value) }))} /></div><div><Label>Costo Unit.</Label><Input type="number" value={form.costPerUnit || ''} onChange={e => setForm(p => ({ ...p, costPerUnit: Number(e.target.value) }))} /></div><div><Label>Min. Stock</Label><Input type="number" value={form.minStock || ''} onChange={e => setForm(p => ({ ...p, minStock: Number(e.target.value) }))} /></div></div><div><Label>Proveedor</Label><Input value={form.supplier} onChange={e => setForm(p => ({ ...p, supplier: e.target.value }))} /></div></div><DialogFooter><Button onClick={handleCreate} className="bg-blue-600 hover:bg-blue-700">Agregar</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={showCreate} onOpenChange={setShowCreate}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Nuevo Ingrediente</DialogTitle></DialogHeader><div className="space-y-4 mt-2"><div><Label>Nombre *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></div><div className="grid grid-cols-2 gap-4"><div><Label>Categoria</Label><Input value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} /></div><div><Label>{t("pm.table.unit", locale)}</Label><Input value={form.unit} onChange={e => setForm(p => ({ ...p, unit: e.target.value }))} /></div></div><div className="grid grid-cols-3 gap-4"><div><Label>Cantidad</Label><Input type="number" value={form.quantity || ''} onChange={e => setForm(p => ({ ...p, quantity: Number(e.target.value) }))} /></div><div><Label>Costo Unit.</Label><Input type="number" value={form.costPerUnit || ''} onChange={e => setForm(p => ({ ...p, costPerUnit: Number(e.target.value) }))} /></div><div><Label>Min. Stock</Label><Input type="number" value={form.minStock || ''} onChange={e => setForm(p => ({ ...p, minStock: Number(e.target.value) }))} /></div></div><div><Label>{t("pm.table.vendor", locale)}</Label><Input value={form.supplier} onChange={e => setForm(p => ({ ...p, supplier: e.target.value }))} /></div></div><DialogFooter><Button onClick={handleCreate} className="bg-blue-600 hover:bg-blue-700">Agregar</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }
 
 // ============ TENANT DESIGN GALLERY PAGE (REAL) ============
 function TenantDesignGalleryPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant } = useAppStore() as any;
   const [designs, setDesigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14806,6 +14871,7 @@ const ROLE_DEFINITIONS: Record<string, { label: string; color: string; desc: str
 };
 
 function TenantTeamPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant } = useAppStore() as any;
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14882,8 +14948,8 @@ function TenantTeamPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Miembros', value: members.length, icon: Users, color: 'text-blue-600' },
-          { label: 'Activos', value: members.filter((m: any) => m.status === 'active').length, icon: UserCheck, color: 'text-green-600' },
+          { label: t('team.stats.total', locale), value: members.length, icon: Users, color: 'text-blue-600' },
+          { label: t('team.stats.active', locale), value: members.filter((m: any) => m.status === 'active').length, icon: UserCheck, color: 'text-green-600' },
           { label: 'Roles Activos', value: Object.keys(roleCounts).length, icon: Shield, color: 'text-purple-600' },
           { label: 'Owners', value: roleCounts['owner'] || 0, icon: Award, color: 'text-amber-600' },
         ].map((s) => (
@@ -15322,6 +15388,7 @@ function TenantInventoryPage() {
 // ============ COST ANALYSIS / COSTEOS Y MARGENES PAGE ============
 
 function TenantCostAnalysisPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const tid = currentTenant?.id;
   const [recipes, setRecipes] = useState<any[]>([]);
@@ -15527,7 +15594,7 @@ function TenantCostAnalysisPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard title="Food Cost Promedio" value={`${avgFoodCost.toFixed(1)}%`} subtitle="Objetivo: <30%" icon={PieChart} gradient="from-blue-600 to-blue-400" />
         <StatCard title="Margen de Ganancia Prom." value={`${avgMargin.toFixed(1)}%`} subtitle="Objetivo: >30%" icon={TrendingUp} gradient="from-green-600 to-green-400" />
-        <StatCard title="Total Productos Analizados" value={recipes.length.toString()} subtitle={`${analysisHistory.length} análisis guardados`} icon={BarChart3} gradient="from-purple-600 to-purple-400" />
+        <StatCard title={t("bakery.stats.recipesAnalyzed", locale)} value={recipes.length.toString()} subtitle={`${analysisHistory.length} ${t("bakery.stats.analysisSaved", locale)}`} icon={BarChart3} gradient="from-purple-600 to-purple-400" />
       </div>
 
       {/* Recipe Selector */}
@@ -15690,6 +15757,7 @@ const ADJUST_TYPES = [
 const ADJUST_REASONS = ['Compra', 'Venta', 'Merma', 'Ajuste', 'Produccion', 'Devolucion', 'Inventario fisico', 'Otro'];
 
 function TenantRawMaterialsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [materials, setMaterials] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
@@ -15864,7 +15932,7 @@ function TenantRawMaterialsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Materiales', value: filteredMaterials.length, icon: Package, color: 'text-blue-600' },
+          { label: t('material.stats.total', locale), value: filteredMaterials.length, icon: Package, color: 'text-blue-600' },
           { label: 'Stock Critico', value: criticalItems.length, icon: AlertCircle, color: criticalItems.length > 0 ? 'text-red-600' : 'text-green-600' },
           { label: 'Stock Bajo', value: lowStockItems.length, icon: AlertTriangle, color: lowStockItems.length > 0 ? 'text-amber-600' : 'text-green-600' },
           { label: 'Valor Inventario', value: `${currency || 'TTD'} ${totalValue.toFixed(2)}`, icon: DollarSign, color: 'text-green-600' },
@@ -15963,13 +16031,13 @@ function TenantRawMaterialsPage() {
                   <th className="text-left px-4 py-3 font-medium">SKU</th>
                   <th className="text-left px-4 py-3 font-medium">Categoria</th>
                   <th className="text-right px-4 py-3 font-medium">Cantidad</th>
-                  <th className="text-left px-4 py-3 font-medium">Unidad</th>
+                  <th className="text-left px-4 py-3 font-medium">{t("pm.table.unit", locale)}</th>
                   <th className="text-right px-4 py-3 font-medium">Min. Stock</th>
                   <th className="text-right px-4 py-3 font-medium">Costo Unit.</th>
-                  <th className="text-center px-4 py-3 font-medium">Estado</th>
+                  <th className="text-center px-4 py-3 font-medium">{t("pm.filter.status", locale)}</th>
                   <th className="text-left px-4 py-3 font-medium">Metodo</th>
                   <th className="text-right px-4 py-3 font-medium">Valor Total</th>
-                  <th className="text-center px-4 py-3 font-medium">Acciones</th>
+                  <th className="text-center px-4 py-3 font-medium">{t("common.actions", locale)}</th>
                 </tr>
               </thead>
               <tbody>
@@ -16053,7 +16121,7 @@ function TenantRawMaterialsPage() {
                 </Select>
               </div>
               <div>
-                <Label>Unidad</Label>
+                <Label>{t("pm.table.unit", locale)}</Label>
                 <Select value={createForm.unit} onValueChange={v => setCreateForm(p => ({ ...p, unit: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{RAW_MATERIAL_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
@@ -16066,7 +16134,7 @@ function TenantRawMaterialsPage() {
               <div><Label>Costo Unit.</Label><Input type="number" step="0.01" min={0} value={createForm.unitCost || ''} onChange={e => setCreateForm(p => ({ ...p, unitCost: Number(e.target.value) }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Proveedor</Label><Input placeholder="Nombre del proveedor" value={createForm.supplier} onChange={e => setCreateForm(p => ({ ...p, supplier: e.target.value }))} /></div>
+              <div><Label>{t("pm.table.vendor", locale)}</Label><Input placeholder="Nombre del proveedor" value={createForm.supplier} onChange={e => setCreateForm(p => ({ ...p, supplier: e.target.value }))} /></div>
               <div>
                 <Label>Metodo</Label>
                 <Select value={createForm.method} onValueChange={v => setCreateForm(p => ({ ...p, method: v }))}>
@@ -16106,7 +16174,7 @@ function TenantRawMaterialsPage() {
                 </Select>
               </div>
               <div>
-                <Label>Unidad</Label>
+                <Label>{t("pm.table.unit", locale)}</Label>
                 <Select value={editForm.unit} onValueChange={v => setEditForm(p => ({ ...p, unit: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{RAW_MATERIAL_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
@@ -16119,7 +16187,7 @@ function TenantRawMaterialsPage() {
               <div><Label>Costo Unit.</Label><Input type="number" step="0.01" min={0} value={editForm.unitCost || ''} onChange={e => setEditForm(p => ({ ...p, unitCost: Number(e.target.value) }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Proveedor</Label><Input value={editForm.supplier} onChange={e => setEditForm(p => ({ ...p, supplier: e.target.value }))} /></div>
+              <div><Label>{t("pm.table.vendor", locale)}</Label><Input value={editForm.supplier} onChange={e => setEditForm(p => ({ ...p, supplier: e.target.value }))} /></div>
               <div>
                 <Label>Metodo</Label>
                 <Select value={editForm.method} onValueChange={v => setEditForm(p => ({ ...p, method: v }))}>
@@ -16203,6 +16271,7 @@ function TenantRawMaterialsPage() {
 // ============ STEALTH FINANCIAL PAGE ============
 
 function TenantStealthFinancePage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency, currentUserRole, setTenantPage, setStealthMode, panicMode, setPanicMode, decoyPassword, setDecoyPassword, alwaysRequirePin, setAlwaysRequirePin, stealthAccessLog, addStealthAccessLog, user } = useAppStore();
   const tid = currentTenant?.id;
   const [orders, setOrders] = useState<any[]>([]);
@@ -16461,7 +16530,7 @@ function TenantStealthFinancePage() {
                   <table className="w-full text-sm">
                     <thead><tr className="border-b bg-muted/50">
                       <th className="text-left p-3 font-medium">Producto</th>
-                      <th className="text-right p-3 font-medium">Unidades</th>
+                      <th className="text-right p-3 font-medium">{t("pm.table.units", locale)}</th>
                       <th className="text-right p-3 font-medium">Ingresos</th>
                       <th className="text-right p-3 font-medium">Ganancia</th>
                       <th className="text-right p-3 font-medium">Margen</th>
@@ -16618,6 +16687,7 @@ function TenantStealthFinancePage() {
 // ============ PRODUCTION PLANNING PAGE ============
 
 function TenantProductionPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const tid = currentTenant?.id;
   const [batches, setBatches] = useState<any[]>([]);
@@ -16780,7 +16850,7 @@ function TenantProductionPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[{ label: 'Total Lotes', value: totalBatches, icon: ClipboardList, color: 'text-blue-600' }, { label: 'En Progreso', value: inProgress, icon: Loader2, color: 'text-amber-600' }, { label: 'Completados Hoy', value: completedToday, icon: CheckCircle, color: 'text-green-600' }, { label: 'Costo Total', value: formatCurrency(totalCost, currency), icon: DollarSign, color: 'text-purple-600' }].map((s) => (
+        {[{ label: t('production.batch.total', locale), value: totalBatches, icon: ClipboardList, color: 'text-blue-600' }, { label: t('production.batch.inProgress', locale), value: inProgress, icon: Loader2, color: 'text-amber-600' }, { label: t('production.batch.completed', locale), value: completedToday, icon: CheckCircle, color: 'text-green-600' }, { label: t('production.batch.cost', locale), value: formatCurrency(totalCost, currency), icon: DollarSign, color: 'text-purple-600' }].map((s) => (
           <Card key={s.label}><CardContent className="p-4 flex items-center gap-3"><div className={`p-2 rounded-lg bg-muted/50 ${s.color}`}><s.icon className="w-5 h-5" /></div><div><p className="text-xs text-muted-foreground">{s.label}</p><p className="text-lg font-bold">{s.value}</p></div></CardContent></Card>
         ))}
       </div>
@@ -16798,9 +16868,9 @@ function TenantProductionPage() {
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-44"><SelectValue placeholder="Filtrar estado" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="all">{t("pm.filter.all", locale)}</SelectItem>
                 <SelectItem value="planned">Planificado</SelectItem>
-                <SelectItem value="in_progress">En Progreso</SelectItem>
+                <SelectItem value="in_progress">{t("pm.maintenance.inProgress", locale)}</SelectItem>
                 <SelectItem value="completed">Completado</SelectItem>
                 <SelectItem value="cancelled">Cancelado</SelectItem>
               </SelectContent>
@@ -16818,11 +16888,11 @@ function TenantProductionPage() {
                     <th className="text-left p-3 font-medium">Lote #</th>
                     <th className="text-left p-3 font-medium">Receta</th>
                     <th className="text-right p-3 font-medium">Cantidad</th>
-                    <th className="text-center p-3 font-medium">Estado</th>
-                    <th className="text-left p-3 font-medium">Fecha</th>
+                    <th className="text-center p-3 font-medium">{t("pm.filter.status", locale)}</th>
+                    <th className="text-left p-3 font-medium">{t("common.date", locale)}</th>
                     <th className="text-left p-3 font-medium">Asignado</th>
                     <th className="text-right p-3 font-medium">Costo</th>
-                    <th className="text-center p-3 font-medium">Acciones</th>
+                    <th className="text-center p-3 font-medium">{t("common.actions", locale)}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -16872,7 +16942,7 @@ function TenantProductionPage() {
                     <th className="text-right p-3 font-medium">Necesario</th>
                     <th className="text-right p-3 font-medium">Disponible</th>
                     <th className="text-right p-3 font-medium">Deficit</th>
-                    <th className="text-center p-3 font-medium">Estado</th>
+                    <th className="text-center p-3 font-medium">{t("pm.filter.status", locale)}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -16973,7 +17043,7 @@ function TenantProductionPage() {
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div><Label>Cantidad Planificada *</Label><Input type="number" value={batchForm.plannedQty} onChange={e => setBatchForm(p => ({ ...p, plannedQty: parseFloat(e.target.value) || 0 }))} /></div>
-              <div><Label>Unidad</Label><Input value={batchForm.unit} onChange={e => setBatchForm(p => ({ ...p, unit: e.target.value }))} placeholder="unidades" /></div>
+              <div><Label>{t("pm.table.unit", locale)}</Label><Input value={batchForm.unit} onChange={e => setBatchForm(p => ({ ...p, unit: e.target.value }))} placeholder="unidades" /></div>
             </div>
             <div><Label>Fecha Programada</Label><Input type="date" value={batchForm.scheduledDate} onChange={e => setBatchForm(p => ({ ...p, scheduledDate: e.target.value }))} /></div>
             <div><Label>Asignado a</Label><Input value={batchForm.assignedTo} onChange={e => setBatchForm(p => ({ ...p, assignedTo: e.target.value }))} placeholder="Nombre del responsable" /></div>
@@ -17036,6 +17106,7 @@ function TenantProductionPage() {
 
 // ============ TENANT PRODUCTION PLANS PAGE ============
 function TenantProductionPlansPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const tid = currentTenant?.id;
   const [plans, setPlans] = useState<any[]>([]);
@@ -17255,10 +17326,10 @@ function TenantProductionPlansPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Planes', value: plans.length, icon: ClipboardList, color: 'text-blue-600' },
+          { label: t('production.plan.total', locale), value: plans.length, icon: ClipboardList, color: 'text-blue-600' },
           { label: 'Borradores', value: draftCount, icon: FileText, color: 'text-gray-600' },
           { label: 'Planificados', value: plannedCount, icon: CalendarDays, color: 'text-blue-600' },
-          { label: 'Costo Total', value: formatCurrency(totalPlansCost, currency), icon: DollarSign, color: 'text-purple-600' },
+          { label: t('production.batch.cost', locale), value: formatCurrency(totalPlansCost, currency), icon: DollarSign, color: 'text-purple-600' },
         ].map((s) => (
           <Card key={s.label}><CardContent className="p-4 flex items-center gap-3">
             <div className={`p-2 rounded-lg bg-muted/50 ${s.color}`}><s.icon className="w-5 h-5" /></div>
@@ -17272,10 +17343,10 @@ function TenantProductionPlansPage() {
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-44"><SelectValue placeholder="Filtrar estado" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="draft">Borrador</SelectItem>
+            <SelectItem value="all">{t("pm.filter.all", locale)}</SelectItem>
+            <SelectItem value="draft">{t("pm.status.draft", locale)}</SelectItem>
             <SelectItem value="planned">Planificado</SelectItem>
-            <SelectItem value="in_progress">En Progreso</SelectItem>
+            <SelectItem value="in_progress">{t("pm.maintenance.inProgress", locale)}</SelectItem>
             <SelectItem value="completed">Completado</SelectItem>
           </SelectContent>
         </Select>
@@ -17420,7 +17491,7 @@ function TenantProductionPlansPage() {
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div><Label>Nombre *</Label><Input value={newPlanForm.name} onChange={e => setNewPlanForm(p => ({ ...p, name: e.target.value }))} placeholder="Ej: Produccion Semanal Lunes" /></div>
-            <div><Label>Fecha</Label><Input type="date" value={newPlanForm.date} onChange={e => setNewPlanForm(p => ({ ...p, date: e.target.value }))} /></div>
+            <div><Label>{t("common.date", locale)}</Label><Input type="date" value={newPlanForm.date} onChange={e => setNewPlanForm(p => ({ ...p, date: e.target.value }))} /></div>
             <div><Label>Asignado a</Label><Input value={newPlanForm.assignedTo} onChange={e => setNewPlanForm(p => ({ ...p, assignedTo: e.target.value }))} placeholder="Responsable" /></div>
             <div><Label>Notas</Label><Textarea value={newPlanForm.notes} onChange={e => setNewPlanForm(p => ({ ...p, notes: e.target.value }))} rows={2} /></div>
             <Button onClick={createPlan} disabled={saving || !newPlanForm.name} className="w-full bg-gradient-to-r from-blue-700 to-blue-500">
@@ -17567,7 +17638,7 @@ function TenantProductionPlansPage() {
               <div><Label>Cantidad</Label><Input type="number" value={newItemForm.plannedQty} onChange={e => setNewItemForm(p => ({ ...p, plannedQty: parseFloat(e.target.value) || 0 }))} /></div>
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
-              <div><Label>Unidad</Label><Input value={newItemForm.unit} onChange={e => setNewItemForm(p => ({ ...p, unit: e.target.value }))} placeholder="unidades" /></div>
+              <div><Label>{t("pm.table.unit", locale)}</Label><Input value={newItemForm.unit} onChange={e => setNewItemForm(p => ({ ...p, unit: e.target.value }))} placeholder="unidades" /></div>
               <div><Label>Costo Est.</Label><Input type="number" value={newItemForm.estimatedCost} onChange={e => setNewItemForm(p => ({ ...p, estimatedCost: parseFloat(e.target.value) || 0 }))} step="0.01" /></div>
             </div>
             <Button variant="outline" onClick={addEditItem} className="w-full"><Plus className="w-4 h-4 mr-2" />Agregar Item</Button>
@@ -17584,6 +17655,7 @@ function TenantProductionPlansPage() {
 
 // ============ KITCHEN DISPLAY (KDS) ============
 function TenantKDSPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant } = useAppStore() as any;
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17966,6 +18038,7 @@ function TenantCakeMatrixPage() {
 
 // ============ SALON CLIENT PROFILES ============
 function TenantSalonClientsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [clients, setClients] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -18033,6 +18106,7 @@ function TenantSalonClientsPage() {
 
 // ============ MEMBERSHIPS ============
 function TenantMembershipsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18624,6 +18698,7 @@ function TenantGiftCardsPage() {
 
 // ============ SALON ANALYTICS ============
 function TenantSalonAnalyticsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [appts, setAppts] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
@@ -19440,6 +19515,7 @@ function TenantReturnsPage() {
 
 // ============ CATERING ============
 function TenantCateringPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19508,6 +19584,7 @@ function TenantCateringPage() {
 
 // ============ BUDGET TRACKER ============
 function TenantBudgetTrackerPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant, currency } = useAppStore() as any;
   const [events, setEvents] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -19571,6 +19648,7 @@ function TenantBudgetTrackerPage() {
 
 // ============ GUEST LISTS ============
 function TenantGuestListsPage() {
+  const locale = useAppStore(s => s.locale);
   const { currentTenant } = useAppStore() as any;
   const [guests, setGuests] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
@@ -21599,7 +21677,7 @@ function TenantAllergensPage() {
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Tipo de alérgeno" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="all">{t("pm.filter.all", locale)}</SelectItem>
             {COMMON_ALLERGENS.map(a => <SelectItem key={a} value={a}>{allergenLabels[a] || a}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -21826,7 +21904,7 @@ function TenantFoodHandlersPage() {
                 <Select value={form.healthStatus} onValueChange={v => setForm(f => ({ ...f, healthStatus: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">Activo</SelectItem>
+                    <SelectItem value="active">{t("pm.status.active", locale)}</SelectItem>
                     <SelectItem value="expired">Vencido</SelectItem>
                     <SelectItem value="suspended">Suspendido</SelectItem>
                   </SelectContent>
@@ -22012,10 +22090,10 @@ function TenantTemperatureLogsPage() {
   const tid = currentTenant?.id;
 
   const EQUIPMENT_RANGES: Record<string, { min: number; max: number; label: string; unit: string }> = {
-    fridge: { min: 0, max: 4, label: 'Refrigerador', unit: '°C' },
-    freezer: { min: -25, max: -18, label: 'Congelador', unit: '°C' },
-    hot_hold: { min: 63, max: 90, label: 'Mantenimiento Caliente', unit: '°C' },
-    display_case: { min: 0, max: 4, label: 'Vitrina', unit: '°C' },
+    fridge: { min: 0, max: 4, label: t('temperature.location.refrigerator', locale), unit: '°C' },
+    freezer: { min: -25, max: -18, label: t('temperature.location.freezer', locale), unit: '°C' },
+    hot_hold: { min: 63, max: 90, label: t('temperature.location.hotHolding', locale), unit: '°C' },
+    display_case: { min: 0, max: 4, label: t('temperature.location.display', locale), unit: '°C' },
   };
 
   const defaultForm = { equipmentName: '', equipmentType: 'fridge', temperature: '', loggedBy: '', notes: '' };
@@ -22086,7 +22164,7 @@ function TenantTemperatureLogsPage() {
         <Select value={equipmentFilter} onValueChange={setEquipmentFilter}>
           <SelectTrigger className="w-[200px]"><SelectValue placeholder="Tipo de equipo" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="all">{t("pm.filter.all", locale)}</SelectItem>
             {Object.entries(EQUIPMENT_RANGES).map(([key, val]) => <SelectItem key={key} value={key}>{val.label}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -22313,6 +22391,7 @@ function TenantCleaningLogsPage() {
 
 // ============ TENANT APP VIEW ============
 function TenantAppView() {
+  const locale = useAppStore(s => s.locale);
   const { tenantPage, sidebarCollapsed, currentTenant, viewAsTenant, clearViewAsTenant } = useAppStore();
   const tid = currentTenant?.id;
   
@@ -23515,6 +23594,7 @@ function TenantCustomerHistoryPage() {
 
 // ============ SKELETON LOADERS ============
 function PageSkeleton({ type = 'list' }: { type?: 'stats' | 'list' | 'table' | 'dashboard' | 'cards' }) {
+  const locale = useAppStore(s => s.locale);
   if (type === 'stats') return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {[...Array(4)].map((_, i) => (
@@ -23586,6 +23666,7 @@ const renterFetchJSON = async (url: string, options: any = {}) => {
 };
 
 function RenterPortalLogin() {
+  const locale = useAppStore(s => s.locale);
   const { setRenterToken, setRenterInfo, setRenterPage } = useAppStore();
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
@@ -23676,7 +23757,7 @@ function RenterSidebar({ open, onClose }: { open: boolean; onClose: () => void }
     { page: 'rp-payments', label: 'My Payments', icon: Banknote },
     { page: 'rp-maintenance', label: 'Maintenance', icon: Wrench },
     { page: 'rp-documents', label: 'Documents', icon: FileText },
-    { page: 'rp-profile', label: 'My Profile', icon: User },
+    { page: 'rp-profile', label: 'My Profile', icon: Users },
   ];
 
   const handleLogout = () => {
@@ -23984,6 +24065,7 @@ function RenterPayments() {
 
 // --- Renter Maintenance Page ---
 function RenterMaintenance() {
+  const locale = useAppStore(s => s.locale);
   const { renterInfo } = useAppStore();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24146,6 +24228,7 @@ function RenterMaintenance() {
 
 // --- Renter Documents Page ---
 function RenterDocuments() {
+  const locale = useAppStore(s => s.locale);
   const { renterInfo } = useAppStore();
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24212,6 +24295,7 @@ function RenterDocuments() {
 
 // --- Renter Profile Page ---
 function RenterProfile() {
+  const locale = useAppStore(s => s.locale);
   const { renterInfo, setRenterInfo } = useAppStore();
   const [editPhone, setEditPhone] = useState('');
   const [editEmail, setEditEmail] = useState('');
@@ -24361,6 +24445,7 @@ function RenterProfile() {
 
 // --- Renter Portal Shell ---
 function RenterPortalView() {
+  const locale = useAppStore(s => s.locale);
   const { renterToken, renterInfo, renterPage, setRenterInfo, setRenterToken } = useAppStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [validating, setValidating] = useState(true);
@@ -24442,6 +24527,7 @@ function RenterPortalView() {
 }
 
 function CTLoading() {
+  const locale = useAppStore(s => s.locale);
   return <PageSkeleton type="dashboard" />;
 }
 

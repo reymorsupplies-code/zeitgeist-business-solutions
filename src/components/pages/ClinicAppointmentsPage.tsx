@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Calendar, Search, Plus, Edit, Trash2 } from 'lucide-react';
+import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -63,7 +65,7 @@ const specialtyLabels: Record<string, string> = {
   obstetrics: 'Obstetrics', dermatology: 'Dermatology', orthopedics: 'Orthopedics',
   cardiology: 'Cardiology', neurology: 'Neurology', other: 'Other',
 };
-const statusLabels: Record<string, string> = { scheduled: 'Scheduled', completed: 'Completed', cancelled: 'Cancelled', no_show: 'No Show' };
+// statusLabels moved inside component
 const statusColors: Record<string, string> = {
   scheduled: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
   completed: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
@@ -72,6 +74,13 @@ const statusColors: Record<string, string> = {
 };
 
 export default function ClinicAppointmentsPage() {
+  const locale = useAppStore((s) => s.locale);
+  const statusLabels: Record<string, string> = {
+    scheduled: t('clinic.status.scheduled', locale),
+    completed: t('common.completed', locale),
+    cancelled: t('common.cancelled', locale),
+    no_show: t('clinic.status.noShow', locale),
+  };
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [summary, setSummary] = useState<AppointmentSummary | null>(null);
@@ -130,7 +139,7 @@ export default function ClinicAppointmentsPage() {
         body: JSON.stringify(editing?.id ? { id: editing.id, ...form } : form),
       });
       setShowForm(false); setEditing(null); load();
-      toast.success(editing?.id ? 'Appointment updated' : 'Appointment scheduled');
+      toast.success(editing?.id ? 'Appointment updated' : t('clinic.appointment.updated', locale));
     } catch { toast.error('Failed to save appointment'); }
   };
 
@@ -174,12 +183,12 @@ export default function ClinicAppointmentsPage() {
             <Calendar className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Appointments</h1>
+            <h1 className="text-2xl font-bold">{t('tenant.appointments', locale)}</h1>
             <p className="text-sm text-muted-foreground">Schedule and manage medical appointments</p>
           </div>
         </div>
         <Button onClick={openCreate} className="bg-gradient-to-r from-teal-600 to-cyan-500">
-          <Plus className="w-4 h-4 mr-2" />New Appointment
+          <Plus className="w-4 h-4 mr-2" />{t('clinic.appointment.new', locale)}
         </Button>
       </div>
 
@@ -209,7 +218,7 @@ export default function ClinicAppointmentsPage() {
       <div className="flex items-center gap-3">
         <div className="relative max-w-xs flex-1">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search appointments..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+          <Input placeholder={t('clinic.appointment.search', locale)} value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
       </div>
 
@@ -228,13 +237,13 @@ export default function ClinicAppointmentsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Patient</TableHead>
+                  <TableHead>{t('common.name', locale)}</TableHead>
                   <TableHead>Doctor</TableHead>
-                  <TableHead>Specialty</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead>{t('common.specialty', locale)}</TableHead>
+                  <TableHead>{t('common.date', locale)}</TableHead>
                   <TableHead>Duration</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
+                  <TableHead>{t('common.status', locale)}</TableHead>
+                  <TableHead className="text-center">{t('common.actions', locale)}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -274,7 +283,7 @@ export default function ClinicAppointmentsPage() {
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Edit Appointment' : 'New Appointment'}</DialogTitle>
+            <DialogTitle>{editing ? t('clinic.appointment.edit', locale) : t('clinic.appointment.new', locale)}</DialogTitle>
             <DialogDescription>{editing ? 'Update appointment details.' : 'Schedule a new appointment.'}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
@@ -295,7 +304,7 @@ export default function ClinicAppointmentsPage() {
                 <Input value={form.doctorName} onChange={e => setForm(f => ({ ...f, doctorName: e.target.value }))} className="mt-1" />
               </div>
               <div>
-                <Label>Specialty</Label>
+                <Label>{t('common.specialty', locale)}</Label>
                 <Select value={form.specialty} onValueChange={v => setForm(f => ({ ...f, specialty: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -323,7 +332,7 @@ export default function ClinicAppointmentsPage() {
                 <Input type="number" value={form.duration} onChange={e => setForm(f => ({ ...f, duration: parseInt(e.target.value) || 0 }))} className="mt-1" />
               </div>
               <div>
-                <Label>Status</Label>
+                <Label>{t('common.status', locale)}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -336,7 +345,7 @@ export default function ClinicAppointmentsPage() {
               </div>
             </div>
             <div>
-              <Label>Notes</Label>
+              <Label>{t('common.notes', locale)}</Label>
               <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="mt-1" />
             </div>
             <div>
@@ -349,7 +358,7 @@ export default function ClinicAppointmentsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>{t('common.cancel', locale)}</Button>
             <Button onClick={handleSave} disabled={!form.patientId || !form.doctorName} className="bg-gradient-to-r from-teal-600 to-cyan-500">
               {editing ? 'Update' : 'Schedule'}
             </Button>

@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Shield, Search, Plus, Edit, Trash2 } from 'lucide-react';
+import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -52,8 +54,6 @@ const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString();
 };
 
-const typeLabels: Record<string, string> = { life: 'Life', health: 'Health', auto: 'Auto', property: 'Property', travel: 'Travel', other: 'Other' };
-const statusLabels: Record<string, string> = { active: 'Active', expired: 'Expired', cancelled: 'Cancelled', pending: 'Pending' };
 const statusColors: Record<string, string> = {
   active: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
   expired: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
@@ -62,6 +62,16 @@ const statusColors: Record<string, string> = {
 };
 
 export default function InsurancePoliciesPage() {
+  const locale = useAppStore((s) => s.locale);
+  const typeLabels: Record<string, string> = {
+    life: t('insurance.type.life', locale),
+    health: t('insurance.type.health', locale),
+    auto: t('insurance.type.auto', locale),
+  };
+  const statusLabels: Record<string, string> = {
+    active: t('insurance.status.active', locale),
+    expired: t('insurance.status.expired', locale),
+  };
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [summary, setSummary] = useState<PolicySummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -117,8 +127,8 @@ export default function InsurancePoliciesPage() {
         body: JSON.stringify(editing?.id ? { id: editing.id, ...form } : form),
       });
       setShowForm(false); setEditing(null); load();
-      toast.success(editing?.id ? 'Policy updated' : 'Policy created');
-    } catch { toast.error('Failed to save policy'); }
+      toast.success(editing?.id ? 'Policy updated' : t('insurance.policy.updated', locale));
+    } catch { toast.error(t('common.error', locale)); }
   };
 
   const handleDelete = async (row: Policy) => {
@@ -155,7 +165,7 @@ export default function InsurancePoliciesPage() {
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Insurance Policies</h1>
+            <h1 className="text-2xl font-bold">{t('tenant.policies', locale)}</h1>
             <p className="text-sm text-muted-foreground">Manage insurance policies and coverage</p>
           </div>
         </div>
@@ -190,7 +200,7 @@ export default function InsurancePoliciesPage() {
       <div className="flex items-center gap-3">
         <div className="relative max-w-xs flex-1">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search policies..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+          <Input placeholder={t('insurance.policy.search', locale)} value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
       </div>
 
@@ -211,12 +221,12 @@ export default function InsurancePoliciesPage() {
                 <TableRow>
                   <TableHead>Policy #</TableHead>
                   <TableHead>Client</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Premium</TableHead>
+                  <TableHead>{t('common.type', locale)}</TableHead>
+                  <TableHead>{t('tenant.premiums', locale)}</TableHead>
                   <TableHead>Coverage</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t('common.status', locale)}</TableHead>
                   <TableHead>Dates</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
+                  <TableHead className="text-center">{t('common.actions', locale)}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -275,7 +285,7 @@ export default function InsurancePoliciesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Type</Label>
+                <Label>{t('common.type', locale)}</Label>
                 <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -289,7 +299,7 @@ export default function InsurancePoliciesPage() {
                 </Select>
               </div>
               <div>
-                <Label>Status</Label>
+                <Label>{t('common.status', locale)}</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -303,7 +313,7 @@ export default function InsurancePoliciesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Premium</Label>
+                <Label>{t('tenant.premiums', locale)}</Label>
                 <Input type="number" step="0.01" value={form.premium} onChange={e => setForm(f => ({ ...f, premium: e.target.value }))} className="mt-1" />
               </div>
               <div>
@@ -313,11 +323,11 @@ export default function InsurancePoliciesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Start Date</Label>
+                <Label>{t('common.startDate', locale)}</Label>
                 <Input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} className="mt-1" />
               </div>
               <div>
-                <Label>End Date</Label>
+                <Label>{t('common.endDate', locale)}</Label>
                 <Input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} className="mt-1" />
               </div>
             </div>
@@ -327,7 +337,7 @@ export default function InsurancePoliciesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>{t('common.cancel', locale)}</Button>
             <Button onClick={handleSave} disabled={!form.policyNumber || !form.clientName} className="bg-gradient-to-r from-blue-600 to-blue-500">
               {editing ? 'Update' : 'Create Policy'}
             </Button>
