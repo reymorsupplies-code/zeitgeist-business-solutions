@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
--- ZBS — MIGRACIONES COMBINADAS Phases 4, 7, 9, 10
+-- ZBS — MIGRACIONES COMBINADAS Phases 4, 7, 9, 10  (CORREGIDA)
 -- Ejecutar en: Supabase Dashboard → SQL Editor → New query → Pegar → Run
 -- Crea: 7 tablas, 30+ índices, 7 políticas RLS
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -21,10 +21,11 @@ CREATE TABLE IF NOT EXISTS "ChatConversation" (
   "lastMessagePreview" TEXT,
   "lastMessageFrom" TEXT,
   "createdAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "updatedAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT "ChatConversation_tenant_renter_active_key"
-    UNIQUE ("tenantId", "renterId", "propertyId", status) WHERE (status = 'active')
+  "updatedAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS "ChatConversation_tenant_renter_active_key"
+  ON "ChatConversation"("tenantId", "renterId", "propertyId") WHERE (status = 'active');
 
 CREATE INDEX IF NOT EXISTS "idx_ChatConversation_tenantId" ON "ChatConversation"("tenantId");
 CREATE INDEX IF NOT EXISTS "idx_ChatConversation_renterId" ON "ChatConversation"("renterId");
@@ -81,9 +82,10 @@ CREATE TABLE IF NOT EXISTS "SurchargeConfig" (
   "floorAmount"   NUMERIC(14,2),
   notes           TEXT,
   "createdAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "updatedAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT "SurchargeConfig_tenantId_key" UNIQUE ("tenantId")
+  "updatedAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS "SurchargeConfig_tenantId_key" ON "SurchargeConfig"("tenantId");
 
 CREATE INDEX IF NOT EXISTS "idx_SurchargeConfig_tenantId" ON "SurchargeConfig"("tenantId");
 
@@ -109,9 +111,10 @@ CREATE TABLE IF NOT EXISTS "SurchargeRecord" (
   currency        TEXT NOT NULL DEFAULT 'TTD',
   notes           TEXT,
   "createdAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "updatedAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT "SurchargeRecord_lease_period_key" UNIQUE ("leaseId", "periodStart", "periodEnd")
+  "updatedAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS "SurchargeRecord_lease_period_key" ON "SurchargeRecord"("leaseId", "periodStart", "periodEnd");
 
 CREATE INDEX IF NOT EXISTS "idx_SurchargeRecord_tenantId" ON "SurchargeRecord"("tenantId");
 CREATE INDEX IF NOT EXISTS "idx_SurchargeRecord_configId" ON "SurchargeRecord"("configId");
@@ -144,7 +147,7 @@ CREATE TABLE IF NOT EXISTS "WiPayTransaction" (
   currency        TEXT NOT NULL DEFAULT 'TTD',
   "processingFee" NUMERIC(14,2) NOT NULL DEFAULT 0,
   "wipayOrderId"      TEXT,
-  "wipayTransactionId" TEXT UNIQUE,
+  "wipayTransactionId" TEXT,
   "wipayFee"          NUMERIC(14,2) NOT NULL DEFAULT 0,
   "wipayCurrency"     TEXT,
   "cardType"          TEXT,
@@ -164,12 +167,13 @@ CREATE TABLE IF NOT EXISTS "WiPayTransaction" (
   "updatedAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS "WiPayTransaction_wipayTransactionId_key" ON "WiPayTransaction"("wipayTransactionId") WHERE "wipayTransactionId" IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS "idx_WiPayTransaction_tenantId" ON "WiPayTransaction"("tenantId");
 CREATE INDEX IF NOT EXISTS "idx_WiPayTransaction_rentPaymentId" ON "WiPayTransaction"("rentPaymentId");
 CREATE INDEX IF NOT EXISTS "idx_WiPayTransaction_renterId" ON "WiPayTransaction"("renterId");
 CREATE INDEX IF NOT EXISTS "idx_WiPayTransaction_status" ON "WiPayTransaction"("status");
 CREATE INDEX IF NOT EXISTS "idx_WiPayTransaction_tenant_status" ON "WiPayTransaction"("tenantId", status);
-CREATE INDEX IF NOT EXISTS "idx_WiPayTransaction_wipayTransactionId" ON "WiPayTransaction"("wipayTransactionId") WHERE "wipayTransactionId" IS NOT NULL;
 CREATE INDEX IF NOT EXISTS "idx_WiPayTransaction_paymentMethod" ON "WiPayTransaction"("tenantId", "paymentMethod");
 CREATE INDEX IF NOT EXISTS "idx_WiPayTransaction_createdAt" ON "WiPayTransaction"("tenantId", "createdAt");
 
@@ -248,7 +252,7 @@ COMMENT ON TABLE "TenantApplication" IS 'Phase 10: Rental applications with scre
 
 
 -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
--- VERIFICATION QUERY — Run after migration to confirm all tables exist
+-- VERIFICATION
 -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SELECT
   table_name,
