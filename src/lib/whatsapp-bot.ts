@@ -60,13 +60,8 @@ interface MaintenanceState {
   };
 }
 
-// In-memory session store (per phone number)
-// In production, this should be Redis or similar
-const activeSessions = new Map<string, {
-  state: string;
-  data: Record<string, any>;
-  lastActivity: number;
-}>();
+// Session management — Redis-backed with in-memory fallback
+import { getSession as getSession2, setSession as setSession2, deleteSession as deleteSession2 } from './whatsapp-session';
 
 const SESSION_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -276,23 +271,20 @@ async function findRenterByPhone(phone: string): Promise<{
 
 // ─── Session Management ───
 
-function getSession(phone: string) {
-  const session = activeSessions.get(phone);
+async function getSession(phone: string) {
+  const session = await getSession2(phone);
   if (!session) return null;
-  if (Date.now() - session.lastActivity > SESSION_TTL_MS) {
-    activeSessions.delete(phone);
-    return null;
-  }
-  session.lastActivity = Date.now();
+  // Refresh lastActivity on access
+  await setSession2(phone, session.state, session.data);
   return session;
 }
 
-function setSession(phone: string, state: string, data: Record<string, any> = {}) {
-  activeSessions.set(phone, { state, data: { ...data }, lastActivity: Date.now() });
+async function setSession(phone: string, state: string, data: Record<string, any> = {}) {
+  await setSession2(phone, state, data);
 }
 
-function clearSession(phone: string) {
-  activeSessions.delete(phone);
+async function clearSession(phone: string) {
+  await deleteSession2(phone);
 }
 
 // ─── Command Parser ───
@@ -589,7 +581,7 @@ async function handleMaintenanceStart(ctx: BotContext): Promise<void> {
 }
 
 async function handleMaintenanceFlow(ctx: BotContext, text: string): Promise<void> {
-  const session = getSession(ctx.whatsappPhone);
+  const session = await getSession(ctx.whatsappPhone);
   if (!session) {
     await handleMaintenanceStart(ctx);
     return;
@@ -612,7 +604,7 @@ async function handleMaintenanceFlow(ctx: BotContext, text: string): Promise<voi
         await handleMaintenanceStart(ctx);
         return;
       }
-      setSession(ctx.whatsappPhone, 'maintenance_title', { ...session.data, category });
+      await setSession(ctx.whatsappPhone, 'maintenance_title', { ...session.data, category });
       await sendTextMessage(ctx.config, ctx.whatsappPhone, t('mantTitle', ctx.language));
       break;
     }
@@ -623,13 +615,13 @@ async function handleMaintenanceFlow(ctx: BotContext, text: string): Promise<voi
           ctx.language === 'es' ? 'Por favor ingresa un titulo mas descriptivo.' : 'Please enter a more descriptive title.');
         return;
       }
-      setSession(ctx.whatsappPhone, 'maintenance_description', { ...session.data, title: text.trim() });
+      await setSession(ctx.whatsappPhone, 'maintenance_description', { ...session.data, title: text.trim() });
       await sendTextMessage(ctx.config, ctx.whatsappPhone, t('mantDesc', ctx.language));
       break;
     }
 
     case 'maintenance_description': {
-      setSession(ctx.whatsappPhone, 'maintenance_priority', { ...session.data, description: text.trim() });
+      await setSession(ctx.whatsappPhone, 'maintenance_priority', { ...session.data, description: text.trim() });
 
       const result = await sendListMessage(ctx.config, ctx.whatsappPhone, {
         body: t('mantPriority', ctx.language),
@@ -660,7 +652,7 @@ async function handleMaintenanceFlow(ctx: BotContext, text: string): Promise<voi
         'urgent': 'urgent', 'urgente': 'urgent', '4': 'urgent',
       };
       const priority = priorityMap[text.toLowerCase().trim()] || 'medium';
-      setSession(ctx.whatsappPhone, 'maintenance_confirm', { ...session.data, priority });
+      await setSession(ctx.whatsappPhone, 'maintenance_confirm', { ...session.data, priority });
 
       // Show confirmation
       const d = session.data;
@@ -983,7 +975,7 @@ export async function processBotMessage(
     // These are pre-parsed by the webhook into text. Check for list_reply ID format.
 
     // 6. Check for active maintenance flow session
-    const session = getSession(from);
+    const session = await getSession(from);
     if (session && session.state.startsWith('maintenance_')) {
       await handleMaintenanceFlow(ctx, text);
       return;

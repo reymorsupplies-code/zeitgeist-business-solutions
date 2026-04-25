@@ -251,3 +251,71 @@ Stage Summary:
 - Bell icon with red badge in dashboard header, dropdown with notifications list
 - Notifications link to relevant pages (rent payments, lease renewal, maintenance)
 - Deduplication logic prevents duplicate notifications
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Implement pending features - subdomain routing, portal management, customization, Redis sessions, WiPay
+
+Work Log:
+- TASK 1 - Subdomain-based Tenant Portal Routing:
+  - Updated src/middleware.ts with subdomain detection from host header
+  - Extracts subdomain from *.zbs.com and *.zeitgeist.business (production) and *.localhost (dev)
+  - Reserved subdomains: www, app, api, admin, portal, staging, dev, test, localhost, preview, vercel
+  - Rewrites to /portal/[tenantSlug]/[path] with x-tenant-slug header
+  - Infinite rewrite loop prevention
+  - Added renter-login and wipay-webhook to PUBLIC_ROUTES
+  - Updated CSP frame-src to include WiPay domains
+  - Updated form-action to include WiPay domains
+
+- TASK 2 - Portal Management Section in PM Workspace:
+  - Added "Tenant Portal" nav item with Globe icon to getPropertyMgmtNav (Operations section)
+  - Renamed "Portal Inquilinos" to "Renter Management" with Users icon
+  - Added pm-portal-management and pm-portal-customization to TenantPage type
+  - Created CTPortalManagement component with:
+    - Portal URL display with copy button (subdomain or fallback URL)
+    - Stats cards (Portal Status, Active Renters, Portal Link, Online Payments)
+    - Tabbed interface: Overview, Renters, Settings
+    - Quick actions: Customize Appearance, Manage Renters, WhatsApp Bot
+    - Registered renters table with status badges
+  - Added case entries in page router for new pages
+
+- TASK 3 - Portal Customization Per Tenant:
+  - Added PortalSetting model to prisma/schema.prisma with fields: portalName, welcomeMsg, logoUrl, primaryColor, accentColor, bgColor, fontFamily, showPayments, showMaintenance, showDocuments, allowChat, enabled, customDomain
+  - Added portalSettings relation to Tenant model
+  - Created /api/tenant/[tenantId]/portal-settings (GET auto-creates defaults, PUT upsert, PATCH partial update)
+  - Created CTPortalCustomization component with:
+    - Branding settings (name, welcome message, logo URL)
+    - Color & theme (primary, accent, background with color pickers, font family)
+    - Feature toggles (payments, maintenance, documents, chat)
+    - Domain settings (enable portal, custom domain)
+    - Live portal preview showing colors and enabled features
+  - Generated supabase-migrations/phase11-portal-setting.sql for DB migration
+
+- TASK 4 - Redis Sessions for WhatsApp Bot:
+  - Installed ioredis package
+  - Created src/lib/redis.ts with Redis client singleton (lazy connect, auto-retry, graceful fallback)
+  - Helper functions: redisGet, redisSet, redisDel, redisGetJSON, redisSetJSON
+  - Created src/lib/whatsapp-session.ts with session manager:
+    - getSession, setSession, deleteSession, updateSessionData
+    - Redis-backed with in-memory Map fallback
+    - 10-minute TTL with auto-cleanup
+  - Updated src/lib/whatsapp-bot.ts to use async Redis sessions
+  - All session calls now properly awaited (getSession, setSession, clearSession)
+
+- TASK 5 - WiPay Integration:
+  - Created /api/renter/[renterId]/pay-online/route.ts
+    - Generates WiPay payment link for rent payments
+    - Creates WiPayTransaction record
+    - Returns paymentUrl for redirect
+    - Uses existing WiPay SDK (already complete in src/lib/wipay.ts)
+    - Existing wipay-webhook already processes completed payments (rent payment status update + landlord notification + receipt email)
+
+Stage Summary:
+- Build passes cleanly (0 errors)
+- Files changed: 12 files (middleware, schema, store, page.tsx, 4 new lib files, 2 new API routes, 1 SQL migration)
+- All changes are additive - no existing functionality broken
+- Portal management accessible from PM workspace Operations section
+- Portal customization with live preview
+- WhatsApp bot sessions now persist via Redis with in-memory fallback
+- Online payment flow complete via WiPay

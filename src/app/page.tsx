@@ -27,6 +27,7 @@ import {
   Twitter, Linkedin, Instagram, Facebook, Tag,
   KeyRound, LogIn, Languages,
   Server,
+  Link, UserPlus,
   Table as TableIcon, Save, Cake, Pencil,
   CalendarHeart, ScanLine, MessageCircle,
   Printer, Ban, Thermometer, Bug, ClipboardCheck,
@@ -489,7 +490,8 @@ function getPropertyMgmtNav(locale: string) {
     { label: t('tenant.documents', locale), icon: FileSpreadsheet, page: 'pm-property-documents' as const, available: true },
     { label: t('tenant.inspections', locale), icon: ClipboardCheck, page: 'pm-inspections' as const, available: true },
     { label: t('tenant.legalNotices', locale), icon: ScrollText, page: 'pm-legal-notices' as const, available: true },
-    { label: 'Portal Inquilinos', icon: Users, page: 'pm-renters' as const, available: true },
+    { label: 'Tenant Portal', icon: Globe, page: 'pm-portal-management' as const, available: true },
+    { label: 'Renter Management', icon: Users, page: 'pm-renters' as const, available: true },
     { label: 'WhatsApp Bot', icon: Bot, page: 'pm-whatsapp-bot' as const, available: true },
   ]},
   { section: t('tenant.section.insights', locale), items: [
@@ -9989,6 +9991,361 @@ function getPasteleriaNav(locale: string) {
     { label: t('tenant.settings', locale), icon: Settings, page: 'settings' as const, available: true },
   ]},
 ];
+}
+
+// ─── Tenant Portal Management Page ───
+
+function CTPortalManagement({ tenantId, tenantSlug, tenantName }: { tenantId: string; tenantSlug: string; tenantName: string }) {
+  const { token } = useAppStore();
+  const [portalSettings, setPortalSettings] = useState<any>(null);
+  const [renters, setRenters] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const portalUrl = tenantSlug ? `https://${tenantSlug}.zbs.com` : `${baseUrl}?renter_portal=true`;
+
+  useEffect(() => {
+    if (!token || !tenantId) return;
+    Promise.all([
+      fetch(`/api/tenant/${tenantId}/portal-settings`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : null),
+      fetch(`/api/tenant/${tenantId}/renters`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : []),
+    ]).then(([settings, renterList]) => {
+      setPortalSettings(settings);
+      setRenters(renterList);
+      setLoading(false);
+    });
+  }, [token, tenantId]);
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(portalUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
+
+  const activeRenters = renters.filter(r => r.status === 'active').length;
+  const totalRenters = renters.length;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Tenant Portal</h2>
+          <p className="text-slate-500 mt-1">Manage your renter portal, share links, and customize the experience.</p>
+        </div>
+        <Button onClick={() => useAppStore.getState().setTenantPage('pm-portal-customization')} className="bg-gradient-to-r from-blue-700 to-blue-500">
+          <Palette className="w-4 h-4 mr-2" /> Customize Portal
+        </Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatCard title="Portal Status" value={portalSettings?.enabled ? 'Active' : 'Inactive'} subtitle={portalSettings?.enabled ? 'Renter portal is live' : 'Enable to activate'} gradient="from-blue-600 to-blue-400" icon={Globe} />
+        <StatCard title="Active Renters" value={String(activeRenters)} subtitle={`${totalRenters} total registered`} gradient="from-emerald-600 to-emerald-400" icon={Users} />
+        <StatCard title="Portal Link" value={tenantSlug || 'Default'} subtitle="Share with renters" gradient="from-violet-600 to-violet-400" icon={Link} />
+        <StatCard title="Online Payments" value="WiPay" subtitle="Payment gateway ready" gradient="from-amber-600 to-amber-400" icon={CreditCard} />
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="renters">Renters</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6 mt-4">
+          {/* Portal URL Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Globe className="w-5 h-5 text-blue-600" /> Portal Access Link</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 font-mono text-sm text-slate-800 truncate">
+                  {portalUrl}
+                </div>
+                <Button variant="outline" onClick={copyLink} className="shrink-0">
+                  {copied ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                  {copied ? 'Copied!' : 'Copy'}
+                </Button>
+                <Button variant="outline" onClick={() => window.open(portalUrl, '_blank')} className="shrink-0">
+                  <ExternalLink className="w-4 h-4" /> Open
+                </Button>
+              </div>
+              <p className="text-xs text-slate-500">Share this link with your renters. They can access their portal to view payments, request maintenance, and more.</p>
+              {tenantSlug && (
+                <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  Custom subdomain: <strong>{tenantSlug}.zbs.com</strong>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2 hover:bg-blue-50" onClick={() => useAppStore.getState().setTenantPage('pm-portal-customization')}>
+                  <Palette className="w-6 h-6 text-blue-600" />
+                  <span className="text-sm font-medium">Customize Appearance</span>
+                  <span className="text-xs text-slate-500">Colors, logo, welcome message</span>
+                </Button>
+                <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2 hover:bg-emerald-50" onClick={() => useAppStore.getState().setTenantPage('pm-renters')}>
+                  <UserPlus className="w-6 h-6 text-emerald-600" />
+                  <span className="text-sm font-medium">Manage Renters</span>
+                  <span className="text-xs text-slate-500">Add, edit, deactivate</span>
+                </Button>
+                <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2 hover:bg-violet-50" onClick={() => useAppStore.getState().setTenantPage('pm-whatsapp-bot')}>
+                  <Bot className="w-6 h-6 text-violet-600" />
+                  <span className="text-sm font-medium">WhatsApp Bot</span>
+                  <span className="text-xs text-slate-500">Self-service via WhatsApp</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Renter Activity */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Registered Renters</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {renters.length === 0 ? (
+                <EmptyState icon={Users} title="No renters registered yet" description="Add renters from the Renter Management page to get started." action="Add Renter" onAction={() => useAppStore.getState().setTenantPage('pm-renters')} />
+              ) : (
+                <div className="max-h-64 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Unit</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Last Login</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {renters.slice(0, 10).map((r: any) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-medium">{r.fullName}</TableCell>
+                          <TableCell className="text-sm text-slate-600">{r.email}</TableCell>
+                          <TableCell>{r.unit?.unitNumber || '—'}</TableCell>
+                          <TableCell>
+                            <Badge variant={r.status === 'active' ? 'default' : 'secondary'} className={r.status === 'active' ? 'bg-emerald-100 text-emerald-700' : ''}>
+                              {r.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-slate-500">{r.lastLoginAt ? new Date(r.lastLoginAt).toLocaleDateString() : 'Never'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="renters" className="mt-4">
+          <CTRenterManagement apiBase={`/api/tenant/${tenantId}`} />
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-4">
+          <CTPortalCustomization tenantId={tenantId} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// ─── Portal Customization Page ───
+
+function CTPortalCustomization({ tenantId }: { tenantId: string }) {
+  const { token } = useAppStore();
+  const [settings, setSettings] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const fetchSettings = async () => {
+    const res = await fetch(`/api/tenant/${tenantId}/portal-settings`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) setSettings(await res.json());
+    setLoading(false);
+  };
+
+  useEffect(() => { if (token) fetchSettings(); }, [token, tenantId]);
+
+  const saveSettings = async () => {
+    setSaving(true);
+    const res = await fetch(`/api/tenant/${tenantId}/portal-settings`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (res.ok) {
+      setSettings(await res.json());
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      toast.success('Portal settings saved');
+    }
+    setSaving(false);
+  };
+
+  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
+  if (!settings) return null;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Portal Customization</h2>
+          <p className="text-slate-500 mt-1">Personalize the appearance and features of your renter portal.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {saved && <span className="text-sm text-emerald-600 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> Saved</span>}
+          <Button onClick={saveSettings} disabled={saving} className="bg-gradient-to-r from-blue-700 to-blue-500">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Branding */}
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2"><Palette className="w-5 h-5" /> Branding</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Portal Name</Label>
+              <Input value={settings.portalName || ''} onChange={e => setSettings(s => ({ ...s, portalName: e.target.value }))} placeholder="Tenant Portal" />
+            </div>
+            <div className="space-y-2">
+              <Label>Welcome Message</Label>
+              <Textarea value={settings.welcomeMsg || ''} onChange={e => setSettings(s => ({ ...s, welcomeMsg: e.target.value }))} placeholder="Welcome to your portal" rows={2} />
+            </div>
+            <div className="space-y-2">
+              <Label>Logo URL</Label>
+              <Input value={settings.logoUrl || ''} onChange={e => setSettings(s => ({ ...s, logoUrl: e.target.value }))} placeholder="https://..." />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Colors */}
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2"><Layers className="w-5 h-5" /> Colors & Theme</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Primary Color</Label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={settings.primaryColor || '#1e40af'} onChange={e => setSettings(s => ({ ...s, primaryColor: e.target.value }))} className="w-10 h-10 rounded border border-slate-200 cursor-pointer" />
+                <Input value={settings.primaryColor || '#1e40af'} onChange={e => setSettings(s => ({ ...s, primaryColor: e.target.value }))} className="flex-1" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Accent Color</Label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={settings.accentColor || '#6366f1'} onChange={e => setSettings(s => ({ ...s, accentColor: e.target.value }))} className="w-10 h-10 rounded border border-slate-200 cursor-pointer" />
+                <Input value={settings.accentColor || '#6366f1'} onChange={e => setSettings(s => ({ ...s, accentColor: e.target.value }))} className="flex-1" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Background Color</Label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={settings.bgColor || '#f8fafc'} onChange={e => setSettings(s => ({ ...s, bgColor: e.target.value }))} className="w-10 h-10 rounded border border-slate-200 cursor-pointer" />
+                <Input value={settings.bgColor || '#f8fafc'} onChange={e => setSettings(s => ({ ...s, bgColor: e.target.value }))} className="flex-1" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Font Family</Label>
+              <Select value={settings.fontFamily || 'inter'} onValueChange={v => setSettings(s => ({ ...s, fontFamily: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="inter">Inter</SelectItem>
+                  <SelectItem value="system">System Default</SelectItem>
+                  <SelectItem value="sans">Sans Serif</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Features */}
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2"><ToggleIcon className="w-5 h-5" /> Portal Features</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            {[
+              { key: 'showPayments', label: 'Show Payments Section', desc: 'Allow renters to view and pay rent online' },
+              { key: 'showMaintenance', label: 'Show Maintenance Section', desc: 'Allow renters to submit maintenance requests' },
+              { key: 'showDocuments', label: 'Show Documents Section', desc: 'Allow renters to view shared documents' },
+              { key: 'allowChat', label: 'Allow Chat', desc: 'Enable messaging between renters and landlord' },
+            ].map(feature => (
+              <div key={feature.key} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                <div>
+                  <p className="text-sm font-medium text-slate-800">{feature.label}</p>
+                  <p className="text-xs text-slate-500">{feature.desc}</p>
+                </div>
+                <Switch checked={settings[feature.key] !== false} onCheckedChange={checked => setSettings(s => ({ ...s, [feature.key]: checked }))} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Domain */}
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2"><Globe2 className="w-5 h-5" /> Domain Settings</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm font-medium text-slate-800">Enable Portal</p>
+                <p className="text-xs text-slate-500">Make the portal accessible to renters</p>
+              </div>
+              <Switch checked={settings.enabled || false} onCheckedChange={checked => setSettings(s => ({ ...s, enabled: checked }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Custom Domain (optional)</Label>
+              <Input value={settings.customDomain || ''} onChange={e => setSettings(s => ({ ...s, customDomain: e.target.value }))} placeholder="portal.mycompany.com" />
+              <p className="text-xs text-slate-500">Leave empty to use the default subdomain portal.</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Preview */}
+        <Card className="lg:col-span-2">
+          <CardHeader><CardTitle className="flex items-center gap-2"><Eye className="w-5 h-5" /> Portal Preview</CardTitle></CardHeader>
+          <CardContent>
+            <div className="rounded-lg border border-slate-200 overflow-hidden" style={{ backgroundColor: settings.bgColor || '#f8fafc' }}>
+              <div className="px-6 py-4" style={{ backgroundColor: settings.primaryColor || '#1e40af' }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                    {settings.logoUrl ? <img src={settings.logoUrl} alt="" className="w-8 h-8 object-contain" /> : <Building className="w-6 h-6 text-white" />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-white">{settings.portalName || 'Tenant Portal'}</p>
+                    <p className="text-xs text-white/70">Renter Portal</p>
+                  </div>
+                </div>
+              </div>
+              <div className="px-6 py-4">
+                <p className="text-slate-700">{settings.welcomeMsg || 'Welcome to your portal'}</p>
+                <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {settings.showPayments !== false && <div className="text-center p-3 bg-white rounded-lg border"><Banknote className="w-5 h-5 mx-auto mb-1" style={{ color: settings.primaryColor }} /><p className="text-xs">Payments</p></div>}
+                  {settings.showMaintenance !== false && <div className="text-center p-3 bg-white rounded-lg border"><Wrench className="w-5 h-5 mx-auto mb-1" style={{ color: settings.primaryColor }} /><p className="text-xs">Maintenance</p></div>}
+                  {settings.showDocuments !== false && <div className="text-center p-3 bg-white rounded-lg border"><FileText className="w-5 h-5 mx-auto mb-1" style={{ color: settings.primaryColor }} /><p className="text-xs">Documents</p></div>}
+                  {settings.allowChat !== false && <div className="text-center p-3 bg-white rounded-lg border"><MessageCircle className="w-5 h-5 mx-auto mb-1" style={{ color: settings.primaryColor }} /><p className="text-xs">Chat</p></div>}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 }
 
 // ─── WhatsApp Bot Configuration Page ───
@@ -22059,6 +22416,8 @@ function TenantAppView() {
       case 'pm-lease-renewal': return <CTLeaseRenewal apiBase={`/api/tenant/${tid}`} />;
       case 'pm-renters': return <CTRenterManagement apiBase={`/api/tenant/${tid}`} />;
       case 'pm-whatsapp-bot': return <CTWhatsAppBot tenantId={tid} />;
+      case 'pm-portal-management': return <CTPortalManagement tenantId={tid} tenantSlug={currentTenant?.slug || ''} tenantName={currentTenant?.name || ''} />;
+      case 'pm-portal-customization': return <CTPortalCustomization tenantId={tid} />;
       default: return <TenantDashboardPage />;
     }
   };

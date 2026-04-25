@@ -67,6 +67,7 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.2",
     "input-otp": "^1.4.2",
+    "ioredis": "^5.10.1",
     "jose": "^6.2.2",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.525.0",

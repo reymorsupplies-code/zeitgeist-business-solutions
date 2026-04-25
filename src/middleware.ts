@@ -1,5 +1,7 @@
 /**
- * ZBS Middleware — Route Protection & Security Headers
+ * ZBS Middleware — Route Protection & Security Headers & Subdomain Routing
+ * - Detects subdomain from host header (e.g., mycompany.zbs.com)
+ * - Rewrites to /portal/[tenantSlug]/[path] for tenant portal access
  * - Protects all /api/ routes (except public ones)
  * - Validates JWT tokens using jose (Edge Runtime compatible)
  * - Adds user context to request headers
@@ -15,13 +17,24 @@ const PUBLIC_ROUTES = [
   '/api/auth/login',
   '/api/auth/register',
   '/api/auth/verify',
+  '/api/auth/renter-login',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
   '/api/contact',
   '/api/health',
+  '/api/wipay-webhook',
+  '/api/whatsapp-webhook',
 ];
 
 // Routes that only super admins can access
 const PLATFORM_ROUTES = [
   '/api/platform/',
+];
+
+// Subdomains that should NOT be treated as tenant slugs
+const RESERVED_SUBDOMAINS = [
+  'www', 'app', 'api', 'admin', 'portal', 'staging',
+  'dev', 'test', 'localhost', 'preview', 'vercel',
 ];
 
 // Allowed origins for CORS
@@ -45,8 +58,45 @@ async function verifyTokenEdge(token: string): Promise<any | null> {
   }
 }
 
+/**
+ * Extract subdomain from host header.
+ * Examples:
+ *   mycompany.zbs.com → "mycompany"
+ *   mycompany.localhost → "mycompany"
+ *   zbs.com → null
+ *   localhost → null
+ */
+function extractSubdomain(host: string): string | null {
+  if (!host) return null;
+
+  // Remove port if present
+  const hostname = host.split(':')[0];
+
+  // Handle production: subdomain.zbs.com or subdomain.zeitgeist.business
+  const mainDomains = ['zbs.com', 'zeitgeist.business'];
+  for (const domain of mainDomains) {
+    if (hostname.endsWith(`.${domain}`)) {
+      const subdomain = hostname.slice(0, -(domain.length + 1));
+      if (subdomain && subdomain !== 'www') {
+        return subdomain.toLowerCase();
+      }
+    }
+  }
+
+  // Handle local development: subdomain.localhost
+  if (hostname.endsWith('.localhost')) {
+    const subdomain = hostname.slice(0, -('.localhost'.length));
+    if (subdomain && !RESERVED_SUBDOMAINS.includes(subdomain.toLowerCase())) {
+      return subdomain.toLowerCase();
+    }
+  }
+
+  return null;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const host = request.headers.get('host') || '';
 
   // ─── Security Headers (applied to ALL responses) ───
   const responseHeaders = new Headers();
@@ -61,11 +111,11 @@ export async function middleware(request: NextRequest) {
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in",
       "connect-src 'self' https://*.supabase.co https://api.resend.com https://api.stripe.com wss://*.supabase.co",
-      "frame-src https://js.stripe.com",
+      "frame-src https://js.stripe.com https://qa.wipayfinancial.com https://prod.wipayfinancial.com",
       "media-src 'self' blob:",
       "object-src 'none'",
       "base-uri 'self'",
-      "form-action 'self'",
+      "form-action 'self' https://qa.wipayfinancial.com https://prod.wipayfinancial.com",
     ].join('; ')
   );
 
@@ -90,6 +140,39 @@ export async function middleware(request: NextRequest) {
     'camera=(self), microphone=(), geolocation=(), interest-cohort=()'
   );
 
+  // ─── Subdomain-based Tenant Portal Routing ───
+  const subdomain = extractSubdomain(host);
+
+  if (subdomain && !RESERVED_SUBDOMAINS.includes(subdomain)) {
+    // Subdomain detected — rewrite to /portal/[tenantSlug]/[path]
+    const originalPath = pathname === '/' ? '' : pathname;
+
+    // Avoid infinite rewrite loops
+    if (!pathname.startsWith(`/portal/${subdomain}`)) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/portal/${subdomain}${originalPath}`;
+
+      const response = NextResponse.rewrite(url, {
+        headers: {
+          ...Object.fromEntries(responseHeaders),
+          'x-tenant-slug': subdomain,
+        },
+      });
+      return response;
+    }
+
+    // Already rewritten — just pass through with tenant slug header
+    const response = NextResponse.next({
+      headers: {
+        ...Object.fromEntries(responseHeaders),
+        'x-tenant-slug': subdomain,
+      },
+    });
+
+    // Also add security headers to non-API rewritten routes
+    return response;
+  }
+
   // ─── Non-API routes: just add security headers ───
   if (!pathname.startsWith('/api/')) {
     return NextResponse.next({
@@ -97,7 +180,7 @@ export async function middleware(request: NextRequest) {
     });
   }
 
-  // ─── Block dangerous routes entirely (db-init temporarily allowed for first deploy) ───
+  // ─── Block dangerous routes entirely ───
   if (
     pathname === '/api/seed' ||
     pathname === '/api/debug'

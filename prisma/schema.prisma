@@ -176,6 +176,7 @@ model Tenant {
   chatConversations        ChatConversation[]
   surchargeConfigs         SurchargeConfig[]
   surchargeRecords         SurchargeRecord[]
+  portalSettings            PortalSetting?
 }
 
 model TenantMembership {
@@ -1121,6 +1122,30 @@ model PriceSetting {
   updatedAt DateTime @updatedAt
 
   plan Plan? @relation(fields: [planId], references: [id])
+}
+
+// ============ PORTAL CUSTOMIZATION ============
+
+model PortalSetting {
+  id            String   @id @default(cuid())
+  tenantId      String   @unique
+  portalName    String   @default("Tenant Portal")
+  welcomeMsg    String   @default("Welcome to your portal")
+  logoUrl       String?
+  primaryColor  String   @default("#1e40af")
+  accentColor   String   @default("#6366f1")
+  bgColor       String   @default("#f8fafc")
+  fontFamily    String   @default("inter")
+  showPayments  Boolean  @default(true)
+  showMaintenance Boolean @default(true)
+  showDocuments Boolean  @default(true)
+  allowChat     Boolean  @default(true)
+  enabled       Boolean  @default(false)
+  customDomain  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 }
 
 // ============ LANDLORD / PROPERTY MANAGEMENT ============
