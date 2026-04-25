@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pgQuery, pgQueryOne } from '@/lib/pg-query';
+import { processBotMessage } from '@/lib/whatsapp-bot';
 
 // ── WhatsApp Webhook Endpoint ──
 // Handles Meta WhatsApp Business API webhook verification and incoming events.
@@ -265,7 +266,16 @@ export async function POST(req: NextRequest) {
             if (msgType === 'text' && msg.text) {
               text = msg.text.body || '';
             } else if (msgType === 'interactive' && msg.interactive) {
-              text = msg.interactive.body?.text || msg.interactive.type || '';
+              // Handle list_reply and button_reply — extract the selected ID
+              const listReply = msg.interactive.list_reply;
+              const buttonReply = msg.interactive.button_reply;
+              if (listReply?.id) {
+                text = listReply.id; // e.g. 'balance', 'maintenance_start', 'mant_plumbing'
+              } else if (buttonReply?.id) {
+                text = buttonReply.id; // e.g. 'mant_confirm_yes', 'mant_confirm_no'
+              } else {
+                text = msg.interactive.body?.text || msg.interactive.type || '';
+              }
             } else if (msgType === 'image' && msg.image) {
               text = `[Image] ${msg.image.caption || ''}`.trim();
             } else if (msgType === 'document' && msg.document) {
@@ -308,6 +318,15 @@ export async function POST(req: NextRequest) {
               msgType,
               text: text.substring(0, 100),
             });
+
+            // ── Trigger WhatsApp Self-Service Bot (non-blocking) ──
+            // Only process text and interactive messages for the bot
+            if ((msgType === 'text' || msgType === 'interactive') && text) {
+              // Fire-and-forget — don't block the webhook response
+              processBotMessage(from, text, tenantId, phoneNumberId || '').catch((err) => {
+                console.error('[WhatsApp Webhook] Bot processing error:', err);
+              });
+            }
           }
         }
 

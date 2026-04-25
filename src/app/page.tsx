@@ -30,7 +30,7 @@ import {
   Table as TableIcon, Save, Cake, Pencil,
   CalendarHeart, ScanLine, MessageCircle,
   Printer, Ban, Thermometer, Bug, ClipboardCheck,
-  SprayCan, HandMetal, FileWarning,
+  SprayCan, HandMetal, FileWarning, Bot, Smartphone, ToggleLeft as ToggleIcon,
 } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Button } from '@/components/ui/button';
@@ -490,6 +490,7 @@ function getPropertyMgmtNav(locale: string) {
     { label: t('tenant.inspections', locale), icon: ClipboardCheck, page: 'pm-inspections' as const, available: true },
     { label: t('tenant.legalNotices', locale), icon: ScrollText, page: 'pm-legal-notices' as const, available: true },
     { label: 'Portal Inquilinos', icon: Users, page: 'pm-renters' as const, available: true },
+    { label: 'WhatsApp Bot', icon: Bot, page: 'pm-whatsapp-bot' as const, available: true },
   ]},
   { section: t('tenant.section.insights', locale), items: [
     { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
@@ -9942,6 +9943,457 @@ function getPasteleriaNav(locale: string) {
     { label: t('tenant.settings', locale), icon: Settings, page: 'settings' as const, available: true },
   ]},
 ];
+}
+
+// ─── WhatsApp Bot Configuration Page ───
+
+function CTWhatsAppBot({ tenantId }: { tenantId: string }) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [config, setConfig] = useState({
+    botEnabled: false,
+    whatsappAccessToken: '',
+    whatsappPhoneNumberId: '',
+    whatsappVerifyToken: '',
+    welcomeMessage: '',
+    autoReplyMaintenance: true,
+    autoReplyPayments: true,
+    autoReplyBalance: true,
+    language: 'es',
+  });
+  const [stats, setStats] = useState<any>(null);
+  const [recentMessages, setRecentMessages] = useState<any[]>([]);
+  const [registeredRenters, setRegisteredRenters] = useState<any[]>([]);
+  const [testPhone, setTestPhone] = useState('');
+  const [testSending, setTestSending] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'config' | 'activity' | 'renters'>('config');
+
+  useEffect(() => {
+    loadConfig();
+    loadStats();
+    loadRenters();
+  }, [tenantId]);
+
+  const loadConfig = async () => {
+    try {
+      const res = await authFetch(`/api/tenant/${tenantId}/whatsapp-bot/config`);
+      if (res.ok) {
+        const data = await res.json();
+        setConfig(prev => ({ ...prev, ...data }));
+      }
+    } catch (e) { /* use defaults */ }
+    setLoading(false);
+  };
+
+  const loadStats = async () => {
+    try {
+      const res = await authFetch(`/api/tenant/${tenantId}/whatsapp?stats=true`);
+      if (res.ok) setStats(await res.json());
+    } catch (e) { /* ignore */ }
+  };
+
+  const loadRenters = async () => {
+    try {
+      const res = await authFetch(`/api/tenant/${tenantId}/renters?limit=100`);
+      if (res.ok) {
+        const data = await res.json();
+        setRegisteredRenters((Array.isArray(data) ? data : []).map((r: any) => ({
+          id: r.id,
+          name: `${r.firstName || ''} ${r.lastName || ''}`.trim() || r.fullName || 'Sin nombre',
+          phone: r.phone || '',
+          email: r.email || '',
+          status: r.status || 'active',
+          propertyId: r.propertyId,
+          unitId: r.unitId,
+          whatsappLinked: !!r.phone,
+        })));
+      }
+    } catch (e) { /* ignore */ }
+  };
+
+  const loadRecentMessages = async () => {
+    try {
+      const res = await authFetch(`/api/tenant/${tenantId}/whatsapp?limit=20`);
+      if (res.ok) setRecentMessages(await res.json());
+    } catch (e) { /* ignore */ }
+  };
+
+  const saveConfig = async () => {
+    setSaving(true);
+    try {
+      const res = await authFetch(`/api/tenant/${tenantId}/whatsapp-bot/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      if (res.ok) {
+        setTestResult('Configuracion guardada exitosamente');
+        setTimeout(() => setTestResult(null), 3000);
+      } else {
+        const err = await res.json();
+        setTestResult(`Error: ${err.error || 'No se pudo guardar'}`);
+      }
+    } catch (e: any) {
+      setTestResult(`Error: ${e.message}`);
+    }
+    setSaving(false);
+  };
+
+  const sendTestMessage = async () => {
+    if (!testPhone.trim()) return;
+    setTestSending(true);
+    setTestResult(null);
+    try {
+      const res = await authFetch(`/api/tenant/${tenantId}/whatsapp-bot/send-test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: testPhone }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTestResult('Mensaje de prueba enviado exitosamente!');
+      } else {
+        setTestResult(`Error: ${data.error || 'No se pudo enviar'}`);
+      }
+    } catch (e: any) {
+      setTestResult(`Error: ${e.message}`);
+    }
+    setTestSending(false);
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+  const tabs = [
+    { id: 'config' as const, label: 'Configuracion', icon: Settings },
+    { id: 'activity' as const, label: 'Actividad', icon: Activity },
+    { id: 'renters' as const, label: 'Inquilinos Registrados', icon: Smartphone },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <Bot className="w-7 h-7 text-green-600" />
+          WhatsApp Self-Service Bot
+        </h2>
+        <p className="text-muted-foreground mt-1">
+          Permite a tus inquilinos interactuar con ZBS directamente por WhatsApp sin necesidad del portal web.
+        </p>
+      </div>
+
+      {/* Status Banner */}
+      <Card className={config.botEnabled ? 'border-green-200 bg-green-50/50' : 'border-gray-200 bg-gray-50/50'}>
+        <CardContent className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${config.botEnabled ? 'bg-green-100' : 'bg-gray-100'}`}>
+              <MessageCircle className={`w-5 h-5 ${config.botEnabled ? 'text-green-600' : 'text-gray-400'}`} />
+            </div>
+            <div>
+              <p className="font-semibold">{config.botEnabled ? 'Bot Activo' : 'Bot Inactivo'}</p>
+              <p className="text-sm text-muted-foreground">
+                {config.botEnabled
+                  ? 'Los inquilinos pueden usar WhatsApp para consultar su cuenta, pagar renta y reportar mantenimiento.'
+                  : 'Configura las credenciales de WhatsApp y activa el bot para comenzar.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => { setConfig(c => ({ ...c, botEnabled: !c.botEnabled })); }}
+            className={`relative w-14 h-7 rounded-full transition-colors ${config.botEnabled ? 'bg-green-500' : 'bg-gray-300'}`}
+          >
+            <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${config.botEnabled ? 'translate-x-7.5' : 'translate-x-0.5'}`} />
+          </button>
+        </CardContent>
+      </Card>
+
+      {/* Tabs */}
+      <div className="flex gap-1 border-b">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => { setActiveTab(tab.id); if (tab.id === 'activity') loadRecentMessages(); }}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === tab.id
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Config Tab */}
+      {activeTab === 'config' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* WhatsApp Credentials */}
+          <Card>
+            <CardHeader><CardTitle className="text-base">Credenciales de WhatsApp Business</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Access Token</label>
+                <Input
+                  type="password"
+                  placeholder="EAAxxxxxxxxxxx..."
+                  value={config.whatsappAccessToken}
+                  onChange={e => setConfig(c => ({ ...c, whatsappAccessToken: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Token de acceso permanente de Meta App Dashboard
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Phone Number ID</label>
+                <Input
+                  placeholder="123456789012345"
+                  value={config.whatsappPhoneNumberId}
+                  onChange={e => setConfig(c => ({ ...c, whatsappPhoneNumberId: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  ID del numero de telefono de WhatsApp Business
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Webhook Verify Token</label>
+                <Input
+                  placeholder="zbs_verify_token_2024"
+                  value={config.whatsappVerifyToken}
+                  onChange={e => setConfig(c => ({ ...c, whatsappVerifyToken: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Token para verificar el webhook de Meta (autogenerado si se deja vacio)
+                </p>
+              </div>
+              <Button onClick={saveConfig} disabled={saving} className="w-full">
+                {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Guardando...</> : 'Guardar Configuracion'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Bot Settings */}
+          <Card>
+            <CardHeader><CardTitle className="text-base">Configuracion del Bot</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Idioma por Defecto</label>
+                <div className="flex gap-2">
+                  {['es', 'en'].map(lang => (
+                    <button
+                      key={lang}
+                      onClick={() => setConfig(c => ({ ...c, language: lang }))}
+                      className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium border transition-colors ${
+                        config.language === lang
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background border-muted-foreground/20 hover:border-primary/50'
+                      }`}
+                    >
+                      {lang === 'es' ? 'Espanol' : 'English'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <h4 className="text-sm font-medium">Respuestas Automaticas</h4>
+                {[
+                  { key: 'autoReplyBalance' as const, label: 'Consulta de saldo', desc: 'Los inquilinos pueden ver su balance y proximo pago' },
+                  { key: 'autoReplyPayments' as const, label: 'Pagos por WhatsApp', desc: 'Enviar enlace de pago WiPay directamente por WhatsApp' },
+                  { key: 'autoReplyMaintenance' as const, label: 'Reporte de mantenimiento', desc: 'Permitir reportar problemas de mantenimiento por chat' },
+                ].map(item => (
+                  <div key={item.key} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div>
+                      <p className="text-sm font-medium">{item.label}</p>
+                      <p className="text-xs text-muted-foreground">{item.desc}</p>
+                    </div>
+                    <button
+                      onClick={() => setConfig(c => ({ ...c, [item.key]: !c[item.key] }))}
+                      className={`relative w-10 h-5 rounded-full transition-colors ${config[item.key] ? 'bg-green-500' : 'bg-gray-300'}`}
+                    >
+                      <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${config[item.key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Test Message */}
+          <Card className="lg:col-span-2">
+            <CardHeader><CardTitle className="text-base">Enviar Mensaje de Prueba</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex gap-3">
+                <Input
+                  placeholder="+18681234567"
+                  value={testPhone}
+                  onChange={e => setTestPhone(e.target.value)}
+                  className="flex-1"
+                />
+                <Button onClick={sendTestMessage} disabled={testSending || !testPhone.trim()}>
+                  {testSending ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Enviando...</> : <><Send className="w-4 h-4 mr-2" />Enviar Prueba</>}
+                </Button>
+              </div>
+              {testResult && (
+                <p className={`text-sm mt-2 ${testResult.includes('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                  {testResult}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Setup Instructions */}
+          <Card className="lg:col-span-2 border-blue-200 bg-blue-50/30">
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Info className="w-4 h-4 text-blue-600" />Como Configurar</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
+                <li>Crea una <strong>Meta Developer Account</strong> en developers.facebook.com</li>
+                <li>Crea una app de tipo <strong>Business</strong> y agrega el producto <strong>WhatsApp Business API</strong></li>
+                <li>Obten tu <strong>Permanent Access Token</strong> y <strong>Phone Number ID</strong> del dashboard de WhatsApp</li>
+                <li>Pega los valores en los campos de arriba y guarda la configuracion</li>
+                <li>Configura el webhook en Meta: URL = <code className="bg-muted px-1.5 py-0.5 rounded text-xs">https://tudominio.com/api/whatsapp-webhook</code></li>
+                <li>Verifica el webhook con el token que configuraste arriba</li>
+                <li>Los inquilinos con telefono registrado podran interactuar con el bot automaticamente</li>
+              </ol>
+              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg mt-3">
+                <MessageCircle className="w-5 h-5 text-green-600 shrink-0" />
+                <p className="text-xs">
+                  <strong>Tip:</strong> El bot identifica automaticamente a los inquilinos por su numero de WhatsApp.
+                  Asegurate de que el telefono del inquilino este registrado en el sistema.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Activity Tab */}
+      {activeTab === 'activity' && (
+        <div className="space-y-4">
+          {stats && (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {[
+                { label: 'Recibidos', value: stats.received || 0, color: 'from-blue-500 to-blue-400' },
+                { label: 'Enviados', value: stats.sent || 0, color: 'from-green-500 to-green-400' },
+                { label: 'Entregados', value: stats.delivered || 0, color: 'from-teal-500 to-teal-400' },
+                { label: 'Leidos', value: stats.read_count || 0, color: 'from-indigo-500 to-indigo-400' },
+                { label: 'Fallidos', value: stats.failed || 0, color: 'from-red-500 to-red-400' },
+              ].map((s, i) => (
+                <Card key={i}>
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${s.color} flex items-center justify-center shrink-0`}>
+                        <span className="text-white text-xs font-bold">{s.value}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{s.label}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {recentMessages.length === 0 && (
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground">
+                <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>No hay actividad de WhatsApp aun.</p>
+                <p className="text-sm">Los mensajes apareceran aqui cuando los inquilinos interactuen con el bot.</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {recentMessages.length > 0 && (
+            <Card>
+              <CardContent className="p-0">
+                <div className="divide-y max-h-96 overflow-y-auto">
+                  {recentMessages.map((msg: any, i: number) => (
+                    <div key={msg.id || i} className="px-4 py-3 flex items-start gap-3 hover:bg-muted/50">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                        msg.status === 'received' ? 'bg-blue-100' : msg.status === 'failed' ? 'bg-red-100' : 'bg-green-100'
+                      }`}>
+                        {msg.status === 'received'
+                          ? <ArrowLeft className="w-4 h-4 text-blue-600" />
+                          : msg.status === 'failed'
+                            ? <AlertCircle className="w-4 h-4 text-red-600" />
+                            : <ArrowRight className="w-4 h-4 text-green-600" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{msg.status === 'received' ? msg.to : 'Bot'}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${
+                            msg.status === 'sent' ? 'bg-green-100 text-green-700' :
+                            msg.status === 'delivered' ? 'bg-blue-100 text-blue-700' :
+                            msg.status === 'read' ? 'bg-indigo-100 text-indigo-700' :
+                            msg.status === 'failed' ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>{msg.status}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">{msg.body}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {msg.createdAt ? new Date(msg.createdAt).toLocaleString('es-TT') : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Renters Tab */}
+      {activeTab === 'renters' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {registeredRenters.filter(r => r.whatsappLinked).length} de {registeredRenters.length} inquilinos tienen telefono registrado
+            </p>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              <div className="divide-y max-h-[500px] overflow-y-auto">
+                {registeredRenters.map((renter: any, i: number) => (
+                  <div key={renter.id || i} className="px-4 py-3 flex items-center gap-3 hover:bg-muted/50">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                      renter.whatsappLinked ? 'bg-green-100' : 'bg-gray-100'
+                    }`}>
+                      <Smartphone className={`w-4 h-4 ${renter.whatsappLinked ? 'text-green-600' : 'text-gray-400'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{renter.name}</p>
+                      <p className="text-xs text-muted-foreground">{renter.phone || 'Sin telefono'}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      renter.status === 'active'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {renter.status === 'active' ? 'Activo' : renter.status}
+                    </span>
+                    {renter.whatsappLinked && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium">
+                        WhatsApp
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {registeredRenters.length === 0 && (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    <p>No hay inquilinos registrados.</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ============ TENANT VIEW ============
@@ -21560,6 +22012,7 @@ function TenantAppView() {
       case 'pm-legal-notices': return <CTLegalNotices apiBase={`/api/tenant/${tid}`} />;
       case 'pm-lease-renewal': return <CTLeaseRenewal apiBase={`/api/tenant/${tid}`} />;
       case 'pm-renters': return <CTRenterManagement apiBase={`/api/tenant/${tid}`} />;
+      case 'pm-whatsapp-bot': return <CTWhatsAppBot tenantId={tid} />;
       default: return <TenantDashboardPage />;
     }
   };
