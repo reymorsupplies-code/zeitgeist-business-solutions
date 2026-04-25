@@ -144,6 +144,10 @@ model Tenant {
   endorsements             Endorsement[]
   premiumSchedules         PremiumSchedule[]
   renewalTasks             RenewalTask[]
+  portalTokens             PortalToken[]
+  underwritingRules        UnderwritingRule[]
+  commissionStatements     CommissionStatement[]
+  regulatoryReports        RegulatoryReport[]
   retailProducts           RetailProduct[]
   purchaseOrders           PurchaseOrder[]
   posSales                 POSSale[]
@@ -733,6 +737,7 @@ model Insured {
 
   tenant  Tenant   @relation(fields: [tenantId], references: [id])
   policies Policy[]
+  portalTokens PortalToken[]
 
   @@index([tenantId])
   @@index([tenantId, nationalId])
@@ -757,6 +762,7 @@ model InsuranceAgent {
 
   tenant  Tenant   @relation(fields: [tenantId], references: [id])
   policies Policy[]
+  commissionStatements CommissionStatement[]
 
   @@index([tenantId])
   @@index([tenantId, agentCode])
@@ -954,6 +960,111 @@ model RenewalTask {
   policy Policy @relation(fields: [policyId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+// ============ PHASE 4: CLIENT PORTAL ============
+
+model PortalToken {
+  id          String    @id @default(cuid())
+  tenantId    String
+  insuredId   String    // FK to Insured
+  token       String    @unique // Secure random token for portal access
+  purpose     String    @default("portal") // portal, claim_submission, document_upload
+  isActive    Boolean   @default(true)
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  createdBy   String?   // User who generated the token
+  maxUses     Int       @default(0) // 0 = unlimited
+  useCount    Int       @default(0)
+  isDeleted   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  insured Insured  @relation(fields: [insuredId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([token])
+  @@index([insuredId])
+}
+
+// ============ PHASE 5: UNDERWRITING & REPORTS ============
+
+model UnderwritingRule {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  productCategory String @default("all") // all, life, health, auto, property, travel, liability, fire, marine
+  ruleType    String   @default("threshold") // threshold, exclusion, condition, rating_factor
+  field       String   // The field this rule evaluates (e.g., applicantAge, sumInsured, claimsCount)
+  operator    String   @default("gt") // gt, gte, lt, lte, eq, neq, in, not_in, between, contains
+  value       String   // The comparison value (JSON for complex types)
+  valueTo     String?  // For 'between' operator
+  action      String   @default("refer") // auto_approve, auto_decline, refer, surcharge, discount, require_doc
+  actionValue String?  // e.g., surcharge percentage, required document type
+  priority    Int      @default(100) // Lower = higher priority
+  isActive    Boolean  @default(true)
+  isDeleted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, productCategory])
+  @@index([tenantId, isActive])
+}
+
+model CommissionStatement {
+  id            String    @id @default(cuid())
+  tenantId      String
+  agentId       String
+  statementNumber String?
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  totalPremium  Decimal   @default(0) @db.Decimal(14, 2)
+  totalCommission Decimal @default(0) @db.Decimal(14, 2)
+  policiesCount Int       @default(0)
+  newBusiness  Decimal   @default(0) @db.Decimal(14, 2)
+  renewals      Decimal   @default(0) @db.Decimal(14, 2)
+  status        String    @default("pending") // pending, approved, paid
+  approvedBy    String?
+  approvedAt    DateTime?
+  notes         String?
+  isDeleted     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  agent           InsuranceAgent   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, agentId])
+  @@index([tenantId, status])
+}
+
+model RegulatoryReport {
+  id              String    @id @default(cuid())
+  tenantId        String
+  reportType      String    // quarterly_statistical, annual_returns, claims_register, solvency, premium_register
+  periodStart     DateTime?
+  periodEnd       DateTime?
+  data            String    @default("{}") // Full report data as JSON
+  status          String    @default("draft") // draft, reviewed, submitted, rejected
+  submittedTo     String?   // e.g., FSC, Central Bank of T&T
+  submittedAt     DateTime?
+  submittedBy     String?
+  notes           String?
+  isDeleted       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, reportType])
   @@index([tenantId, status])
 }
 

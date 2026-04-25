@@ -59,6 +59,10 @@ import InsuranceAgentsPage from '@/components/pages/InsuranceAgentsPage';
 import InsuranceProductsPage from '@/components/pages/InsuranceProductsPage';
 import InsuranceQuotesPage from '@/components/pages/InsuranceQuotesPage';
 import InsuranceRenewalsPage from '@/components/pages/InsuranceRenewalsPage';
+import InsurancePortalPage from '@/components/pages/InsurancePortalPage';
+import InsuranceDashboardPage from '@/components/pages/InsuranceDashboardPage';
+import InsuranceReportsPage from '@/components/pages/InsuranceReportsPage';
+import InsurancePortalTokensPage from '@/components/pages/InsurancePortalTokensPage';
 import ClinicPatientsPage from '@/components/pages/ClinicPatientsPage';
 import ClinicAppointmentsPage from '@/components/pages/ClinicAppointmentsPage';
 import LegalCasesPage from '@/components/pages/LegalCasesPage';
@@ -421,7 +425,7 @@ function getLegalNav(locale: string) {(s => s.locale);
 function getInsuranceNav(locale: string) {(s => s.locale);
   return [
   { section: t('tenant.section.operations', locale), items: [
-    { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'dashboard' as const, available: true },
+    { label: t('tenant.dashboard', locale), icon: LayoutDashboard, page: 'insurance-dashboard' as const, available: true },
     { label: t('tenant.policies', locale), icon: Shield, page: 'insurance-policies' as const, available: true },
     { label: t('insurance.insured', locale), icon: Users, page: 'insurance-insured' as const, available: true },
     { label: t('insurance.products', locale), icon: Package, page: 'insurance-products' as const, available: true },
@@ -439,10 +443,13 @@ function getInsuranceNav(locale: string) {(s => s.locale);
   ]},
   { section: t('tenant.section.compliance', locale), items: [
     { label: t('tenant.documents', locale), icon: FileText, page: 'documents' as const, available: true },
-    { label: t('tenant.reports', locale), icon: BarChart3, page: 'reports' as const, available: true },
+    { label: t('insurance.reports', locale), icon: BarChart3, page: 'insurance-reports' as const, available: true },
   ]},
   { section: t('insurance.section.agents', locale), items: [
     { label: t('insurance.agents', locale), icon: UserCog, page: 'insurance-agents' as const, available: true },
+  ]},
+  { section: t('insurance.section.portal', locale), items: [
+    { label: t('insurance.portal.tokens', locale), icon: KeyRound, page: 'insurance-portal-tokens' as const, available: true },
   ]},
   { section: t('tenant.section.tools', locale), items: [
     { label: t('tenant.smartImport', locale), icon: Upload, page: 'smart_import' as const, available: true },
@@ -22493,6 +22500,9 @@ function TenantAppView() {
       case 'insurance-products': return <InsuranceProductsPage />;
       case 'insurance-quotes': return <InsuranceQuotesPage />;
       case 'insurance-renewals': return <InsuranceRenewalsPage />;
+      case 'insurance-dashboard': return <InsuranceDashboardPage />;
+      case 'insurance-reports': return <InsuranceReportsPage />;
+      case 'insurance-portal-tokens': return <InsurancePortalTokensPage />;
       // Clinics pages
       case 'clinic-patients': return <ClinicPatientsPage />;
       case 'clinic-appointments': return <ClinicAppointmentsPage />;
@@ -24557,6 +24567,7 @@ export default function ZBSApp() {
   const [restoring, setRestoring] = useState(true);
 
   // Check for ?renter_portal=true query param on mount — direct access to renter portal
+  // Check for ?insurance_portal=true query param on mount — direct access to insurance client portal
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
@@ -24564,6 +24575,8 @@ export default function ZBSApp() {
       setView('renter_portal');
       // Clean URL without reload
       window.history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('insurance_portal') === 'true') {
+      setView('insurance_portal');
     }
   }, [setView]);
 
@@ -24684,6 +24697,7 @@ export default function ZBSApp() {
         {view === 'control_tower' && <ControlTowerView key="ct" />}
         {view === 'tenant_app' && <TenantAppView key="tenant" />}
         {view === 'renter_portal' && <RenterPortalView key="renter" />}
+        {view === 'insurance_portal' && <InsurancePortalPage key="insurance-portal" />}
       </AnimatePresence>
     </TooltipProvider>
   );
