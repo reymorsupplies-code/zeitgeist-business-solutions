@@ -650,6 +650,8 @@ function PortalNavbar() {
                   {item.label}
                 </button>
               ))}
+
+
             </div>
           </motion.div>
         )}
@@ -1720,6 +1722,8 @@ function PortalFooter() {
               <button onClick={() => { setView('portal'); scrollTo('industries'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.industries', locale)}</button><br/>
               <button onClick={() => { setView('portal'); scrollTo('pricing'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.pricing', locale)}</button><br/>
               <button onClick={() => { setView('portal'); setPortalPage && null; }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.features', locale)}</button>
+
+
             </div>
           </div>
           <div>
@@ -23255,46 +23259,46 @@ function RenterPortalLogin() {
       setRenterInfo(data.renter);
       setRenterPage('rp-dashboard');
     } catch {
-      setError('Error de conexión. Intente de nuevo.');
+      setError('Connection error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <Card className="w-full max-w-md shadow-2xl border-0">
           <CardHeader className="text-center pb-2 pt-8">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
               <Building2 className="w-8 h-8 text-white" />
             </div>
-            <CardTitle className="text-2xl font-bold text-gray-900">Portal del Inquilino</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">ZBS — Gestión de Propiedades</p>
+            <CardTitle className="text-2xl font-bold text-gray-900">Tenant Portal</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">ZBS — Property Management</p>
           </CardHeader>
           <CardContent className="px-8 pb-8">
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <Label htmlFor="tenant-id">ID del Arrendador</Label>
-                <Input id="tenant-id" placeholder="Ej: clhxxxxx" value={tenantId} onChange={(e) => setTenantId(e.target.value)} required className="mt-1" />
+                <Label htmlFor="tenant-id">Manager ID</Label>
+                <Input id="tenant-id" placeholder="e.g. clhxxxxx" value={tenantId} onChange={(e) => setTenantId(e.target.value)} required className="mt-1" />
               </div>
               <div>
-                <Label htmlFor="renter-email">Correo Electrónico</Label>
-                <Input id="renter-email" type="email" placeholder="su@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="mt-1" />
+                <Label htmlFor="renter-email">Email</Label>
+                <Input id="renter-email" type="email" placeholder="your@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="mt-1" />
               </div>
               <div>
-                <Label htmlFor="renter-pin">PIN (6 dígitos)</Label>
+                <Label htmlFor="renter-pin">PIN (6 digits)</Label>
                 <Input id="renter-pin" type="password" placeholder="••••••" maxLength={6} pattern="[0-9]{6}" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} required className="mt-1 tracking-widest text-center text-lg" />
               </div>
               {error && <p className="text-sm text-red-500 bg-red-50 rounded-lg p-2 text-center">{error}</p>}
-              <Button type="submit" disabled={loading || !email || !pin || !tenantId} className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg h-11">
+              <Button type="submit" disabled={loading || !email || !pin || !tenantId} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg h-11">
                 {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <LogIn className="w-4 h-4 mr-2" />}
-                Iniciar Sesión
+                Sign In
               </Button>
             </form>
             <div className="mt-6 text-center">
               <button onClick={() => useAppStore.getState().setView('portal')} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                ← Volver al inicio
+                &larr; Back to Home
               </button>
             </div>
           </CardContent>
@@ -23310,10 +23314,10 @@ function RenterSidebar({ open, onClose }: { open: boolean; onClose: () => void }
 
   const navItems = [
     { page: 'rp-dashboard', label: 'Dashboard', icon: Home },
-    { page: 'rp-payments', label: 'Mis Pagos', icon: Banknote },
-    { page: 'rp-maintenance', label: 'Solicitar Mantenimiento', icon: Wrench },
-    { page: 'rp-documents', label: 'Mis Documentos', icon: FileText },
-    { page: 'rp-profile', label: 'Mi Perfil', icon: User },
+    { page: 'rp-payments', label: 'My Payments', icon: Banknote },
+    { page: 'rp-maintenance', label: 'Maintenance', icon: Wrench },
+    { page: 'rp-documents', label: 'Documents', icon: FileText },
+    { page: 'rp-profile', label: 'My Profile', icon: User },
   ];
 
   const handleLogout = () => {
@@ -23333,13 +23337,13 @@ function RenterSidebar({ open, onClose }: { open: boolean; onClose: () => void }
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
                 <Building2 className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="font-bold text-sm text-foreground">ZBS Inquilino</p>
+                <p className="font-bold text-sm text-foreground">ZBS Tenant</p>
                 <p className="text-xs text-muted-foreground truncate max-w-[140px]">
-                  {renterInfo?.property?.name || 'Propiedad'}
+                  {renterInfo?.property?.name || 'Property'}
                 </p>
               </div>
             </div>
@@ -23358,10 +23362,10 @@ function RenterSidebar({ open, onClose }: { open: boolean; onClose: () => void }
                   key={item.page}
                   onClick={() => { setRenterPage(item.page); onClose(); }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    isActive ? 'bg-emerald-50 text-emerald-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    isActive ? 'bg-slate-100 text-slate-800 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
                   {item.label}
                 </button>
               );
@@ -23375,7 +23379,7 @@ function RenterSidebar({ open, onClose }: { open: boolean; onClose: () => void }
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
             >
               <LogOut className="w-5 h-5" />
-              Cerrar Sesión
+              Sign Out
             </button>
           </div>
         </div>
@@ -23415,9 +23419,9 @@ function RenterDashboard() {
     <div className="space-y-6">
       {/* Welcome */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">¡Bienvenido, {renterInfo?.fullName || 'Inquilino'}!</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Welcome, {renterInfo?.fullName || 'Tenant'}!</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {renterInfo?.property?.name} — Unidad {renterInfo?.unit?.unitNumber || '—'}
+          {renterInfo?.property?.name} &mdash; Unit {renterInfo?.unit?.unitNumber || '—'}
         </p>
       </div>
 
@@ -23427,11 +23431,11 @@ function RenterDashboard() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Renta Mensual</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Monthly Rent</p>
                 <p className="text-xl font-bold mt-1">{renterInfo?.lease?.rentAmount ? `${Number(renterInfo.lease.rentAmount).toLocaleString()} ${currency}` : '—'}</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                <Banknote className="w-5 h-5 text-emerald-600" />
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                <Banknote className="w-5 h-5 text-blue-600" />
               </div>
             </div>
           </CardContent>
@@ -23440,9 +23444,9 @@ function RenterDashboard() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Próximo Pago</p>
-                <p className="text-xl font-bold mt-1">{nextPayment ? new Date(nextPayment.dueDate).toLocaleDateString('es', { day: 'numeric', month: 'short' }) : '—'}</p>
-                {nextPayment && <p className="text-xs text-amber-600 mt-1">Vence pronto</p>}
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Next Payment</p>
+                <p className="text-xl font-bold mt-1">{nextPayment ? new Date(nextPayment.dueDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : '—'}</p>
+                {nextPayment && <p className="text-xs text-amber-600 mt-1">Due soon</p>}
               </div>
               <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
                 <Clock className="w-5 h-5 text-amber-600" />
@@ -23454,7 +23458,7 @@ function RenterDashboard() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Solicitudes Abiertas</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Open Requests</p>
                 <p className="text-xl font-bold mt-1">{loading ? '...' : openRequests.length}</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
@@ -23467,7 +23471,7 @@ function RenterDashboard() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Pagado</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Paid</p>
                 <p className="text-xl font-bold mt-1">{paidTotal.toLocaleString()} {currency}</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
@@ -23482,20 +23486,20 @@ function RenterDashboard() {
         {/* Next Payment Info */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">Próximo Pago de Renta</CardTitle>
+            <CardTitle className="text-base font-semibold">Next Rent Payment</CardTitle>
           </CardHeader>
           <CardContent>
             {nextPayment ? (
               <div className="space-y-3">
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Período</span><span className="font-medium">{new Date(nextPayment.periodStart).toLocaleDateString('es', { day: 'numeric', month: 'short' })} — {new Date(nextPayment.periodEnd).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Monto</span><span className="font-bold text-lg">{Number(nextPayment.amountDue).toLocaleString()} {nextPayment.currency}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Fecha Límite</span><span className="font-medium">{new Date(nextPayment.dueDate).toLocaleDateString('es')}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Period</span><span className="font-medium">{new Date(nextPayment.periodStart).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} — {new Date(nextPayment.periodEnd).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Amount</span><span className="font-bold text-lg">{Number(nextPayment.amountDue).toLocaleString()} {nextPayment.currency}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Due Date</span><span className="font-medium">{new Date(nextPayment.dueDate).toLocaleDateString('en-US')}</span></div>
                 <Badge variant={nextPayment.status === 'late' || nextPayment.status === 'overdue' ? 'destructive' : 'secondary'}>
-                  {nextPayment.status === 'pending' ? 'Pendiente' : nextPayment.status === 'partial' ? 'Parcial' : nextPayment.status === 'late' ? 'Atrasado' : 'Vencido'}
+                  {nextPayment.status === 'pending' ? 'Pending' : nextPayment.status === 'partial' ? 'Partial' : nextPayment.status === 'late' ? 'Late' : 'Overdue'}
                 </Badge>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No hay pagos pendientes</p>
+              <p className="text-sm text-muted-foreground">No pending payments</p>
             )}
           </CardContent>
         </Card>
@@ -23503,20 +23507,20 @@ function RenterDashboard() {
         {/* Recent Maintenance */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">Solicitudes Recientes</CardTitle>
+            <CardTitle className="text-base font-semibold">Recent Requests</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
               <div className="flex items-center justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
             ) : maintenance.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No hay solicitudes de mantenimiento</p>
+              <p className="text-sm text-muted-foreground">No maintenance requests yet</p>
             ) : (
               <div className="space-y-3 max-h-64 overflow-y-auto">
                 {maintenance.slice(0, 5).map(req => (
                   <div key={req.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{req.title}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(req.requestedAt).toLocaleDateString('es')}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(req.requestedAt).toLocaleDateString('en-US')}</p>
                     </div>
                     <Badge className={
                       req.status === 'open' ? 'bg-amber-100 text-amber-700 border-amber-200' :
@@ -23524,7 +23528,7 @@ function RenterDashboard() {
                       req.status === 'resolved' ? 'bg-green-100 text-green-700 border-green-200' :
                       'bg-gray-100 text-gray-700 border-gray-200'
                     }>
-                      {req.status === 'open' ? 'Abierta' : req.status === 'in_progress' ? 'En Progreso' : req.status === 'resolved' ? 'Resuelta' : 'Cerrada'}
+                      {req.status === 'open' ? 'Open' : req.status === 'in_progress' ? 'In Progress' : req.status === 'resolved' ? 'Resolved' : 'Closed'}
                     </Badge>
                   </div>
                 ))}
@@ -23537,9 +23541,9 @@ function RenterDashboard() {
       {/* Quick Action */}
       <Button
         onClick={() => useAppStore.getState().setRenterPage('rp-maintenance')}
-        className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
+        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg"
       >
-        <Wrench className="w-4 h-4 mr-2" /> Solicitar Mantenimiento
+        <Wrench className="w-4 h-4 mr-2" /> Request Maintenance
       </Button>
     </div>
   );
@@ -23558,11 +23562,11 @@ function RenterPayments() {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case 'paid': return <Badge className="bg-green-100 text-green-700 border-green-200">Pagado</Badge>;
-      case 'partial': return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Parcial</Badge>;
-      case 'pending': return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Pendiente</Badge>;
-      case 'late': return <Badge className="bg-red-100 text-red-700 border-red-200">Atrasado</Badge>;
-      case 'overdue': return <Badge className="bg-red-100 text-red-700 border-red-200">Vencido</Badge>;
+      case 'paid': return <Badge className="bg-green-100 text-green-700 border-green-200">Paid</Badge>;
+      case 'partial': return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Partial</Badge>;
+      case 'pending': return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Pending</Badge>;
+      case 'late': return <Badge className="bg-red-100 text-red-700 border-red-200">Late</Badge>;
+      case 'overdue': return <Badge className="bg-red-100 text-red-700 border-red-200">Overdue</Badge>;
       default: return <Badge variant="secondary">{status}</Badge>;
     }
   };
@@ -23573,13 +23577,13 @@ function RenterPayments() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Mis Pagos</h1>
+      <h1 className="text-2xl font-bold text-gray-900">My Payments</h1>
 
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card><CardContent className="p-5"><p className="text-xs text-muted-foreground uppercase tracking-wider">Total Pagado</p><p className="text-xl font-bold text-green-600 mt-1">{totalPaid.toLocaleString()} {currency}</p></CardContent></Card>
-        <Card><CardContent className="p-5"><p className="text-xs text-muted-foreground uppercase tracking-wider">Total Pendiente</p><p className="text-xl font-bold text-amber-600 mt-1">{totalPending.toLocaleString()} {currency}</p></CardContent></Card>
-        <Card><CardContent className="p-5"><p className="text-xs text-muted-foreground uppercase tracking-wider">Total Registros</p><p className="text-xl font-bold mt-1">{payments.length}</p></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-xs text-muted-foreground uppercase tracking-wider">Total Paid</p><p className="text-xl font-bold text-green-600 mt-1">{totalPaid.toLocaleString()} {currency}</p></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-xs text-muted-foreground uppercase tracking-wider">Total Pending</p><p className="text-xl font-bold text-amber-600 mt-1">{totalPending.toLocaleString()} {currency}</p></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-xs text-muted-foreground uppercase tracking-wider">Total Records</p><p className="text-xl font-bold mt-1">{payments.length}</p></CardContent></Card>
       </div>
 
       {/* Table */}
@@ -23588,25 +23592,25 @@ function RenterPayments() {
           {loading ? (
             <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
           ) : payments.length === 0 ? (
-            <div className="py-12 text-center"><FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No hay pagos registrados</p></div>
+            <div className="py-12 text-center"><FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No payments found</p></div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Período</TableHead>
-                    <TableHead>Monto</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Fecha Pago</TableHead>
+                    <TableHead>Period</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Payment Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {payments.map(p => (
                     <TableRow key={p.id}>
-                      <TableCell className="text-sm">{new Date(p.periodStart).toLocaleDateString('es', { month: 'short', year: 'numeric' })}</TableCell>
+                      <TableCell className="text-sm">{new Date(p.periodStart).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</TableCell>
                       <TableCell className="text-sm font-medium">{Number(p.amountDue).toLocaleString()} {p.currency}</TableCell>
                       <TableCell>{statusBadge(p.status)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{p.paidAt ? new Date(p.paidAt).toLocaleDateString('es') : '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{p.paidAt ? new Date(p.paidAt).toLocaleDateString('en-US') : '—'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -23647,32 +23651,32 @@ function RenterMaintenance() {
         method: 'POST',
         body: JSON.stringify(form),
       });
-      toast.success('Solicitud creada exitosamente');
+      toast.success('Request created successfully');
       setForm({ title: '', description: '', category: 'general', priority: 'medium' });
       setDialogOpen(false);
       loadRequests();
     } catch (e: any) {
-      toast.error(e.message || 'Error al crear solicitud');
+      toast.error(e.message || 'Failed to create request');
     }
     setSubmitting(false);
   };
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case 'open': return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Abierta</Badge>;
-      case 'in_progress': return <Badge className="bg-blue-100 text-blue-700 border-blue-200">En Progreso</Badge>;
-      case 'resolved': return <Badge className="bg-green-100 text-green-700 border-green-200">Resuelta</Badge>;
-      case 'closed': return <Badge className="bg-gray-100 text-gray-700 border-gray-200">Cerrada</Badge>;
+      case 'open': return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Open</Badge>;
+      case 'in_progress': return <Badge className="bg-blue-100 text-blue-700 border-blue-200">In Progress</Badge>;
+      case 'resolved': return <Badge className="bg-green-100 text-green-700 border-green-200">Resolved</Badge>;
+      case 'closed': return <Badge className="bg-gray-100 text-gray-700 border-gray-200">Closed</Badge>;
       default: return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
   const priorityBadge = (priority: string) => {
     switch (priority) {
-      case 'urgent': return <Badge className="bg-red-100 text-red-700 border-red-200">Urgente</Badge>;
-      case 'high': return <Badge className="bg-orange-100 text-orange-700 border-orange-200">Alta</Badge>;
-      case 'medium': return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Media</Badge>;
-      case 'low': return <Badge className="bg-gray-100 text-gray-700 border-gray-200">Baja</Badge>;
+      case 'urgent': return <Badge className="bg-red-100 text-red-700 border-red-200">Urgent</Badge>;
+      case 'high': return <Badge className="bg-orange-100 text-orange-700 border-orange-200">High</Badge>;
+      case 'medium': return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Medium</Badge>;
+      case 'low': return <Badge className="bg-gray-100 text-gray-700 border-gray-200">Low</Badge>;
       default: return <Badge variant="secondary">{priority}</Badge>;
     }
   };
@@ -23680,9 +23684,9 @@ function RenterMaintenance() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Mantenimiento</h1>
-        <Button onClick={() => setDialogOpen(true)} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
-          <Plus className="w-4 h-4 mr-2" /> Nueva Solicitud
+        <h1 className="text-2xl font-bold text-gray-900">Maintenance</h1>
+        <Button onClick={() => setDialogOpen(true)} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
+          <Plus className="w-4 h-4 mr-2" /> New Request
         </Button>
       </div>
 
@@ -23691,17 +23695,17 @@ function RenterMaintenance() {
           {loading ? (
             <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
           ) : requests.length === 0 ? (
-            <div className="py-12 text-center"><Wrench className="w-10 h-10 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No hay solicitudes de mantenimiento</p></div>
+            <div className="py-12 text-center"><Wrench className="w-10 h-10 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No maintenance requests yet</p></div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Título</TableHead>
-                    <TableHead className="hidden sm:table-cell">Categoría</TableHead>
-                    <TableHead className="hidden md:table-cell">Prioridad</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="hidden sm:table-cell">Fecha</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead className="hidden sm:table-cell">Category</TableHead>
+                    <TableHead className="hidden md:table-cell">Priority</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden sm:table-cell">Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -23714,7 +23718,7 @@ function RenterMaintenance() {
                       <TableCell className="hidden sm:table-cell text-sm capitalize">{req.category}</TableCell>
                       <TableCell className="hidden md:table-cell">{priorityBadge(req.priority)}</TableCell>
                       <TableCell>{statusBadge(req.status)}</TableCell>
-                      <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{new Date(req.requestedAt).toLocaleDateString('es')}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{new Date(req.requestedAt).toLocaleDateString('en-US')}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -23728,51 +23732,51 @@ function RenterMaintenance() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nueva Solicitud de Mantenimiento</DialogTitle>
-            <DialogDescription>Describa el problema o servicio que necesita</DialogDescription>
+            <DialogTitle>New Maintenance Request</DialogTitle>
+            <DialogDescription>Describe the issue or service you need</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Título</Label>
-              <Input placeholder="Ej: Fuga en el grifo de la cocina" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="mt-1" />
+              <Label>Title</Label>
+              <Input placeholder="e.g. Kitchen faucet leak" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="mt-1" />
             </div>
             <div>
-              <Label>Descripción</Label>
-              <Textarea placeholder="Detalle adicional sobre el problema..." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="mt-1" rows={3} />
+              <Label>Description</Label>
+              <Textarea placeholder="Additional details about the issue..." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="mt-1" rows={3} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Categoría</Label>
+                <Label>Category</Label>
                 <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="general">General</SelectItem>
-                    <SelectItem value="plumbing">Fontanería</SelectItem>
-                    <SelectItem value="electrical">Eléctrico</SelectItem>
-                    <SelectItem value="structural">Estructural</SelectItem>
-                    <SelectItem value="hvac">HVAC / Aire</SelectItem>
+                    <SelectItem value="plumbing">Plumbing</SelectItem>
+                    <SelectItem value="electrical">Electrical</SelectItem>
+                    <SelectItem value="structural">Structural</SelectItem>
+                    <SelectItem value="hvac">HVAC / Air</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Prioridad</Label>
+                <Label>Priority</Label>
                 <Select value={form.priority} onValueChange={v => setForm({ ...form, priority: v })}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Baja</SelectItem>
-                    <SelectItem value="medium">Media</SelectItem>
-                    <SelectItem value="high">Alta</SelectItem>
-                    <SelectItem value="urgent">Urgente</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={submitting || !form.title.trim()} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={submitting || !form.title.trim()} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
               {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Crear Solicitud
+              Submit Request
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -23794,40 +23798,40 @@ function RenterDocuments() {
 
   const typeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      lease_agreement: 'Contrato de Arrendamiento',
-      insurance: 'Seguro',
-      inspection: 'Inspección',
-      invoice: 'Factura',
-      receipt: 'Recibo',
-      tax_doc: 'Documento Fiscal',
-      certificate: 'Certificado',
-      other: 'Otro',
+      lease_agreement: 'Lease Agreement',
+      insurance: 'Insurance',
+      inspection: 'Inspection',
+      invoice: 'Invoice',
+      receipt: 'Receipt',
+      tax_doc: 'Tax Document',
+      certificate: 'Certificate',
+      other: 'Other',
     };
     return labels[type] || type;
   };
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Mis Documentos</h1>
+      <h1 className="text-2xl font-bold text-gray-900">Documents</h1>
 
       <Card>
         <CardContent className="p-0">
           {loading ? (
             <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
           ) : documents.length === 0 ? (
-            <div className="py-12 text-center"><FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No hay documentos disponibles</p></div>
+            <div className="py-12 text-center"><FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" /><p className="text-sm text-muted-foreground">No documents available</p></div>
           ) : (
             <div className="divide-y divide-border">
               {documents.map(doc => (
                 <div key={doc.id} className="flex items-center gap-4 p-4 hover:bg-muted/30 transition-colors">
-                  <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-5 h-5 text-emerald-600" />
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-5 h-5 text-blue-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{doc.name}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline" className="text-xs">{typeLabel(doc.type)}</Badge>
-                      <span className="text-xs text-muted-foreground">{new Date(doc.createdAt).toLocaleDateString('es')}</span>
+                      <span className="text-xs text-muted-foreground">{new Date(doc.createdAt).toLocaleDateString('en-US')}</span>
                     </div>
                   </div>
                   <Badge className={
@@ -23835,7 +23839,7 @@ function RenterDocuments() {
                     doc.status === 'expired' ? 'bg-red-100 text-red-700 border-red-200' :
                     'bg-gray-100 text-gray-700 border-gray-200'
                   }>
-                    {doc.status === 'active' ? 'Activo' : doc.status === 'expired' ? 'Expirado' : 'Archivado'}
+                    {doc.status === 'active' ? 'Active' : doc.status === 'expired' ? 'Expired' : 'Archived'}
                   </Badge>
                 </div>
               ))}
@@ -23873,16 +23877,16 @@ function RenterProfile() {
         body: JSON.stringify({ phone: editPhone, email: editEmail }),
       });
       setRenterInfo({ ...renterInfo, phone: updated.phone, email: updated.email });
-      toast.success('Perfil actualizado exitosamente');
+      toast.success('Profile updated successfully');
     } catch (e: any) {
-      toast.error(e.message || 'Error al actualizar perfil');
+      toast.error(e.message || 'Failed to update profile');
     }
     setSaving(false);
   };
 
   const handleChangePin = async () => {
     if (newPin.length !== 6 || newPin !== confirmPin) {
-      toast.error('El PIN debe tener 6 dígitos y coincidir');
+      toast.error('PIN must be 6 digits and match');
       return;
     }
     setPinSaving(true);
@@ -23892,48 +23896,48 @@ function RenterProfile() {
         method: 'PATCH',
         body: JSON.stringify({ pin: newPin }),
       });
-      toast.success('PIN actualizado exitosamente');
+      toast.success('PIN updated successfully');
       setNewPin('');
       setConfirmPin('');
     } catch (e: any) {
-      toast.error(e.message || 'Error al cambiar PIN');
+      toast.error(e.message || 'Failed to change PIN');
     }
     setPinSaving(false);
   };
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Mi Perfil</h1>
+      <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
 
       {/* Info Card */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Información Personal</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Personal Information</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Label className="text-xs text-muted-foreground">Nombre Completo</Label>
+              <Label className="text-xs text-muted-foreground">Full Name</Label>
               <p className="text-sm font-medium mt-0.5">{renterInfo?.fullName || '—'}</p>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Estado</Label>
+              <Label className="text-xs text-muted-foreground">Status</Label>
               <p className="text-sm font-medium mt-0.5 capitalize">{renterInfo?.status || '—'}</p>
             </div>
           </div>
           <Separator />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Label className="text-xs text-muted-foreground">Correo Electrónico</Label>
+              <Label className="text-xs text-muted-foreground">Email</Label>
               <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} className="mt-1" />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Teléfono</Label>
+              <Label className="text-xs text-muted-foreground">Phone</Label>
               <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} className="mt-1" />
             </div>
           </div>
           <div className="flex justify-end">
-            <Button onClick={handleSaveProfile} disabled={saving} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
+            <Button onClick={handleSaveProfile} disabled={saving} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Guardar Cambios
+              Save Changes
             </Button>
           </div>
         </CardContent>
@@ -23941,29 +23945,29 @@ function RenterProfile() {
 
       {/* Property Info */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Información de la Propiedad</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Property Information</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Label className="text-xs text-muted-foreground">Propiedad</Label>
+              <Label className="text-xs text-muted-foreground">Property</Label>
               <p className="text-sm font-medium mt-0.5">{renterInfo?.property?.name || '—'}</p>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Unidad</Label>
+              <Label className="text-xs text-muted-foreground">Unit</Label>
               <p className="text-sm font-medium mt-0.5">{renterInfo?.unit?.unitNumber || '—'}</p>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <Label className="text-xs text-muted-foreground">Inicio de Contrato</Label>
-              <p className="text-sm font-medium mt-0.5">{renterInfo?.lease?.startDate ? new Date(renterInfo.lease.startDate).toLocaleDateString('es') : '—'}</p>
+              <Label className="text-xs text-muted-foreground">Lease Start</Label>
+              <p className="text-sm font-medium mt-0.5">{renterInfo?.lease?.startDate ? new Date(renterInfo.lease.startDate).toLocaleDateString('en-US') : '—'}</p>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Fin de Contrato</Label>
-              <p className="text-sm font-medium mt-0.5">{renterInfo?.lease?.endDate ? new Date(renterInfo.lease.endDate).toLocaleDateString('es') : '—'}</p>
+              <Label className="text-xs text-muted-foreground">Lease End</Label>
+              <p className="text-sm font-medium mt-0.5">{renterInfo?.lease?.endDate ? new Date(renterInfo.lease.endDate).toLocaleDateString('en-US') : '—'}</p>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Renta Mensual</Label>
+              <Label className="text-xs text-muted-foreground">Monthly Rent</Label>
               <p className="text-sm font-medium mt-0.5">{renterInfo?.lease?.rentAmount ? `${Number(renterInfo.lease.rentAmount).toLocaleString()} ${renterInfo.lease.rentCurrency || 'USD'}` : '—'}</p>
             </div>
           </div>
@@ -23972,22 +23976,22 @@ function RenterProfile() {
 
       {/* Change PIN */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Cambiar PIN</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Change PIN</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Label>Nuevo PIN (6 dígitos)</Label>
+              <Label>New PIN (6 digits)</Label>
               <Input type="password" maxLength={6} value={newPin} onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••" className="mt-1 tracking-widest text-center" />
             </div>
             <div>
-              <Label>Confirmar PIN</Label>
+              <Label>Confirm PIN</Label>
               <Input type="password" maxLength={6} value={confirmPin} onChange={e => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••" className="mt-1 tracking-widest text-center" />
             </div>
           </div>
           <div className="flex justify-end">
             <Button onClick={handleChangePin} disabled={pinSaving || newPin.length !== 6 || newPin !== confirmPin} variant="outline">
               {pinSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Cambiar PIN
+              Change PIN
             </Button>
           </div>
         </CardContent>
@@ -24055,13 +24059,13 @@ function RenterPortalView() {
               <Menu className="w-5 h-5" />
             </button>
             <div className="hidden sm:block">
-              <p className="text-sm font-semibold text-gray-900">{renterInfo?.property?.name || 'Mi Propiedad'}</p>
-              <p className="text-xs text-muted-foreground">Unidad {renterInfo?.unit?.unitNumber || '—'}</p>
+              <p className="text-sm font-semibold text-gray-900">{renterInfo?.property?.name || 'My Property'}</p>
+              <p className="text-xs text-muted-foreground">Unit {renterInfo?.unit?.unitNumber || '—'}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-sm font-bold">
-              {renterInfo?.fullName?.charAt(0)?.toUpperCase() || 'I'}
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white text-sm font-bold">
+              {renterInfo?.fullName?.charAt(0)?.toUpperCase() || 'T'}
             </div>
           </div>
         </header>
