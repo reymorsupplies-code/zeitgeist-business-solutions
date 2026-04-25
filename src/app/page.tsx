@@ -629,10 +629,6 @@ function PortalNavbar() {
               className="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
               {t('portal.nav.signin', locale)}
             </button>
-            <button onClick={() => setView('renter_portal')}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors border border-emerald-500/30">
-              <Users className="w-4 h-4 inline mr-1.5 -mt-0.5" />Portal del Inquilino
-            </button>
             <button onClick={() => { setPortalPage('pricing'); setView('portal'); }}
               className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-blue-700 to-blue-500 text-white hover:from-blue-800 hover:to-blue-700 transition-all shadow-lg shadow-blue-900/30">
               {t('portal.hero.cta', locale)}
@@ -654,10 +650,6 @@ function PortalNavbar() {
                   {item.label}
                 </button>
               ))}
-              <button onClick={() => { setView('renter_portal'); setMobileMenuOpen(false); }}
-                className="w-full text-left px-3 py-2 rounded-lg text-sm text-emerald-400 hover:text-emerald-300 hover:bg-white/5">
-                <Users className="w-4 h-4 inline mr-2 -mt-0.5" />Portal del Inquilino
-              </button>
             </div>
           </motion.div>
         )}
@@ -1728,8 +1720,6 @@ function PortalFooter() {
               <button onClick={() => { setView('portal'); scrollTo('industries'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.industries', locale)}</button><br/>
               <button onClick={() => { setView('portal'); scrollTo('pricing'); }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.pricing', locale)}</button><br/>
               <button onClick={() => { setView('portal'); setPortalPage && null; }} className="hover:text-blue-400 transition-colors cursor-pointer">{t('portal.footer.features', locale)}</button>
-              <br/>
-              <button onClick={() => setView('renter_portal')} className="hover:text-emerald-400 transition-colors cursor-pointer">Portal del Inquilino</button>
             </div>
           </div>
           <div>
@@ -8908,6 +8898,7 @@ function CTRenterManagement({ apiBase }: { apiBase?: string }) {
   const [leases, setLeases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', idDocument: '', leaseId: '', pin: '', unitId: '', propertyId: '' });
 
   const load = useCallback(async () => {
@@ -8958,6 +8949,57 @@ function CTRenterManagement({ apiBase }: { apiBase?: string }) {
         </Button>
       </motion.div>
 
+      {/* ── Portal del Inquilino: Compartir Link ── */}
+      <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50/50 to-teal-50/50">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shrink-0">
+              <Smartphone className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-emerald-900">Portal del Inquilino</h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Comparte este enlace con tus inquilinos para que accedan a su portal personal. Podran ver su balance, pagar renta, reportar mantenimiento y mas.
+              </p>
+              <div className="mt-3 flex items-center gap-2">
+                <div className="flex-1 bg-white rounded-lg border border-emerald-200 px-3 py-2 text-sm font-mono text-emerald-800 truncate">
+                  {typeof window !== 'undefined' ? `${window.location.origin}?renter_portal=true` : '...?renter_portal=true'}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                  onClick={() => {
+                    const link = `${window.location.origin}?renter_portal=true`;
+                    navigator.clipboard.writeText(link);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2500);
+                  }}
+                >
+                  {copied ? <><Check className="w-3.5 h-3.5 mr-1" />Copiado!</> : <><Copy className="w-3.5 h-3.5 mr-1" />Copiar Link</>}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                  onClick={() => {
+                    const link = `${window.location.origin}?renter_portal=true`;
+                    const text = encodeURIComponent(`Accede a tu Portal de Inquilino aqui: ${link}`);
+                    window.open(`https://wa.me/?text=${text}`, '_blank');
+                  }}
+                >
+                  <MessageCircle className="w-3.5 h-3.5 mr-1" />WhatsApp
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-2">
+                Los inquilinos se identifican con su email y PIN. Cada inquilino solo ve su propia informacion.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Stats ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: 'Total Inquilinos', value: renters.length, icon: Users, color: 'from-teal-600 to-teal-400' },
@@ -24045,6 +24087,17 @@ function CTLoading() {
 export default function ZBSApp() {
   const { view, portalPage, theme, tenantPage, setTenantPage, setShowFinancialReports, setUser, setCurrentTenant, setView, setToken } = useAppStore();
   const [restoring, setRestoring] = useState(true);
+
+  // Check for ?renter_portal=true query param on mount — direct access to renter portal
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('renter_portal') === 'true') {
+      setView('renter_portal');
+      // Clean URL without reload
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [setView]);
 
   // Session restore on mount — verify JWT token
   useEffect(() => {
