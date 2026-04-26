@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       const jwt = await import('jsonwebtoken');
-      const payload = jwt.default.verify(token, process.env.JWT_SECRET || 'dev-secret') as any;
+      const payload = jwt.default.verify(token, process.env.JWT_SECRET!) as any;
       if (payload.role !== 'superAdmin' && payload.role !== 'platform_admin') {
         return NextResponse.json({ error: 'Insufficient permissions. SuperAdmin required.' }, { status: 403 });
       }

@@ -24,6 +24,12 @@ const PUBLIC_ROUTES = [
   '/api/health',
   '/api/wipay-webhook',
   '/api/whatsapp-webhook',
+  // Portal routes use their own token auth (not JWT)
+  '/api/portal/',
+  // Cron job routes use CRON_SECRET (not JWT)
+  '/api/cron/',
+  // Application status check (public for applicants)
+  '/api/applications/',
 ];
 
 // Routes that only super admins can access
@@ -122,8 +128,8 @@ export async function middleware(request: NextRequest) {
   // HTTP Strict Transport Security — force HTTPS for 1 year
   responseHeaders.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 
-  // Prevent clickjacking
-  responseHeaders.set('X-Frame-Options', 'DENY');
+  // Prevent clickjacking — SAMEORIGIN allows iframes from payment gateways (Stripe, WiPay)
+  responseHeaders.set('X-Frame-Options', 'SAMEORIGIN');
 
   // Prevent MIME type sniffing
   responseHeaders.set('X-Content-Type-Options', 'nosniff');

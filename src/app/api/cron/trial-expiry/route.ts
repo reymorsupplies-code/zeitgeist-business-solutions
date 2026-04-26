@@ -3,7 +3,10 @@ import { pgQuery } from '@/lib/pg-query';
 import { sendEmail } from '@/lib/email';
 import { trialExpiring, accountSuspended } from '@/lib/email/templates';
 
-const CRON_SECRET = process.env.CRON_SECRET || 'zbs-cron-secret-2026';
+const CRON_SECRET = process.env.CRON_SECRET;
+if (!CRON_SECRET) {
+  console.error('[CRON] CRON_SECRET environment variable is not configured. This endpoint is disabled.');
+}
 
 // This endpoint should be called by a scheduler (Vercel Cron or external)
 // every 24 hours. It:
@@ -11,6 +14,10 @@ const CRON_SECRET = process.env.CRON_SECRET || 'zbs-cron-secret-2026';
 // 2. Sends 3-day warning emails to trials about to expire
 
 export async function GET(req: NextRequest) {
+  // Verify CRON_SECRET is configured
+  if (!CRON_SECRET) {
+    return NextResponse.json({ error: 'CRON_SECRET not configured', code: 'NOT_CONFIGURED' }, { status: 503 });
+  }
   // Verify cron secret to prevent unauthorized calls
   const authHeader = req.headers.get('authorization');
   if (authHeader !== `Bearer ${CRON_SECRET}`) {

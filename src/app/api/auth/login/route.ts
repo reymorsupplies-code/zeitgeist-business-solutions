@@ -5,8 +5,9 @@ import { comparePassword, signToken, checkAuthRateLimit } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    // Rate limiting by IP
-    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    // Rate limiting by IP (split x-forwarded-for to get real client IP)
+    const rawIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const ip = rawIp.split(',')[0]?.trim() || 'unknown';
     const rateLimit = checkAuthRateLimit(`login:${ip}`);
     if (!rateLimit.allowed) {
       return NextResponse.json(
@@ -44,24 +45,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Database connection error. Tables may not exist yet. Please wait while the system initializes.', needsInit: true }, { status: 503 });
     }
 
-    // Check if password is plaintext (legacy) or hashed
+    // Check if password is hashed (bcrypt) or legacy plaintext
     let passwordValid = false;
     if (user.password.startsWith('$2')) {
-      // bcrypt hash
+      // bcrypt hash — safe comparison
       passwordValid = await comparePassword(password, user.password);
     } else {
-      // Legacy plaintext — compare directly then upgrade to hash
-      passwordValid = user.password === password;
+      // ⚠️ Legacy plaintext detected — log warning + constant-time compare + auto-upgrade
+      console.warn(`[SECURITY] User ${user.id} (${user.email}) has UNSAFE plaintext password. Auto-upgrading to bcrypt.`);
+      // Use timing-safe comparison even for plaintext
+      const expected = user.password;
+      const actual = password;
+      let match = expected.length === actual.length;
+      for (let i = 0; i < expected.length && i < actual.length; i++) {
+        if (expected.charCodeAt(i) !== actual.charCodeAt(i)) match = false;
+      }
+      if (expected.length !== actual.length) {
+        // Extra characters beyond length don't match
+        if (actual.length > expected.length) {
+          for (let i = expected.length; i < actual.length; i++) {
+            if (actual.charCodeAt(i) !== 0) match = false;
+          }
+        }
+      }
+      passwordValid = match;
       if (passwordValid) {
-        // Upgrade to hashed password
+        // Upgrade to hashed password immediately
         const bcrypt = require('bcryptjs');
         const hashed = await bcrypt.hash(password, 12);
         try {
           await db.platformUser.update({ where: { id: user.id }, data: { password: hashed } });
+          console.log(`[SECURITY] Password upgraded to bcrypt for user ${user.id}`);
         } catch {
           try {
             await pgQuery(`UPDATE "PlatformUser" SET password = $1 WHERE id = $2`, [hashed, user.id]);
-          } catch {}
+            console.log(`[SECURITY] Password upgraded to bcrypt for user ${user.id} (pg fallback)`);
+          } catch (upgradeErr: any) {
+            console.error(`[SECURITY] FAILED to upgrade password for user ${user.id}:`, upgradeErr?.message);
+          }
         }
       }
     }
@@ -157,6 +178,7 @@ export async function POST(req: NextRequest) {
       } : null
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    console.error('[Login] Error:', error?.message || error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

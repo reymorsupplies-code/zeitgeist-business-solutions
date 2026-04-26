@@ -117,7 +117,12 @@ export function isValidEmail(email: string): boolean {
 }
 
 export function isValidUUID(id: string): boolean {
-  return /^[a-zA-Z0-9_-]+$/.test(id);
+  // CUID format (used by Prisma): starts with letter, 25+ chars, alphanumeric + hyphens/underscores
+  // Also accepts standard UUID v4 format
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return true;
+  // Prisma CUID: min 9 chars, starts with letter, alphanumeric + underscore/hyphen
+  if (/^[a-z][a-z0-9_-]{8,}$/i.test(id)) return true;
+  return false;
 }
 
 export function validateRequiredFields(data: Record<string, any>, fields: string[]): string | null {

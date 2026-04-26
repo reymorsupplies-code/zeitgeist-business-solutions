@@ -6,8 +6,9 @@ import { registrationPending, newRegistrationAdmin } from '@/lib/email/templates
 
 export async function POST(req: NextRequest) {
   try {
-    // Rate limiting by IP
-    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    // Rate limiting by IP (split x-forwarded-for to get real client IP)
+    const rawIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const ip = rawIp.split(',')[0]?.trim() || 'unknown';
     const rateLimit = checkAuthRateLimit(`register:${ip}`);
     if (!rateLimit.allowed) {
       return NextResponse.json(

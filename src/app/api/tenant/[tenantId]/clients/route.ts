@@ -18,7 +18,7 @@ export async function GET(_req: NextRequest, {params }: { params: Promise<{ tena
     const clients = await db.client.findMany({ where: { tenantId, isDeleted: false }, orderBy: { name: 'asc' } });
     return NextResponse.json(clients);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -40,20 +40,30 @@ export async function POST(req: NextRequest, {params }: { params: Promise<{ tena
     });
     return NextResponse.json(client);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function PUT(req: NextRequest) {
+export async function PUT(req: NextRequest, {params}: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+  }
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) {
+    return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
   }
   const { id, ...fields } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
   try {
-    const updated = await db.client.update({ where: { id }, data: fields });
+    // CRITICAL: Verify record belongs to this tenant before updating
+    const existing = await db.client.findFirst({ where: { id, tenantId } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 404 });
+    }
+    const updated = await db.client.update({ where: { id, tenantId }, data: fields });
     return NextResponse.json(updated);
   } catch {
     try {
@@ -65,32 +75,42 @@ export async function PUT(req: NextRequest) {
         paramValues.push(v);
       }
       setParts.push(`"updatedAt" = NOW()`);
-      await pgQuery(`UPDATE "Client" SET ${setParts.join(', ')} WHERE id = $${pIdx}`, [...paramValues, id]);
-      const updated = await pgQueryOne(`SELECT * FROM "Client" WHERE id = $1`, [id]);
+      await pgQuery(`UPDATE "Client" SET ${setParts.join(', ')} WHERE id = $${pIdx} AND "tenantId" = $${pIdx + 1}`, [...paramValues, id, tenantId]);
+      const updated = await pgQueryOne(`SELECT * FROM "Client" WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
       return NextResponse.json(updated);
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
 
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest, {params}: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+  }
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) {
+    return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
   }
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
   try {
-    await db.client.update({ where: { id }, data: { isDeleted: true } });
+    // CRITICAL: Verify record belongs to this tenant before deleting
+    const existing = await db.client.findFirst({ where: { id, tenantId } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 404 });
+    }
+    await db.client.update({ where: { id, tenantId }, data: { isDeleted: true } });
     return NextResponse.json({ success: true });
   } catch {
     try {
-      await pgQuery(`UPDATE "Client" SET "isDeleted" = true, "updatedAt" = NOW() WHERE id = $1`, [id]);
+      await pgQuery(`UPDATE "Client" SET "isDeleted" = true, "updatedAt" = NOW() WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
       return NextResponse.json({ success: true });
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 }
