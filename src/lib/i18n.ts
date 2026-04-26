@@ -1650,6 +1650,11 @@ export const translations: Record<string, Record<string, string>> = {
     'pm.table.vendor': 'Vendor',
 
     // ═══════════════════ PM FORM LABELS ═══════════════════
+    'pm.type.residential': 'Residential',
+    'pm.type.commercial': 'Commercial',
+    'pm.type.mixedUse': 'Mixed Use',
+    'pm.type.office': 'Office',
+    'pm.type.land': 'Land',
     'pm.form.totalArea': 'Total Area (m²)',
     'pm.form.startDate': 'Start Date',
     'pm.form.endDate': 'End Date',
@@ -3971,6 +3976,11 @@ export const translations: Record<string, Record<string, string>> = {
     'pm.table.vendor': 'Proveedor',
 
     // ═══════════════════ PM FORM LABELS ═══════════════════
+    'pm.type.residential': 'Residencial',
+    'pm.type.commercial': 'Comercial',
+    'pm.type.mixedUse': 'Uso Mixto',
+    'pm.type.office': 'Oficina',
+    'pm.type.land': 'Terreno',
     'pm.form.totalArea': 'Área Total (m²)',
     'pm.form.startDate': 'Fecha Inicio',
     'pm.form.endDate': 'Fecha Fin',

@@ -62,3 +62,4 @@ download/
 *.db
 *.db-journal
 CONTINUE.md
+.env.local

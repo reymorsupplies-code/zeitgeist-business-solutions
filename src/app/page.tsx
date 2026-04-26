@@ -6273,7 +6273,7 @@ function CTProperties({ apiBase = '/api/platform' }: { apiBase?: string } = {}) 
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
-  const [form, setForm] = useState({ name: '', address: '', city: '', type: 'Commercial', totalArea: '', description: '', status: 'active' });
+  const [form, setForm] = useState({ name: '', address: '', city: '', type: 'Residential', totalArea: '', description: '', status: 'active' });
 
   const load = useCallback(() => {
     setLoading(true);
@@ -6304,7 +6304,7 @@ function CTProperties({ apiBase = '/api/platform' }: { apiBase?: string } = {}) 
   };
 
   const statusColor: Record<string, string> = { active: 'bg-green-100 text-green-700', inactive: 'bg-gray-100 text-gray-600' };
-  const typeLabels: Record<string, string> = { Commercial: 'Comercial', 'Mixed Use': 'Uso Mixto', Office: 'Oficina' };
+  const typeLabels: Record<string, string> = { Residential: t('pm.type.residential', locale), Commercial: t('pm.type.commercial', locale), 'Mixed Use': t('pm.type.mixedUse', locale), Office: t('pm.type.office', locale), Land: t('pm.type.land', locale) };
 
   return (
     <div className="space-y-6">
@@ -6352,7 +6352,7 @@ function CTProperties({ apiBase = '/api/platform' }: { apiBase?: string } = {}) 
             <div><Label>Dirección</Label><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Ciudad</Label><Input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
-              <div><Label>Tipo</Label><Select value={form.type} onValueChange={v => setForm({ ...form, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Commercial">Comercial</SelectItem><SelectItem value="Mixed Use">Uso Mixto</SelectItem><SelectItem value="Office">Oficina</SelectItem></SelectContent></Select></div>
+              <div><Label>Tipo</Label><Select value={form.type} onValueChange={v => setForm({ ...form, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Residential">{t('pm.type.residential', locale)}</SelectItem><SelectItem value="Commercial">{t('pm.type.commercial', locale)}</SelectItem><SelectItem value="Mixed Use">{t('pm.type.mixedUse', locale)}</SelectItem><SelectItem value="Office">{t('pm.type.office', locale)}</SelectItem><SelectItem value="Land">{t('pm.type.land', locale)}</SelectItem></SelectContent></Select></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>{t("pm.form.totalArea", locale)}</Label><Input type="number" value={form.totalArea} onChange={e => setForm({ ...form, totalArea: e.target.value })} /></div>
@@ -6388,7 +6388,7 @@ function CTPropertyUnits({ apiBase = '/api/platform' }: { apiBase?: string } = {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    Promise.all([authFetch(`${apiBase}/properties`).then(r => r.json()), authFetch('/api/platform/tenants').then(r => r.json())]).then(([p, t]) => {
+    Promise.all([authFetch(`${apiBase}/properties`).then(r => r.json()), authFetch(`${apiBase}/renters`).then(r => r.json())]).then(([p, t]) => {
       setProperties(Array.isArray(p) ? p : []); setTenants(Array.isArray(t) ? t : []);
     }).catch(() => {});
   }, []);
@@ -6486,7 +6486,7 @@ function CTLeases({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    Promise.all([authFetch(`${apiBase}/property-units`).then(r => r.json()), authFetch('/api/platform/tenants').then(r => r.json())]).then(([u, t]) => {
+    Promise.all([authFetch(`${apiBase}/property-units`).then(r => r.json()), authFetch(`${apiBase}/renters`).then(r => r.json())]).then(([u, t]) => {
       setUnits(Array.isArray(u) ? u : []); setTenants(Array.isArray(t) ? t : []);
     }).catch(() => {});
   }, []);
@@ -6600,7 +6600,7 @@ function CTMaintenance({ apiBase = '/api/platform' }: { apiBase?: string } = {})
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    Promise.all([authFetch(`${apiBase}/properties`).then(r => r.json()), authFetch(`${apiBase}/property-units`).then(r => r.json()), authFetch('/api/platform/tenants').then(r => r.json())]).then(([p, u, t]) => {
+    Promise.all([authFetch(`${apiBase}/properties`).then(r => r.json()), authFetch(`${apiBase}/property-units`).then(r => r.json()), authFetch(`${apiBase}/renters`).then(r => r.json())]).then(([p, u, t]) => {
       setProperties(Array.isArray(p) ? p : []); setAllUnits(Array.isArray(u) ? u : []); setTenants(Array.isArray(t) ? t : []);
     }).catch(() => {});
   }, []);
@@ -8151,7 +8151,7 @@ function CTVendors({ apiBase = '/api/platform' }: { apiBase?: string } = {}) {
               <div><Label>Name</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Vendor name" /></div>
               <div><Label>Category</Label><Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
             </div>
-            <div><Label>Property (optional)</Label><Select value={form.propertyId} onValueChange={v => setForm(f => ({ ...f, propertyId: v }))}><SelectTrigger><SelectValue placeholder="All Properties" /></SelectTrigger><SelectContent><SelectItem value="">All Properties</SelectItem>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Property (optional)</Label><Select value={form.propertyId} onValueChange={v => setForm(f => ({ ...f, propertyId: v }))}><SelectTrigger><SelectValue placeholder="All Properties" /></SelectTrigger><SelectContent><SelectItem value="__all__">All Properties</SelectItem>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Contact Person</Label><Input value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} /></div>
               <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
@@ -8269,7 +8269,7 @@ function CTPropertyDocuments({ apiBase = '/api/platform' }: { apiBase?: string }
           <div className="space-y-3 mt-4">
             <div><Label>Document Name</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Insurance Policy 2025" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Property</Label><Select value={form.propertyId} onValueChange={v => setForm(f => ({ ...f, propertyId: v }))}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent><SelectItem value="">General</SelectItem>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label>Property</Label><Select value={form.propertyId} onValueChange={v => setForm(f => ({ ...f, propertyId: v }))}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent><SelectItem value="__none__">General</SelectItem>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
               <div><Label>Document Type</Label><Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{docTypes.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
             </div>
             <div><Label>Description</Label><Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} /></div>
@@ -9691,7 +9691,7 @@ function SmartImportPage() {
     setImporting(true);
     setProgress({ imported: 0, total: analysis.totalRows, errors: [] });
     try {
-      const mapping = Object.entries(mappingOverrides).map(([source, target]) => ({ source, target }));
+      const mapping = { ...mappingOverrides };
       const res = await authFetch(`/api/tenant/${tid}/smart-import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -12183,10 +12183,10 @@ function TenantReportsPage() {
               <CardHeader className="pb-3"><CardTitle className="text-base">Top 5 Productos Más Vendidos</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {topProducts.map((p, idx) => (
+                  {topProductsArr.map((p: any, idx: number) => (
                     <div key={p.name} className="space-y-1">
-                      <div className="flex justify-between text-sm"><span className="font-medium">{idx + 1}. {p.name}</span><span className="text-muted-foreground">{p.sold} uds → {formatCurrency(p.revenue, currency)}</span></div>
-                      <div className="w-full bg-muted rounded-full h-2.5"><div className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full" style={{ width: `${(p.revenue / maxProd) * 100}%` }} /></div>
+                      <div className="flex justify-between text-sm"><span className="font-medium">{idx + 1}. {p.name}</span><span className="text-muted-foreground">{formatCurrency(p.revenue, currency)}</span></div>
+                      <div className="w-full bg-muted rounded-full h-2.5"><div className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full" style={{ width: `${maxProd > 0 ? (p.revenue / maxProd) * 100 : 0}%` }} /></div>
                     </div>
                   ))}
                 </div>
