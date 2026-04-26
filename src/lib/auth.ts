@@ -165,12 +165,13 @@ const COLUMN_WHITELISTS: Record<string, Set<string>> = {
     'clientEmail', 'service', 'notes', 'status', 'isDeleted', 'updatedAt',
   ]),
   Expense: new Set([
-    'description', 'amount', 'category', 'date', 'paymentMethod',
-    'notes', 'receiptNumber', 'isDeleted', 'updatedAt',
+    'description', 'amount', 'category', 'date', 'currency',
+    'receiptUrl', 'vendor', 'isDeleted', 'updatedAt',
   ]),
   Invoice: new Set([
     'invoiceNumber', 'clientName', 'clientEmail', 'items',
-    'subtotal', 'taxAmount', 'totalAmount', 'status', 'dueDate',
+    'subtotal', 'taxRate', 'taxAmount', 'totalAmount', 'balanceDue',
+    'status', 'issueDate', 'dueDate',
     'notes', 'isDeleted', 'updatedAt',
   ]),
   Payment: new Set([
@@ -207,16 +208,17 @@ const COLUMN_WHITELISTS: Record<string, Set<string>> = {
     'status', 'court', 'nextDate', 'isDeleted', 'updatedAt',
   ]),
   Supplier: new Set([
-    'name', 'contactPerson', 'email', 'phone', 'address',
-    'category', 'notes', 'isDeleted', 'updatedAt',
+    'name', 'contact', 'email', 'phone', 'address',
+    'category', 'rating', 'notes', 'isDeleted', 'updatedAt',
   ]),
   Recipe: new Set([
     'name', 'description', 'yield', 'costPrice', 'sellPrice',
     'category', 'instructions', 'isDeleted', 'updatedAt',
   ]),
   RetailProduct: new Set([
-    'name', 'description', 'price', 'costPrice', 'category',
-    'sku', 'stock', 'barcode', 'isActive', 'isDeleted', 'updatedAt',
+    'name', 'price', 'cost', 'quantity', 'minStock', 'category',
+    'sku', 'barcode', 'supplier', 'imageUrl', 'taxCategory', 'settings',
+    'isActive', 'isDeleted', 'updatedAt',
   ]),
   POSSale: new Set([
     'status', 'customerName', 'staffName', 'paymentMethod', 'notes',
@@ -232,6 +234,7 @@ const COLUMN_WHITELISTS: Record<string, Set<string>> = {
   ]),
   GiftCard: new Set([
     'customerName', 'purchaserName', 'status', 'notes', 'expiresAt',
+    'initialBalance', 'currentBalance',
   ]),
   RegisterShift: new Set([
     'closingCash', 'notes', 'status',
@@ -281,6 +284,56 @@ const COLUMN_WHITELISTS: Record<string, Set<string>> = {
   RenewalTask: new Set([
     'policyId', 'dueDate', 'status', 'assignedTo', 'notes',
     'completedDate', 'isDeleted', 'updatedAt',
+  ]),
+  // Events & Hospitality
+  Event: new Set([
+    'name', 'type', 'clientName', 'venue', 'eventDate', 'setupDate',
+    'guestCount', 'budget', 'status', 'notes', 'isDeleted', 'updatedAt',
+  ]),
+  Venue: new Set([
+    'name', 'location', 'capacity', 'contact', 'email', 'phone',
+    'amenities', 'pricePerHour', 'isActive', 'isDeleted', 'updatedAt',
+  ]),
+  Vendor: new Set([
+    'name', 'category', 'contact', 'email', 'phone',
+    'rating', 'notes', 'isDeleted', 'updatedAt',
+  ]),
+  // Bookkeeping
+  BookkeepingEntry: new Set([
+    'date', 'description', 'category', 'type', 'amount',
+    'currency', 'reference', 'accountId', 'isDeleted', 'updatedAt',
+  ]),
+  // Property Management
+  Property: new Set([
+    'name', 'address', 'city', 'country', 'type', 'totalArea',
+    'units', 'description', 'imageUrl', 'status', 'updatedAt',
+  ]),
+  PropertyUnit: new Set([
+    'unitNumber', 'floor', 'area', 'baseRentTTD', 'baseRentUSD',
+    'status', 'amenities', 'notes', 'updatedAt',
+  ]),
+  Lease: new Set([
+    'unitId', 'startDate', 'endDate', 'rentAmount', 'rentCurrency',
+    'depositAmount', 'status', 'terms', 'notes',
+    'autoRenew', 'renewalNoticeDays', 'rentIncreasePercent',
+    'lastRenewedAt', 'renewalCount', 'updatedAt',
+  ]),
+  MaintenanceRequest: new Set([
+    'title', 'description', 'category', 'priority', 'status',
+    'resolvedAt', 'cost', 'vendor', 'notes', 'updatedAt',
+  ]),
+  LegalNotice: new Set([
+    'type', 'jurisdiction', 'templateSlug', 'title', 'content',
+    'sentDate', 'sentMethod', 'responseDate', 'responseNotes',
+    'status', 'effectiveDate', 'expiresAt', 'updatedAt',
+  ]),
+  PropertyVendor: new Set([
+    'propertyId', 'name', 'category', 'contact', 'email', 'phone',
+    'address', 'rating', 'isActive', 'notes', 'updatedAt',
+  ]),
+  PropertyDocument: new Set([
+    'propertyId', 'unitId', 'leaseId', 'name', 'type', 'category',
+    'fileUrl', 'description', 'expiresAt', 'status', 'updatedAt',
   ]),
 };
 

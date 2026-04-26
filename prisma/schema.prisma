@@ -1693,7 +1693,7 @@ model MaintenanceRequest {
 
 model RentPayment {
   id            String    @id @default(cuid())
-  leaseId       String
+  leaseId       String?
   propertyId    String
   unitId        String
   tenantId      String?
@@ -1712,7 +1712,7 @@ model RentPayment {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  lease    Lease        @relation(fields: [leaseId], references: [id])
+  lease    Lease?        @relation(fields: [leaseId], references: [id])
   property Property     @relation(fields: [propertyId], references: [id])
   unit     PropertyUnit @relation(fields: [unitId], references: [id])
   tenant   Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
@@ -1894,9 +1894,9 @@ model PropertyInspection {
 
 model LegalNotice {
   id            String    @id @default(cuid())
-  leaseId       String
-  propertyId    String
-  unitId        String
+  leaseId       String?
+  propertyId    String?
+  unitId        String?
   tenantId      String?
   type          String // rent_increase, lease_renewal, lease_termination, eviction, late_payment, maintenance, vacate_notice
   jurisdiction  String    @default("TT") // TT, JM, BB, etc.
@@ -1913,9 +1913,9 @@ model LegalNotice {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  lease    Lease        @relation(fields: [leaseId], references: [id])
-  property Property     @relation(fields: [propertyId], references: [id])
-  unit     PropertyUnit @relation(fields: [unitId], references: [id])
+  lease    Lease?        @relation(fields: [leaseId], references: [id])
+  property Property?     @relation(fields: [propertyId], references: [id])
+  unit     PropertyUnit? @relation(fields: [unitId], references: [id])
   tenant   Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   renters  Renter[]
 }

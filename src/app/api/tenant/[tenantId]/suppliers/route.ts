@@ -36,7 +36,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   let body: any;
   try {
     body = await req.json();
-    const item = await db.supplier.create({ data: { ...body, tenantId } });
+    const item = await db.supplier.create({
+      data: {
+        tenantId,
+        name: body.name,
+        contact: body.contact || body.contactPerson,
+        email: body.email,
+        phone: body.phone,
+        address: body.address,
+        category: body.category,
+        rating: body.rating || 0,
+        notes: body.notes,
+      }
+    });
     return NextResponse.json(item);
   } catch {
     try {
@@ -45,7 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       await pgQuery(
         `INSERT INTO "Supplier" ("tenantId","name","contact","email","phone","address","category","rating","notes","isDeleted","createdAt","updatedAt")
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,false,$10,$11)`,
-        [tenantId, data.name || '', data.contact || '', data.email || '', data.phone || '', data.address || '', data.category || '', data.rating || 0, data.notes || '', now, now]
+        [tenantId, data.name || '', data.contact || data.contactPerson || '', data.email || '', data.phone || '', data.address || '', data.category || '', data.rating || 0, data.notes || '', now, now]
       );
       const created = await pgQueryOne(`SELECT * FROM "Supplier" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC LIMIT 1`, [tenantId]);
       return NextResponse.json(created);
@@ -68,7 +80,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
   try {
-    const updated = await db.supplier.update({ where: { id, tenantId }, data: whitelistFields('Supplier', fields) });
+    const existing = await db.supplier.findFirst({ where: { id, tenantId } });
+    if (!existing) return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
+    const updated = await db.supplier.update({ where: { id }, data: whitelistFields('Supplier', fields) });
     return NextResponse.json(updated);
   } catch {
     try {
@@ -104,7 +118,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
   try {
-    await db.supplier.update({ where: { id, tenantId }, data: { isDeleted: true } });
+    const existing = await db.supplier.findFirst({ where: { id, tenantId } });
+    if (!existing) return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
+    await db.supplier.update({ where: { id }, data: { isDeleted: true } });
     return NextResponse.json({ success: true });
   } catch {
     try {

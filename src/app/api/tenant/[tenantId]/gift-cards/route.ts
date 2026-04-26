@@ -183,8 +183,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }
 
+  let requestBody: any;
   try {
-    const { id, action, amount, reference, saleId, ...fields } = await req.json();
+    requestBody = await req.json();
+    const { id, action, amount, reference, saleId, ...fields } = requestBody;
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
     // ── Reload balance ──
@@ -286,7 +288,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
         return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
       }
       const updated = await db.giftCard.update({
-        where: { id, tenantId },
+        where: { id },
         data: safeFields,
       });
       return NextResponse.json(updated);
@@ -295,7 +297,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ tena
     return NextResponse.json({ error: 'No action specified. Use action: reload|redeem|void' }, { status: 400 });
   } catch (error: any) {
     try {
-      const { id, action, amount, reference, saleId, ...fields } = await req.json();
+      const { id, action, amount, reference, saleId, ...fields } = requestBody;
       if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
       // Fetch existing card
@@ -381,7 +383,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
   try {
-    await db.giftCard.update({ where: { id, tenantId }, data: { isDeleted: true } });
+    const existing = await db.giftCard.findFirst({ where: { id, tenantId } });
+    if (!existing) return NextResponse.json({ error: 'Gift card not found' }, { status: 404 });
+    await db.giftCard.update({ where: { id }, data: { isDeleted: true } });
     return NextResponse.json({ success: true });
   } catch {
     try {

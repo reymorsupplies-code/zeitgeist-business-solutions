@@ -33,38 +33,57 @@ export async function POST(req: NextRequest, {params }: { params: Promise<{ tena
 
   try {
     const data = await req.json();
-    const item = await db.event.create({ data: { ...data, tenantId } });
+    const item = await db.event.create({
+      data: {
+        tenantId,
+        name: data.name,
+        type: data.type,
+        clientName: data.clientName,
+        venue: data.venue,
+        eventDate: data.eventDate ? new Date(data.eventDate) : null,
+        setupDate: data.setupDate ? new Date(data.setupDate) : null,
+        guestCount: data.guestCount || 0,
+        budget: data.budget || 0,
+        status: data.status || 'planning',
+        notes: data.notes,
+      }
+    });
     return NextResponse.json(item);
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }
 }
 
-export async function PUT(req: NextRequest) {
+export async function PUT(req: NextRequest, {params}: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   }
-  // Tenant isolation — verify tenantId from JWT
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) {
+    return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
+  }
 
   const { id, ...fields } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
   try {
-    const updated = await db.event.update({ where: { id, tenantId }, data: whitelistFields('Event', fields) });
+    const existing = await db.event.findFirst({ where: { id, tenantId } });
+    if (!existing) return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    const updated = await db.event.update({ where: { id }, data: whitelistFields('Event', fields) });
     return NextResponse.json(updated);
   } catch {
     try {
+      const safeFields = whitelistFields('Event', fields);
       const setParts: string[] = [];
       const paramValues: any[] = [];
       let pIdx = 1;
-      for (const [k, v] of Object.entries(fields)) {
-        setParts.push(`"${k}" = ${pIdx++}`);
+      for (const [k, v] of Object.entries(safeFields)) {
+        setParts.push(`"${k}" = $${pIdx++}`);
         paramValues.push(v);
       }
       setParts.push(`"updatedAt" = NOW()`);
-      await pgQuery(`UPDATE "Event" SET ${setParts.join(', ')} WHERE id = $${pIdx}`, [...paramValues, id]);
-      const updated = await pgQueryOne(`SELECT * FROM "Event" WHERE id = $1`, [id]);
+      await pgQuery(`UPDATE "Event" SET ${setParts.join(', ')} WHERE id = $${pIdx++} AND "tenantId" = $${pIdx}`, [...paramValues, id, tenantId]);
+      const updated = await pgQueryOne(`SELECT * FROM "Event" WHERE id = $1 AND "tenantId" = $2`, [id, tenantId]);
       return NextResponse.json(updated);
     } catch (err: any) {
       return NextResponse.json({ error: err.message }, { status: 500 });
@@ -72,20 +91,24 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest, {params}: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
   const auth = authenticateRequest(req);
   if (!auth.success) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   }
-  // Tenant isolation — verify tenantId from JWT
-  const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+  const ownership = verifyTenantAccess(auth, tenantId);
+  if (!ownership.success) {
+    return NextResponse.json({ error: ownership.error }, { status: ownership.status || 403 });
+  }
 
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
   try {
-    await db.event.update({ where: { id, tenantId }, data: { isDeleted: true } });
+    const existing = await db.event.findFirst({ where: { id, tenantId } });
+    if (!existing) return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    await db.event.update({ where: { id }, data: { isDeleted: true } });
     return NextResponse.json({ success: true });
   } catch {
     try {

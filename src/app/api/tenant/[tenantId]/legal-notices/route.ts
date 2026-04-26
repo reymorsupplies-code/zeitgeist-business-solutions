@@ -235,7 +235,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ te
     if (body.title !== undefined) data.title = body.title;
     if (body.content !== undefined) data.content = body.content;
     if (body.sentMethod !== undefined) data.sentMethod = body.sentMethod;
-    if (body.notes !== undefined) data.notes = body.notes;
     if (body.responseNotes !== undefined) data.responseNotes = body.responseNotes;
     if (body.responseDate !== undefined) data.responseDate = body.responseDate ? new Date(body.responseDate) : null;
     if (body.effectiveDate !== undefined) data.effectiveDate = body.effectiveDate ? new Date(body.effectiveDate) : null;
