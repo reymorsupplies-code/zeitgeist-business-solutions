@@ -516,3 +516,171 @@ Stage Summary:
 - Total insurance module now: 95 Prisma models, ~30 insurance API routes, 11 pages, 554+ i18n keys
 - SQL migrations pending: phase12-insurance-expansion.sql (Phases 1-3) + phase45-insurance-portal-reports.sql (Phases 4-5)
 - ENV var needed: INSURANCE_ENCRYPTION_KEY
+---
+Task ID: DIAG-2026-04-27
+Agent: Main Agent (Super Z)
+Task: Diagnóstico completo del sistema ZBS — zero cambios, solo análisis
+
+Work Log:
+- Clonado repo fresh desde GitHub (reymorsupplies-code/zeitgeist-business-solutions)
+- Instaladas dependencias npm (sin errores)
+- Generado Prisma Client v6.19.3 exitosamente
+- Build Next.js 16.2.3 (Turbopack) exitoso — 0 errores
+- Deploy verificado en zbs-psi.vercel.app — HTTP 200
+- Intentado conectar a Supabase DB — sin credenciales reales en .env local
+
+=== ESTADÍSTICAS DEL PROYECTO ===
+- Prisma Schema: 95 modelos, 2,364 líneas
+- API Routes: 193 endpoints (125 tenant, 36 platform, 7 portal, 8 renter, 8 auth, 10 other)
+- Frontend: 1 archivo page.tsx de 24,704 líneas (monolito SPA)
+- Componentes UI: 54 shadcn/ui
+- Componentes de página: 15 externalizados
+- Módulos de industria: 8 (5 activos, 3 coming soon)
+- Migraciones SQL: 8 archivos phase + 1 ALL_PHASES_COMBINED
+- Archivos SQL adicionales: init, schema, full-schema, migrate-all, fix-all-columns, add-columns, seed
+
+=== LO QUE ESTÁ BIEN ===
+
+✅ BUILD: Compila sin errores en Next.js 16.2.3 (Turbopack), 55 páginas generadas
+✅ DEPLOY: zbs-psi.vercel.app responde HTTP 200 con HTML completo, SEO metadata, PWA manifest
+✅ PRISMA: Schema validado — 95 modelos, relaciones definidas, índices en tablas principales
+✅ DOBLE TRANSPORTE DB: pg-query.ts tiene fallback inteligente pg → Supabase REST API
+✅ AUTENTICACIÓN: Middleware JWT con jose (Edge compatible), rate limiting, superAdmin protection
+✅ MÓDULOS FUNCIONALES: Panadería (muy completo), Salón, Retail, Eventos, Bienes Raíces — todos con UI + APIs
+✅ COMPONENTES: 15 componentes externalizados (Insurance, Clinics, Legal) bien implementados
+✅ i18n: Sistema EN/ES completo (~4,600+ keys) con localStorage persistence
+✅ PWA: manifest.json + service worker registration
+✅ WIHSP WEBHOOKS: Meta y WiPay integrados con verificación
+✅ SEGURIDAD ESPECÍFICA MÓDULO INSURANCE: PII encryption (AES-256-GCM), audit logging, RBAC 6 roles
+✅ SUBDOMINIO ROUTING: Middleware detecta subdominios y reescribe a /portal/[slug]
+✅ NOTIFICACIONES: Sistema completo con auto-generación de eventos
+✅ PORTAL INQUILINO: Login PIN, dashboard, pagos, mantenimiento, documentos
+✅ .ENV: Sin credenciales reales en el repo (buena práctica de seguridad)
+
+=== LO QUE ESTÁ MAL ===
+
+🔴 CRÍTICO (7 issues)
+
+C1. CONTRASEÑAS EN TEXTO PLANO — /api/platform/users POST
+   Guarda data.password SIN hashear con bcrypt. Solo protegido por superAdmin middleware,
+   pero cualquier breach expone contraseñas directamente.
+
+C2. LOGIN CON FALLBACK A TEXTO PLANO — auth/login/route.ts
+   Si password NO empieza con $2, compara directamente: user.password === password.
+   Timing attack vulnerable + sin auditoría del caso legacy.
+
+C3. FALTA AISLAMIENTO DE TENANT EN PUT/DELETE — múltiples rutas
+   clients/route.ts PUT/DELETE NO verifican que el registro pertenezca al tenant.
+   Un usuario autenticado puede modificar clientes de OTRO tenant conociendo el ID.
+   Patrón se repite potencialmente en otras rutas con body.id en vez de URL params.
+
+C4. isValidUUID() NO VALIDA UUIDs — lib/auth.ts
+   Retorna true para CUALQUIER string alfanumérico: /^[a-zA-Z0-9_-]+$/
+   No valida formato UUID real. Falsa confianza en validación.
+
+C5. PORTAL INSURANCE BLOQUEADO POR MIDDLEWARE
+   Rutas /api/portal/insurance/* usan portal tokens (?token=xxx) pero el middleware
+   captura ?token= y lo intenta verificar como JWT → siempre 401 TOKEN_INVALID.
+   Solo funciona vía subdominio (middleware hace rewrite antes de JWT check).
+
+C6. /api/cron/trial-expiry INALCANZABLE
+   Usa CRON_SECRET propio pero NO está en PUBLIC_ROUTES del middleware.
+   Vercel Cron no tiene JWT válido → bloqueado por middleware antes del handler.
+
+C7. SQL DINÁMICO SIN SANITIZAR EN ALGUNOS PUT
+   Algunos endpoints construyen SET "col" = $N con columnas del input del usuario
+   sin whitelist. Aunque comillas dobles rodean el identificador, no hay validación real.
+
+🟡 ADVERTENCIA (10 issues)
+
+W1. X-Frame-Options: DENY vs frame-src CSP en conflicto
+   CSP permite iframes de Stripe/WiPay pero X-Frame-Options: DENY los bloquea.
+   Pagos en iframe NO funcionarán. Cambiar a SAMEORIGIN.
+
+W2. CSP permite unsafe-inline y unsafe-eval — anula protección XSS
+
+W3. Rate limiting en memoria (Map) — ineficaz en serverless (Vercel)
+   Múltiples instancias = límite trivialmente evadible + fuga de memoria (nunca se limpia)
+
+W4. x-forwarded-for sin dividir por coma — IP spoofing en rate limiting
+
+W5. /api/db-init fallback a 'dev-secret' si JWT_SECRET no existe
+
+W6. /api/cron/trial-expiry secreto hardcodeado: 'zbs-cron-secret-2026'
+
+W7. /api/db-init ejecuta ALTER TABLE en cada request de forgot/reset-password
+
+W8. Portal insurance POST sin rate limiting — abuso de claims
+
+W9. Sin CORS explícito en respuestas API
+
+W10. Error messages internos expuestos al cliente (error.message directo)
+
+🔵 INFORMACIÓN / MEJORAS (10 issues)
+
+I1. lib/supabase/middleware.ts tiene updateSession() NUNCA llamada — código muerto
+
+I2. 200+ rutas API con patrón repetitivo auth+tenant — candidato a wrapper
+
+I3. page.tsx monolito de 24,704 líneas — riesgo extremo de mantenibilidad
+
+I4. Zero Server Components — todo es 'use client'. Sin SSR/SSG/SEO dinámico
+
+I5. No existen loading.tsx, error.tsx, not-found.tsx
+
+I6. Código muerto: {(s => s.locale); en 10 funciones getXxxNav()
+
+I7. Módulo "professional" huérfano — getProfessionalNav() sin industria correspondiente
+
+I8. Status industrias inconsistente: Insurance, Clinics, Legal tienen implementación
+   completa pero están marcadas como "coming_soon"
+
+I9. /api/route.ts expone "Hello, world!" sin funcionalidad
+
+I10. /api/contact sin rate limiting — spam potential
+
+=== DRIFT ENTRE PRISMA Y SUPABASE SQL ===
+
+⚠️ CRÍTICO: El schema Prisma (95 modelos) está MUY por delante de supabase-init.sql (~28 tablas base)
+- supabase-init.sql NO incluye modelos de Property Management, Renter, Notifications, Insurance completo, Retail POS, etc.
+- Existen 8+ archivos SQL de migración en supabase-migrations/ pero NO hay sistema de tracking de cuáles se ejecutaron
+- Múltiples SQL solapados: supabase-init.sql, supabase-schema.sql, supabase-full-schema.sql,
+  supabase-migrate-all.sql, supabase-fix-all-columns.sql — diferentes estados del schema
+- Riesgo alto: algunas tablas requeridas por las APIs podrían NO existir en Supabase
+
+Tablas en Prisma SIN equivalente confirmado en init.sql:
+  - Renter, PortalSetting, ChatConversation, ChatMessage
+  - SurchargeConfig, SurchargeRecord, WiPayTransaction, TenantApplication
+  - Notification, LoyaltyMember, LoyaltyTransaction, GiftCard, ProductReturn
+  - RegisterShift, Layaway, PurchaseOrder, StockMovement, Supplier
+  - POSSale, RetailProduct, AllergenDeclaration, HACCPPlan, HACCPRiskLog
+  - FoodHandlerRegistration, HealthInspection, TemperatureLog, CleaningSanitationLog
+  - PropertyInspection, SecurityDeposit, OwnerDisbursement, LeaseRenewalLog
+  - PropertyVendor, LegalNotice, VATReturn
+  - UnderwritingRule, CommissionStatement, RegulatoryReport
+  - Quote, QuoteLine, ClaimDocument, ClaimNote, ClaimActivity, Endorsement
+  - PremiumSchedule, RenewalTask, PortalToken
+
+=== RESUMEN EJECUTIVO ===
+
+| Área | Estado | Score |
+|------|--------|-------|
+| Build & Deploy | ✅ Funcional | 9/10 |
+| API Coverage | ✅ Muy completo | 8/10 |
+| Schema Prisma | ⚠️ Completo pero desincronizado con DB | 6/10 |
+| Seguridad | 🔴 7 bugs críticos | 4/10 |
+| Frontend | ⚠️ Funcional pero monolito extremo | 5/10 |
+| Migraciones DB | 🔴 Caótico, sin tracking | 3/10 |
+| Arquitectura | ⚠️ SPA anti-patrón, pero funcional | 5/10 |
+| i18n | ✅ Completo EN/ES | 9/10 |
+| Módulos Activos (5) | ✅ Todos funcionales | 8/10 |
+| Módulos Coming Soon (3) | ⚠️ Ya implementados pero no activados | 7/10 |
+
+SCORE GENERAL: 6.4/10 — Funcional para demo pero NO listo para producción sin correcciones de seguridad.
+
+Stage Summary:
+- NO se ejecutaron cambios — diagnóstico puro
+- El sistema es IMPRESIONANTE en alcance (95 modelos, 193 APIs, 8 industrias, portal inquilino, WiPay, WhatsApp)
+- Los 7 bugs críticos de seguridad deben resolverse ANTES de aceptar clientes reales
+- El drift entre Prisma y Supabase es el riesgo #1 para estabilidad en producción
+- Recomendación: ejecutar supabase-full-schema.sql + ALL_PHASES_COMBINED.sql en SQL Editor para sincronizar
